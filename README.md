@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: crystal-actions/contributor-mural@v2
+      - uses: crystal-actions/contributor-mural@v1
 ```
 
 Then embed the result in your README:

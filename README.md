@@ -39,8 +39,9 @@ SVG art and commits it to your repository.
 - [Multiple outputs and PNG](#multiple-outputs-and-png)
 - [Action inputs and outputs](#action-inputs-and-outputs)
 - [Full config reference](#full-config-reference)
+- [Versions and pinning](#versions-and-pinning)
 - [Notes](#notes)
-- [CLI](#cli) · [Development](#development) · [License](#license)
+- [CLI](#cli) · [Running it locally](#running-it-locally) · [Development](#development) · [License](#license)
 
 ## Quick start
 
@@ -411,24 +412,29 @@ users:                      # your curated list — always wins on conflicts
 
 contributors:               # this repository's contributors
   repo: owner/name          # default: the current repository
-  include_bots: false       # keep type=Bot / *[bot] accounts
+  include_bots: false       # keep accounts GitHub types as bots; legacy
+                            # service accounts need an `exclude` entry
   include_anonymous: false  # include anonymous (email-only) contributors
   max: 100                  # contribution counts become weights
+  weight: 1                 # optional: put everyone from here on one rung
   group: Contributors
 
 members:                    # organization members (`org` is required)
   org: crystal-actions
   max: 100
+  weight: 1
   group: Team
 
 stargazers:                 # the repository's stargazers
   repo: owner/name
   max: 100
+  weight: 1
   group: Stargazers
 
 sponsors:                   # GitHub Sponsors (needs a token)
   login: hahwul             # default: the repository owner
   max: 100                  # tier $/month becomes each sponsor's weight
+  weight: 1                 # optional: ignore tiers, treat sponsors alike
   group: Sponsors
 ```
 
@@ -445,12 +451,55 @@ your entry wins field by field — set a custom `name` or `weight` and let the c
 count fill everyone else's. Someone returned by more than one API source (a contributor
 who also sponsors) appears once, keeping the highest weight and the first source's group.
 
+**Source `weight`.** Setting `weight:` on a source block replaces the weight every user
+from it would otherwise carry, so the source sets the floor and `users:` carries only the
+deviations. This is what makes "two maintainers above everyone else" survive a new
+contributor landing a PR — without it the only way to flatten the field is to enumerate
+every login, which freezes a list the API exists to keep fresh:
+
 ```yaml
-exclude: [dependabot[bot]]  # drop logins from any source
+contributors:
+  weight: 1                 # everyone from the API sits on one rung
+
+users:
+  - login: hahwul           # the exceptions, and only the exceptions
+    weight: 3
+  - login: ksg97031
+    weight: 2
+```
+
+It is also how "sponsors above contributors" is expressed without touching tier amounts:
+give `sponsors` a higher `weight` than `contributors` and let the merge keep the higher of
+the two for anyone who is both.
+
+```yaml
+exclude: ["*[bot]", ImgBotApp]  # drop logins from any source
 sort: weight                # weight | login | none (none keeps list order)
 limit: 60                   # cap rendered users after merge and sort
 fail_on_missing: false      # true: fail the run when an avatar cannot be fetched
 ```
+
+**`exclude` patterns.** Entries match logins case-insensitively. An entry containing `*`
+(any run of characters) or `?` (exactly one) is a wildcard; anything else is an exact
+match. Those two are the whole vocabulary — there are no `[...]` character classes, so
+`*[bot]` means what it looks like, "ends with the literal `[bot]`", rather than "ends with
+b, o, or t".
+
+**What `include_bots: false` actually filters.** It drops accounts GitHub *types* as bots:
+`type: "Bot"`, or a login ending in `[bot]`. Service accounts that predate the GitHub Apps
+convention are typed `User` and come through like anybody else — `ImgBotApp` is a real
+example, and its profile carries a bio, hundreds of repositories, and thousands of
+followers, so there is nothing structural left to detect it by. Those need naming:
+
+```yaml
+contributors:
+  include_bots: false       # the ones GitHub labels
+
+exclude:
+  - ImgBotApp               # and the ones it does not
+```
+
+If a machine account shows up on your wall, this is why, and `exclude` is the fix.
 
 ## Multiple outputs and PNG
 
@@ -488,8 +537,33 @@ palette; add a second output with `mode: dark` for a pair.
 | ------ | ----------- |
 | `paths` | Comma-separated generated files, SVG and PNG |
 | `user_count` | Number of users rendered in the last output |
+| `width` | Pixel width of the first file in `paths` |
+| `height` | Pixel height of the first file in `paths` |
 | `changed` | Whether a commit was pushed; `false` when `no_commit` is set |
 | `svg_path` | Deprecated alias for `paths`, kept for existing workflows |
+
+### Keeping an embed's dimensions right
+
+Giving an `<img>` explicit dimensions is what stops the page from reflowing while the
+image loads, but a mural resizes itself whenever the contributor set crosses a row
+boundary — `voronoi` especially, since its height is `width * rows² / count`. Left alone,
+every embed keeps a stale aspect ratio until somebody notices.
+
+`width` and `height` describe the first entry of `paths`, so the embed side can be
+corrected in the same run that changes the file:
+
+```yaml
+- uses: crystal-actions/contributor-mural@v1
+  id: mural
+- name: Keep the embed in step with the wall
+  run: |
+    sed -i -E "s/(CONTRIBUTORS\.svg\" [^>]*width=\")[0-9]+(\" height=\")[0-9]+/\1${{ steps.mural.outputs.width }}\2${{ steps.mural.outputs.height }}/" \
+      docs/content/_index.md
+```
+
+Both are whole numbers. A `.png` reports the size of the rasterized file, so `png.scale`
+is already accounted for; an `.svg` reports its own size, rounded up when a style lands
+on a fractional one.
 
 ## Full config reference
 
@@ -519,27 +593,34 @@ contributors:               # this repository's contributors (all fields optiona
   include_bots: false       # keep type=Bot / *[bot] accounts
   include_anonymous: false  # include anonymous (email-only) contributors
   max: 100                  # cap fetched contributors; contributions become weight
+  weight: 1                 # optional: one weight for everyone from this source,
+                            # replacing the derived one; `users:` still overrides
   group: Contributors       # optional section for API-fetched users
 
 members:                    # organization members (`org` is required)
   org: crystal-actions
   max: 100
+  weight: 1
   group: Team
 
 stargazers:                 # the repository's stargazers
   repo: owner/name          # default: the current repository
   max: 100
+  weight: 1
   group: Stargazers
 
 sponsors:                   # GitHub Sponsors (needs a token)
   login: hahwul             # default: the repository owner
   max: 100                  # tier $/month becomes each sponsor's weight
+  weight: 1                 # optional: ignore tiers and treat sponsors alike
   group: Sponsors
 
 # --- Everything below is presentation ---
 
-exclude:                    # drop logins from any source
-  - dependabot[bot]
+exclude:                    # drop logins from any source; `*` and `?` wildcards,
+  - "*[bot]"                # otherwise an exact, case-insensitive match
+  - ImgBotApp               # legacy service accounts are typed `User` by the
+                            # API, so `include_bots: false` does not catch them
 
 sort: weight                # weight | login | none (none keeps list order)
 limit: 60                   # cap rendered users after merge/sort
@@ -620,6 +701,31 @@ png:
 
 </details>
 
+## Versions and pinning
+
+The action runs a prebuilt image from GHCR, so the version that matters is the image, not
+just the ref you write in a workflow. Every released ref names an immutable image tag:
+
+| Ref | Runs | Moves |
+| --- | ---- | ----- |
+| `@v1.1.0` | `ghcr.io/…:v1.1.0` | never |
+| `@v1` | the newest 1.x's own image tag | on each 1.x release, by the git tag moving |
+| `@main` | `ghcr.io/…:v1`, a floating tag | on every release |
+
+So pinning `@v1.1.0` pins the code, not only the ref. Only `@main` tracks a mutable image
+tag, which is the trade-off for following development.
+
+Every run prints its version as its first line:
+
+```
+contributor-mural v1.1.0
+```
+
+That is the fastest way to tell a stale image from a bad config. If a run rejects a value
+the docs say is supported — a style, a theme preset — read the banner first: an error
+listing what is accepted is only authoritative for the build that printed it, which is why
+those messages name their version too.
+
 ## Notes
 
 - A config file is required; the action fails if `.github/contributor-mural.yml` (or the
@@ -656,6 +762,40 @@ bin/contributor-mural -c my.yml --commit               # opt in to commit/push l
 `GITHUB_WORKSPACE` inside the action). Committing happens automatically when
 `GITHUB_ACTIONS=true` — including on runners that emulate it, such as act or Forgejo —
 and otherwise only with `--commit`.
+
+## Running it locally
+
+Comparing styles and weights by pushing a workflow is slow, and the answers are easier to
+see side by side. The action image runs anywhere Docker does, against the checkout you are
+standing in, with no Crystal toolchain:
+
+```sh
+docker run --rm \
+  -v "$PWD:/github/workspace" -w /github/workspace \
+  -e GITHUB_REPOSITORY=owner/repo \
+  -e INPUT_CONFIG=.github/contributor-mural.yml \
+  -e INPUT_NO_COMMIT=true \
+  -e INPUT_TOKEN="$(gh auth token)" \
+  ghcr.io/crystal-actions/contributor-mural:v1
+```
+
+The generated file lands in the working directory, so you can render a config, look at it,
+edit, and render again in seconds.
+
+**Why this cannot push.** Two independent things stop it. `INPUT_NO_COMMIT=true` is the
+explicit one. The implicit one is that committing is only automatic when
+`GITHUB_ACTIONS=true`, which a plain `docker run` does not set — so even without
+`no_commit` the command above writes files and stops. Dropping `INPUT_NO_COMMIT` is
+therefore safe, but keeping it means you are not relying on an environment variable you
+did not set.
+
+`GITHUB_REPOSITORY` stands in for the repository the action would infer, and is what the
+`contributors`, `stargazers`, and `sponsors` blocks default to. `INPUT_TOKEN` is optional
+for public repositories, but without it the GitHub API allows 60 requests an hour, which a
+few runs will exhaust.
+
+Add `-e INPUT_CONFIG=...` variants to compare configs, and remember to `docker pull` — the
+`:v1` tag moves, and a cached image runs older code silently.
 
 ## Development
 

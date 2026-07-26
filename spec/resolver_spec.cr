@@ -68,6 +68,48 @@ describe ContributorMural::Resolver do
     ContributorMural::Resolver.resolve(config).map(&.login).should eq(["alpha"])
   end
 
+  it "excludes by wildcard, matching the literal brackets in a bot login" do
+    config = config_from(<<-YAML)
+      sort: none
+      exclude: ["*[bot]"]
+      users:
+        - login: alpha
+        - login: dependabot[bot]
+        - login: renovate[bot]
+        - login: octocat
+      YAML
+
+    # `octocat` is the check that matters: a `[...]` character class would
+    # read this pattern as "ends with b, o, or t" and drop them.
+    ContributorMural::Resolver.resolve(config).map(&.login).should eq(["alpha", "octocat"])
+  end
+
+  it "matches wildcards case-insensitively, like a plain login" do
+    config = config_from(<<-YAML)
+      sort: none
+      exclude: [ImgBot*, "?eta"]
+      users:
+        - login: imgbotapp
+        - login: beta
+        - login: alpha
+      YAML
+
+    ContributorMural::Resolver.resolve(config).map(&.login).should eq(["alpha"])
+  end
+
+  it "treats a login with no wildcard as an exact match" do
+    config = config_from(<<-YAML)
+      sort: none
+      exclude: [bot]
+      users:
+        - login: bot
+        - login: robot
+        - login: bots
+      YAML
+
+    ContributorMural::Resolver.resolve(config).map(&.login).should eq(["robot", "bots"])
+  end
+
   it "merges API data into list entries, config fields winning" do
     config = config_from(<<-YAML)
       sort: none

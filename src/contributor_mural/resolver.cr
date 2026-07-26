@@ -22,11 +22,63 @@ module ContributorMural
         result << user if seen.add?(user.login.downcase)
       end
 
-      excluded = config.exclude.map(&.downcase).to_set
-      result.reject! { |user| excluded.includes?(user.login.downcase) }
+      result.reject! { |user| excluded?(user.login, config.exclude) }
       result = sort(result, config.sort)
       config.limit.try { |lim| result = result.first(lim) }
       result
+    end
+
+    # Entries are matched case-insensitively, exactly unless they carry a
+    # wildcard. Bare logins stay a plain comparison so nothing that used to
+    # match can stop matching.
+    private def self.excluded?(login : String, patterns : Array(String)) : Bool
+      subject = login.downcase
+      patterns.any? do |pattern|
+        candidate = pattern.downcase
+        if candidate.includes?('*') || candidate.includes?('?')
+          glob?(subject, candidate)
+        else
+          subject == candidate
+        end
+      end
+    end
+
+    # `*` (any run, possibly empty) and `?` (one character), and nothing else.
+    # Deliberately not `File.match?`: its `[...]` character classes would read
+    # the obvious `*[bot]` as "ends with b, o, or t" and silently drop real
+    # people, and a deny-list that quietly over-matches is worse than none.
+    private def self.glob?(text : String, pattern : String) : Bool
+      chars = text.chars
+      wildcards = pattern.chars
+      at = 0
+      cursor = 0
+      star = -1
+      resume = 0
+
+      while at < chars.size
+        if cursor < wildcards.size && (wildcards[cursor] == '?' || wildcards[cursor] == chars[at])
+          at += 1
+          cursor += 1
+        elsif cursor < wildcards.size && wildcards[cursor] == '*'
+          # Remember where to backtrack to, then try matching nothing first.
+          star = cursor
+          resume = at
+          cursor += 1
+        elsif star >= 0
+          # Let the last `*` swallow one more character and retry.
+          resume += 1
+          at = resume
+          cursor = star + 1
+        else
+          return false
+        end
+      end
+
+      # Trailing stars can still match the empty remainder.
+      while cursor < wildcards.size && wildcards[cursor] == '*'
+        cursor += 1
+      end
+      cursor == wildcards.size
     end
 
     # Someone can be a contributor *and* a sponsor. Keep one entry per login,

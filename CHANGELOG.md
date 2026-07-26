@@ -8,6 +8,45 @@ generated files.
 
 ## [Unreleased]
 
+### Added
+
+- Source blocks take a `weight`, applied to every user they yield. It replaces
+  the derived weight (contribution count, sponsor tier), so `users:` carries
+  only the exceptions and adding a contributor needs no config change.
+- `width` and `height` action outputs, describing the first generated file, so
+  an embed with explicit dimensions can be corrected in the same run that
+  changes the wall. A `.png` reports its rasterized size.
+- `exclude` accepts `*` and `?` wildcards, matching whole logins. There are no
+  `[...]` character classes, so `*[bot]` means "ends with the literal `[bot]`".
+- Every run prints its version as its first line, and config errors that
+  enumerate accepted values name the version that rejected them — both so a
+  stale image is distinguishable from a bad config.
+
+### Changed
+
+- Each released ref now names its own immutable image tag: `@v1.1.0` runs
+  `:v1.1.0`, and `@v1` follows releases by the git tag moving rather than by an
+  image tag moving underneath it. Only `@main` tracks a floating image.
+- Voronoi clip-path ids are prefixed `vcell-` instead of an abbreviation that
+  `crate-ci/typos` reads as a misspelling of "for", once per cell, in a
+  generated file a consumer cannot correct by hand.
+
+### Fixed
+
+- `VERSION` was left at `0.1.0` through both releases. It now matches the
+  shard, a spec keeps the two together, and the release workflow refuses to
+  publish a tag that disagrees with it.
+
+### Documentation
+
+- How to run the action locally through Docker, and why it cannot commit:
+  `GITHUB_ACTIONS` being unset is what stops it, independently of `no_commit`.
+- `include_bots: false` filters what GitHub *types* as a bot. Service accounts
+  predating the GitHub Apps convention are typed `User` and need an explicit
+  `exclude` entry.
+
+## [1.1.0]
+
 ### Styles
 
 - `voronoi` — stained glass. Avatars are clipped into irregular cells that tile
@@ -60,5 +99,6 @@ First public release.
 - Runs a prebuilt multi-arch image from GHCR, so a consumer's runner starts in
   seconds instead of building Crystal on every run.
 
-[Unreleased]: https://github.com/crystal-actions/contributor-mural/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/crystal-actions/contributor-mural/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/crystal-actions/contributor-mural/releases/tag/v1.1.0
 [1.0.0]: https://github.com/crystal-actions/contributor-mural/releases/tag/v1.0.0

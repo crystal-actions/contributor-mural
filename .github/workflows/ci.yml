@@ -22,6 +22,11 @@ jobs:
         run: shards install
       - name: Check formatting
         run: crystal tool format --check
+      # The binary reports its own version and the release workflow derives the
+      # tag from it, so a file left behind at an older version has to fail here
+      # rather than at release time.
+      - name: Check version consistency
+        run: crystal run scripts/version_check.cr
       # A malformed workflow fails the run before any job starts, which is
       # hard to read in the UI; catch it here instead.
       - name: Check workflow and action YAML
@@ -43,7 +48,7 @@ jobs:
             mkdir -p bin
             crystal build lib/ameba/bin/ameba.cr -o bin/ameba --release
           fi
-          bin/ameba src spec
+          bin/ameba src spec scripts
       - name: Run specs
         run: crystal spec --order=random
 

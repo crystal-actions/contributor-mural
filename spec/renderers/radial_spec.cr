@@ -3,14 +3,14 @@ require "../support/fake_avatar_source"
 require "../support/golden"
 
 private def render_radial(yaml : String) : String
-  config = HallOfFame::Config.parse(yaml)
+  config = ContributorMural::Config.parse(yaml)
   config.validate!
-  users = HallOfFame::Resolver.resolve(config)
-  renderer = HallOfFame::Renderer.for(config.style, config)
+  users = ContributorMural::Resolver.resolve(config)
+  renderer = ContributorMural::Renderer.for(config.style, config)
   renderer.prepare(users)
-  embedded, _ = HallOfFame::Embedder.new(FakeAvatarSource.new)
+  embedded, _ = ContributorMural::Embedder.new(FakeAvatarSource.new)
     .embed(users, renderer, fail_on_missing: false)
-  renderer.render(HallOfFame::Resolver.grouped(embedded, config))
+  renderer.render(ContributorMural::Resolver.grouped(embedded, config))
 end
 
 # Ranked users so the size taper and centre pick are predictable.
@@ -31,7 +31,7 @@ private def circles(svg : String) : Array({Float64, Float64, Float64})
   end
 end
 
-describe HallOfFame::Renderers::Spiral do
+describe ContributorMural::Renderers::Spiral do
   it "renders the spiral golden file" do
     svg = render_radial("style: spiral\n#{ranked_users(12)}")
     svg.should contain(%(clip-path="url(#spiral-clip)"))
@@ -62,9 +62,9 @@ describe HallOfFame::Renderers::Spiral do
   end
 
   it "sizes fetches for the biggest rendering of each avatar" do
-    config = HallOfFame::Config.parse("style: spiral\n#{ranked_users(4)}")
-    users = HallOfFame::Resolver.resolve(config)
-    renderer = HallOfFame::Renderer.for(HallOfFame::Style::Spiral, config)
+    config = ContributorMural::Config.parse("style: spiral\n#{ranked_users(4)}")
+    users = ContributorMural::Resolver.resolve(config)
+    renderer = ContributorMural::Renderer.for(ContributorMural::Style::Spiral, config)
     renderer.prepare(users)
 
     renderer.fetch_size(users.first).should eq(144) # 72 * 2
@@ -72,7 +72,7 @@ describe HallOfFame::Renderers::Spiral do
   end
 end
 
-describe HallOfFame::Renderers::Orbit do
+describe ContributorMural::Renderers::Orbit do
   it "renders the orbit golden file" do
     svg = render_radial("style: orbit\n#{ranked_users(14)}")
     svg.should contain(%(clip-path="url(#orbit-clip)"))
@@ -100,8 +100,8 @@ describe HallOfFame::Renderers::Orbit do
     svg = render_radial("style: orbit\n#{ranked_users(14)}")
     rings = svg.scan(/<circle [^>]*stroke-dasharray/)
     rings.size.should be >= 1
-    svg.should contain(%(class="hof-ring"))
-    svg.should contain(".hof-ring{stroke:#57606a}")
+    svg.should contain(%(class="mural-ring"))
+    svg.should contain(".mural-ring{stroke:#57606a}")
   end
 
   it "can turn the orbit lines off" do

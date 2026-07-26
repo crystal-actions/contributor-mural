@@ -1,6 +1,6 @@
 require "yaml"
 
-module HallOfFame
+module ContributorMural
   class ConfigError < Exception
     getter line : Int32?
 
@@ -33,7 +33,7 @@ module HallOfFame
     include YAML::Serializable
     include YAML::Serializable::Strict
 
-    DEFAULT_OUTPUT = "HALL_OF_FAME.svg"
+    DEFAULT_OUTPUT = "CONTRIBUTOR_MURAL.svg"
 
     property style : Style = Style::Grid
     property output : String = DEFAULT_OUTPUT
@@ -114,7 +114,7 @@ module HallOfFame
     end
 
     # Crystal reports enum failures with its own type names
-    # ("Unknown enum HallOfFame::Style value: \"gird\""). Rewrite those into
+    # ("Unknown enum ContributorMural::Style value: \"gird\""). Rewrite those into
     # the field's vocabulary, listing what is actually accepted.
     private def self.friendly_parse_error(message : String?) : String
       return "could not be parsed" unless message
@@ -125,7 +125,7 @@ module HallOfFame
                "e.g. a `users:` list and/or a `contributors:` block"
       end
 
-      match = message.match(/Unknown enum HallOfFame::(\w+) value: (".*?")/)
+      match = message.match(/Unknown enum ContributorMural::(\w+) value: (".*?")/)
       return message unless match
 
       values =
@@ -298,7 +298,7 @@ module HallOfFame
     include YAML::Serializable
     include YAML::Serializable::Strict
 
-    @[YAML::Field(converter: HallOfFame::NumberConverter)]
+    @[YAML::Field(converter: ContributorMural::NumberConverter)]
     property scale : Float64 = 2.0
 
     def initialize

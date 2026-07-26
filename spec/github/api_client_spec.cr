@@ -43,15 +43,15 @@ private def with_api_server(pages : Hash(Int32, String), status : Int32 = 200,
   end
 end
 
-private def options_from(yaml : String) : HallOfFame::Config
-  HallOfFame::Config.parse(yaml)
+private def options_from(yaml : String) : ContributorMural::Config
+  ContributorMural::Config.parse(yaml)
 end
 
-describe HallOfFame::GitHubApi do
+describe ContributorMural::GitHubApi do
   it "maps contributors to users with contribution weights" do
     pages = {1 => "[#{contributor_json("alice", 42)},#{contributor_json("bob", 3)}]"}
     with_api_server(pages) do |base, _seen|
-      api = HallOfFame::GitHubApi.new(api_base: base)
+      api = ContributorMural::GitHubApi.new(api_base: base)
       users = api.contributors("owner/repo")
       users.map(&.login).should eq(["alice", "bob"])
       users[0].weight.should eq(42)
@@ -63,11 +63,11 @@ describe HallOfFame::GitHubApi do
   it "filters bots by default and keeps them when asked" do
     pages = {1 => "[#{contributor_json("human", 5)},#{contributor_json("dependabot[bot]", 9, "Bot")}]"}
     with_api_server(pages) do |base, _seen|
-      HallOfFame::GitHubApi.new(api_base: base)
+      ContributorMural::GitHubApi.new(api_base: base)
         .contributors("o/r").map(&.login).should eq(["human"])
 
       options = options_from("contributors:\n  include_bots: true")
-      HallOfFame::GitHubApi.new(config: options, api_base: base)
+      ContributorMural::GitHubApi.new(config: options, api_base: base)
         .contributors("o/r").map(&.login).should eq(["human", "dependabot[bot]"])
     end
   end
@@ -77,7 +77,7 @@ describe HallOfFame::GitHubApi do
     pages = {1 => "[#{first_page}]", 2 => "[#{contributor_json("last", 1)}]"}
     with_api_server(pages) do |base, seen|
       options = options_from("contributors:\n  max: 500")
-      users = HallOfFame::GitHubApi.new(config: options, api_base: base).contributors("o/r")
+      users = ContributorMural::GitHubApi.new(config: options, api_base: base).contributors("o/r")
       users.size.should eq(101)
       seen.size.should eq(2)
     end
@@ -88,7 +88,7 @@ describe HallOfFame::GitHubApi do
     pages = {1 => "[#{first_page}]", 2 => "[#{contributor_json("ignored", 1)}]"}
     with_api_server(pages) do |base, seen|
       options = options_from("contributors:\n  max: 10")
-      users = HallOfFame::GitHubApi.new(config: options, api_base: base).contributors("o/r")
+      users = ContributorMural::GitHubApi.new(config: options, api_base: base).contributors("o/r")
       users.size.should eq(10)
       seen.size.should eq(1)
     end
@@ -97,10 +97,10 @@ describe HallOfFame::GitHubApi do
   it "maps anonymous contributors to identicons when enabled" do
     pages = {1 => "[#{ANON_JSON}]"}
     with_api_server(pages) do |base, seen|
-      HallOfFame::GitHubApi.new(api_base: base).contributors("o/r").should be_empty
+      ContributorMural::GitHubApi.new(api_base: base).contributors("o/r").should be_empty
 
       options = options_from("contributors:\n  include_anonymous: true")
-      users = HallOfFame::GitHubApi.new(config: options, api_base: base).contributors("o/r")
+      users = ContributorMural::GitHubApi.new(config: options, api_base: base).contributors("o/r")
       users.size.should eq(1)
       users[0].login.should eq("Ghost Writer")
       users[0].avatar_url.should eq("https://github.com/identicons/Ghost%20Writer.png")
@@ -114,7 +114,7 @@ describe HallOfFame::GitHubApi do
     pages = {1 => "[#{contributor_json("alice", 3)}]"}
     with_api_server(pages) do |base, _seen|
       options = options_from("contributors:\n  group: Contributors")
-      users = HallOfFame::GitHubApi.new(config: options, api_base: base).contributors("o/r")
+      users = ContributorMural::GitHubApi.new(config: options, api_base: base).contributors("o/r")
       users[0].group.should eq("Contributors")
     end
   end
@@ -122,18 +122,18 @@ describe HallOfFame::GitHubApi do
   it "sends the token as a bearer authorization" do
     pages = {1 => "[]"}
     with_api_server(pages) do |base, seen|
-      HallOfFame::GitHubApi.new(token: "sekrit", api_base: base).contributors("o/r")
+      ContributorMural::GitHubApi.new(token: "sekrit", api_base: base).contributors("o/r")
       seen.last[1].should eq("Bearer sekrit")
 
-      HallOfFame::GitHubApi.new(api_base: base).contributors("o/r")
+      ContributorMural::GitHubApi.new(api_base: base).contributors("o/r")
       seen.last[1].should be_nil
     end
   end
 
   it "raises a friendly error for missing repositories" do
     with_api_server({} of Int32 => String, status: 404) do |base, _seen|
-      expect_raises(HallOfFame::ApiError, /not found or not accessible/) do
-        HallOfFame::GitHubApi.new(api_base: base).contributors("o/r")
+      expect_raises(ContributorMural::ApiError, /not found or not accessible/) do
+        ContributorMural::GitHubApi.new(api_base: base).contributors("o/r")
       end
     end
   end
@@ -141,8 +141,8 @@ describe HallOfFame::GitHubApi do
   it "explains rate limiting with the reset time" do
     headers = HTTP::Headers{"x-ratelimit-remaining" => "0", "x-ratelimit-reset" => "1753400000"}
     with_api_server({} of Int32 => String, status: 403, headers: headers) do |base, _seen|
-      error = expect_raises(HallOfFame::ApiError, /rate limit exceeded/) do
-        HallOfFame::GitHubApi.new(api_base: base).contributors("o/r")
+      error = expect_raises(ContributorMural::ApiError, /rate limit exceeded/) do
+        ContributorMural::GitHubApi.new(api_base: base).contributors("o/r")
       end
       message = error.message || ""
       message.should match(/resets at 20\d\d-/)
@@ -151,14 +151,14 @@ describe HallOfFame::GitHubApi do
   end
 
   it "rejects malformed repo values" do
-    expect_raises(HallOfFame::ApiError, /owner\/name/) do
-      HallOfFame::GitHubApi.new.contributors("not-a-repo")
+    expect_raises(ContributorMural::ApiError, /owner\/name/) do
+      ContributorMural::GitHubApi.new.contributors("not-a-repo")
     end
   end
 end
 
-private def config_with(yaml : String) : HallOfFame::Config
-  HallOfFame::Config.parse(yaml)
+private def config_with(yaml : String) : ContributorMural::Config
+  ContributorMural::Config.parse(yaml)
 end
 
 # Serves REST account lists plus a GraphQL sponsors endpoint.
@@ -212,11 +212,11 @@ private SPONSOR_PAGE = {
   },
 }.to_json
 
-describe "HallOfFame::GitHubApi extra sources" do
+describe "ContributorMural::GitHubApi extra sources" do
   it "fetches organization members with their group" do
     with_sources_server do |base, _seen|
       config = config_with("members:\n  org: crystal-actions\n  group: Team")
-      users = HallOfFame::GitHubApi.new(config: config, api_base: base).members("crystal-actions")
+      users = ContributorMural::GitHubApi.new(config: config, api_base: base).members("crystal-actions")
       users.map(&.login).should eq(["member1"])
       users[0].group.should eq("Team")
       users[0].weight.should eq(1)
@@ -227,7 +227,7 @@ describe "HallOfFame::GitHubApi extra sources" do
   it "fetches stargazers" do
     with_sources_server do |base, _seen|
       config = config_with("stargazers:\n  repo: o/r")
-      users = HallOfFame::GitHubApi.new(config: config, api_base: base).stargazers("o/r")
+      users = ContributorMural::GitHubApi.new(config: config, api_base: base).stargazers("o/r")
       users.map(&.login).should eq(["fan1", "fan2"])
       users[1].link.should eq("https://github.com/fan2")
     end
@@ -236,7 +236,7 @@ describe "HallOfFame::GitHubApi extra sources" do
   it "fetches sponsors with tier amounts as weights" do
     with_sources_server([SPONSOR_PAGE]) do |base, seen|
       config = config_with("sponsors:\n  login: hahwul\n  group: Sponsors")
-      users = HallOfFame::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("hahwul")
+      users = ContributorMural::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("hahwul")
       users.map(&.login).should eq(["bigfan", "smallfan"])
       users[0].weight.should eq(25)
       users[0].name.should eq("Big Fan")
@@ -256,7 +256,7 @@ describe "HallOfFame::GitHubApi extra sources" do
     }.to_json
     with_sources_server([hidden]) do |base, _seen|
       config = config_with("sponsors:\n  login: hahwul")
-      users = HallOfFame::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("hahwul")
+      users = ContributorMural::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("hahwul")
       users.map(&.login).should eq(["visible"])
     end
   end
@@ -270,7 +270,7 @@ describe "HallOfFame::GitHubApi extra sources" do
     }.to_json
     with_sources_server([stuck, stuck, stuck]) do |base, seen|
       config = config_with("sponsors:\n  login: hahwul\n  max: 50")
-      users = HallOfFame::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("hahwul")
+      users = ContributorMural::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("hahwul")
       users.map(&.login).should eq(["a"])
       seen.count(&.starts_with?("POST /graphql")).should eq(1)
     end
@@ -278,8 +278,8 @@ describe "HallOfFame::GitHubApi extra sources" do
 
   it "requires a token for sponsors" do
     config = config_with("sponsors:\n  login: hahwul")
-    expect_raises(HallOfFame::ApiError, /requires a `token`/) do
-      HallOfFame::GitHubApi.new(config: config).sponsors("hahwul")
+    expect_raises(ContributorMural::ApiError, /requires a `token`/) do
+      ContributorMural::GitHubApi.new(config: config).sponsors("hahwul")
     end
   end
 
@@ -287,8 +287,8 @@ describe "HallOfFame::GitHubApi extra sources" do
     error_page = %({"errors":[{"message":"Something went wrong"}]})
     with_sources_server([error_page]) do |base, _seen|
       config = config_with("sponsors:\n  login: hahwul")
-      expect_raises(HallOfFame::ApiError, /Something went wrong/) do
-        HallOfFame::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("hahwul")
+      expect_raises(ContributorMural::ApiError, /Something went wrong/) do
+        ContributorMural::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("hahwul")
       end
     end
   end
@@ -297,8 +297,8 @@ describe "HallOfFame::GitHubApi extra sources" do
     missing = %({"data":{"repositoryOwner":null}})
     with_sources_server([missing]) do |base, _seen|
       config = config_with("sponsors:\n  login: nobody")
-      expect_raises(HallOfFame::ApiError, /no user or organization/) do
-        HallOfFame::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("nobody")
+      expect_raises(ContributorMural::ApiError, /no user or organization/) do
+        ContributorMural::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("nobody")
       end
     end
   end

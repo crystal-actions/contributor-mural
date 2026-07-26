@@ -4,7 +4,7 @@ require "./spec_helper"
 # Sets up a local bare "origin" plus a clone, so push is exercised without
 # any network.
 private def with_git_repo(&)
-  root = File.tempname("hof_git")
+  root = File.tempname("mural_git")
   remote = File.join(root, "origin.git")
   clone = File.join(root, "work")
   Dir.mkdir_p(root)
@@ -33,17 +33,17 @@ private def git_output(*args : String) : String
   output.to_s
 end
 
-describe HallOfFame::Committer do
+describe ContributorMural::Committer do
   it "commits and pushes generated files" do
     with_git_repo do |clone, remote|
       Dir.mkdir_p(File.join(clone, "docs"))
       File.write(File.join(clone, "docs/wall.svg"), "<svg/>")
 
-      committer = HallOfFame::Committer.new(clone, "chore: update hall of fame")
+      committer = ContributorMural::Committer.new(clone, "chore: update contributor mural")
       committer.commit(["docs/wall.svg"]).should be_true
 
       log = git_output("-C", remote, "log", "--format=%s %an", "main")
-      log.should contain("chore: update hall of fame github-actions[bot]")
+      log.should contain("chore: update contributor mural github-actions[bot]")
       git_output("-C", remote, "ls-tree", "--name-only", "-r", "main")
         .should contain("docs/wall.svg")
     end
@@ -52,7 +52,7 @@ describe HallOfFame::Committer do
   it "reports no change when the content is identical" do
     with_git_repo do |clone, _remote|
       File.write(File.join(clone, "wall.svg"), "<svg/>")
-      committer = HallOfFame::Committer.new(clone, "msg")
+      committer = ContributorMural::Committer.new(clone, "msg")
       committer.commit(["wall.svg"]).should be_true
       committer.commit(["wall.svg"]).should be_false
     end
@@ -61,7 +61,7 @@ describe HallOfFame::Committer do
   it "does not touch the repository's committer identity" do
     with_git_repo do |clone, _remote|
       File.write(File.join(clone, "wall.svg"), "<svg/>")
-      HallOfFame::Committer.new(clone, "msg").commit(["wall.svg"])
+      ContributorMural::Committer.new(clone, "msg").commit(["wall.svg"])
       git_output("-C", clone, "config", "user.name").strip.should eq("Spec Runner")
     end
   end
@@ -70,8 +70,8 @@ describe HallOfFame::Committer do
     with_git_repo do |clone, remote|
       FileUtils.rm_rf(remote)
       File.write(File.join(clone, "wall.svg"), "<svg/>")
-      committer = HallOfFame::Committer.new(clone, "msg")
-      expect_raises(HallOfFame::CommitError, /git push/) do
+      committer = ContributorMural::Committer.new(clone, "msg")
+      expect_raises(ContributorMural::CommitError, /git push/) do
         committer.commit(["wall.svg"])
       end
     end

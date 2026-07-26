@@ -2,18 +2,18 @@ require "../spec_helper"
 require "../support/fake_avatar_source"
 require "../support/golden"
 
-private def render_honeycomb(config : HallOfFame::Config) : String
-  users = HallOfFame::Resolver.resolve(config)
-  renderer = HallOfFame::Renderer.for(HallOfFame::Style::Honeycomb, config)
+private def render_honeycomb(config : ContributorMural::Config) : String
+  users = ContributorMural::Resolver.resolve(config)
+  renderer = ContributorMural::Renderer.for(ContributorMural::Style::Honeycomb, config)
   renderer.prepare(users)
-  embedded, _ = HallOfFame::Embedder.new(FakeAvatarSource.new)
+  embedded, _ = ContributorMural::Embedder.new(FakeAvatarSource.new)
     .embed(users, renderer, fail_on_missing: false)
-  renderer.render(HallOfFame::Resolver.grouped(embedded, config))
+  renderer.render(ContributorMural::Resolver.grouped(embedded, config))
 end
 
-describe HallOfFame::Renderers::Honeycomb do
+describe ContributorMural::Renderers::Honeycomb do
   it "renders the honeycomb golden file" do
-    config = HallOfFame::Config.parse(<<-YAML)
+    config = ContributorMural::Config.parse(<<-YAML)
       style: honeycomb
       sort: none
       users:
@@ -37,7 +37,7 @@ describe HallOfFame::Renderers::Honeycomb do
   end
 
   it "offsets odd rows and reduces their capacity" do
-    config = HallOfFame::Config.parse(<<-YAML)
+    config = ContributorMural::Config.parse(<<-YAML)
       style: honeycomb
       sort: none
       users:
@@ -62,7 +62,7 @@ describe HallOfFame::Renderers::Honeycomb do
   end
 
   it "stacks grouped sections with titles" do
-    config = HallOfFame::Config.parse(<<-YAML)
+    config = ContributorMural::Config.parse(<<-YAML)
       style: honeycomb
       sort: none
       users:
@@ -85,8 +85,8 @@ describe HallOfFame::Renderers::Honeycomb do
   end
 
   it "fetches avatars at twice the cell size" do
-    config = HallOfFame::Config.parse("honeycomb:\n  cell_size: 60\nusers:\n  - login: x")
-    renderer = HallOfFame::Renderer.for(HallOfFame::Style::Honeycomb, config)
-    renderer.fetch_size(HallOfFame::ResolvedUser.new("x")).should eq(120)
+    config = ContributorMural::Config.parse("honeycomb:\n  cell_size: 60\nusers:\n  - login: x")
+    renderer = ContributorMural::Renderer.for(ContributorMural::Style::Honeycomb, config)
+    renderer.fetch_size(ContributorMural::ResolvedUser.new("x")).should eq(120)
   end
 end

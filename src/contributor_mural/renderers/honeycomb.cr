@@ -1,4 +1,4 @@
-module HallOfFame::Renderers
+module ContributorMural::Renderers
   # Hex-clipped avatars in offset rows, like a honeycomb wall.
   # Pointy-top hexagons: width = cell_size, height = cell_size * 2/√3,
   # odd rows shift half a cell right and hold one less item.

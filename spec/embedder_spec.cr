@@ -1,24 +1,24 @@
 require "./spec_helper"
 require "./support/fake_avatar_source"
 
-private def grid_renderer(avatar_size : Int32 = 64) : HallOfFame::Renderer
-  config = HallOfFame::Config.parse(<<-YAML)
+private def grid_renderer(avatar_size : Int32 = 64) : ContributorMural::Renderer
+  config = ContributorMural::Config.parse(<<-YAML)
     users:
       - login: placeholder
     grid:
       avatar_size: #{avatar_size}
     YAML
-  HallOfFame::Renderer.for(HallOfFame::Style::Grid, config)
+  ContributorMural::Renderer.for(ContributorMural::Style::Grid, config)
 end
 
-private def resolved(login : String) : HallOfFame::ResolvedUser
-  HallOfFame::ResolvedUser.new(login)
+private def resolved(login : String) : ContributorMural::ResolvedUser
+  ContributorMural::ResolvedUser.new(login)
 end
 
-describe HallOfFame::Embedder do
+describe ContributorMural::Embedder do
   it "embeds avatars as base64 data URIs preserving order" do
     source = FakeAvatarSource.new
-    embedder = HallOfFame::Embedder.new(source)
+    embedder = ContributorMural::Embedder.new(source)
     users = [resolved("alpha"), resolved("bravo")]
 
     embedded, skipped = embedder.embed(users, grid_renderer, fail_on_missing: false)
@@ -31,7 +31,7 @@ describe HallOfFame::Embedder do
 
   it "caches fetches across render targets" do
     source = FakeAvatarSource.new
-    embedder = HallOfFame::Embedder.new(source)
+    embedder = ContributorMural::Embedder.new(source)
     users = [resolved("alpha"), resolved("bravo")]
 
     embedder.embed(users, grid_renderer, fail_on_missing: false)
@@ -42,7 +42,7 @@ describe HallOfFame::Embedder do
 
   it "fetches again for a different size" do
     source = FakeAvatarSource.new
-    embedder = HallOfFame::Embedder.new(source)
+    embedder = ContributorMural::Embedder.new(source)
     users = [resolved("alpha")]
 
     embedder.embed(users, grid_renderer(64), fail_on_missing: false)
@@ -53,7 +53,7 @@ describe HallOfFame::Embedder do
 
   it "skips users whose avatar fails" do
     source = FakeAvatarSource.new(missing: ["bravo"])
-    embedder = HallOfFame::Embedder.new(source)
+    embedder = ContributorMural::Embedder.new(source)
     users = [resolved("alpha"), resolved("bravo")]
 
     embedded, skipped = embedder.embed(users, grid_renderer, fail_on_missing: false)
@@ -64,16 +64,16 @@ describe HallOfFame::Embedder do
 
   it "raises on failure when fail_on_missing is set" do
     source = FakeAvatarSource.new(missing: ["bravo"])
-    embedder = HallOfFame::Embedder.new(source)
+    embedder = ContributorMural::Embedder.new(source)
 
-    expect_raises(HallOfFame::AvatarError, /bravo/) do
+    expect_raises(ContributorMural::AvatarError, /bravo/) do
       embedder.embed([resolved("bravo")], grid_renderer, fail_on_missing: true)
     end
   end
 
   it "handles many users with a small worker pool" do
     source = FakeAvatarSource.new
-    embedder = HallOfFame::Embedder.new(source, concurrency: 3)
+    embedder = ContributorMural::Embedder.new(source, concurrency: 3)
     users = (1..25).map { |index| resolved("user#{index}") }
 
     embedded, _ = embedder.embed(users, grid_renderer, fail_on_missing: false)

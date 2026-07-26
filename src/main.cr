@@ -1,3 +1,3 @@
-require "./hall_of_fame"
+require "./contributor_mural"
 
-exit HallOfFame::CLI.run
+exit ContributorMural::CLI.run

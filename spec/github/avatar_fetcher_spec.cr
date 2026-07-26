@@ -53,14 +53,14 @@ private def with_test_server(&)
   end
 end
 
-private def user_with(avatar_url : String) : HallOfFame::ResolvedUser
-  HallOfFame::ResolvedUser.new("tester", avatar_url: avatar_url)
+private def user_with(avatar_url : String) : ContributorMural::ResolvedUser
+  ContributorMural::ResolvedUser.new("tester", avatar_url: avatar_url)
 end
 
-describe HallOfFame::HTTPAvatarSource do
+describe ContributorMural::HTTPAvatarSource do
   describe "#url_for" do
     it "appends the size to explicit avatar URLs" do
-      source = HallOfFame::HTTPAvatarSource.new
+      source = ContributorMural::HTTPAvatarSource.new
       source.url_for(user_with("https://example.com/a.png"), 128)
         .should eq("https://example.com/a.png?s=128")
       source.url_for(user_with("https://example.com/a.png?v=4"), 128)
@@ -68,19 +68,19 @@ describe HallOfFame::HTTPAvatarSource do
     end
 
     it "derives the GitHub avatar URL from the login" do
-      source = HallOfFame::HTTPAvatarSource.new
-      user = HallOfFame::ResolvedUser.new("hahwul")
+      source = ContributorMural::HTTPAvatarSource.new
+      user = ContributorMural::ResolvedUser.new("hahwul")
       source.url_for(user, 128).should eq("https://github.com/hahwul.png?size=128")
     end
   end
 
   describe "local avatars" do
     it "reads workspace-relative files with extension-based content types" do
-      workspace = File.tempname("hof_avatars")
+      workspace = File.tempname("mural_avatars")
       Dir.mkdir_p(File.join(workspace, "assets"))
       File.write(File.join(workspace, "assets/logo.webp"), "WEBPDATA")
       begin
-        source = HallOfFame::HTTPAvatarSource.new(workspace)
+        source = ContributorMural::HTTPAvatarSource.new(workspace)
         user = user_with("assets/logo.webp")
         source.url_for(user, 64).should eq("file:assets/logo.webp")
         bytes, content_type = source.fetch(user, 64)
@@ -92,28 +92,28 @@ describe HallOfFame::HTTPAvatarSource do
     end
 
     it "fails like a 404 when the file is missing" do
-      source = HallOfFame::HTTPAvatarSource.new(File.tempname("hof_nowhere"))
-      error = expect_raises(HallOfFame::AvatarError, /not found/) do
+      source = ContributorMural::HTTPAvatarSource.new(File.tempname("mural_nowhere"))
+      error = expect_raises(ContributorMural::AvatarError, /not found/) do
         source.fetch(user_with("assets/gone.png"), 64)
       end
       error.status.should eq(404)
     end
 
     it "rejects unsupported extensions" do
-      expect_raises(HallOfFame::AvatarError, /unsupported local avatar type/) do
-        HallOfFame::HTTPAvatarSource.new.fetch(user_with("assets/logo.bmp"), 64)
+      expect_raises(ContributorMural::AvatarError, /unsupported local avatar type/) do
+        ContributorMural::HTTPAvatarSource.new.fetch(user_with("assets/logo.bmp"), 64)
       end
     end
 
     it "refuses symlinks pointing outside the workspace" do
-      workspace = File.tempname("hof_symlink")
-      outside = File.tempname("hof_outside")
+      workspace = File.tempname("mural_symlink")
+      outside = File.tempname("mural_outside")
       Dir.mkdir_p(File.join(workspace, "assets"))
       File.write(outside, "SECRET")
       File.symlink(outside, File.join(workspace, "assets/logo.png"))
       begin
-        expect_raises(HallOfFame::AvatarError, /escapes the repository/) do
-          HallOfFame::HTTPAvatarSource.new(workspace).fetch(user_with("assets/logo.png"), 64)
+        expect_raises(ContributorMural::AvatarError, /escapes the repository/) do
+          ContributorMural::HTTPAvatarSource.new(workspace).fetch(user_with("assets/logo.png"), 64)
         end
       ensure
         FileUtils.rm_rf(workspace)
@@ -122,14 +122,14 @@ describe HallOfFame::HTTPAvatarSource do
     end
 
     it "turns unreadable files into AvatarError instead of crashing the fiber" do
-      workspace = File.tempname("hof_perm")
+      workspace = File.tempname("mural_perm")
       Dir.mkdir_p(File.join(workspace, "assets"))
       path = File.join(workspace, "assets/logo.png")
       File.write(path, "x")
       File.chmod(path, 0o000)
       begin
-        expect_raises(HallOfFame::AvatarError, /could not be read/) do
-          HallOfFame::HTTPAvatarSource.new(workspace).fetch(user_with("assets/logo.png"), 64)
+        expect_raises(ContributorMural::AvatarError, /could not be read/) do
+          ContributorMural::HTTPAvatarSource.new(workspace).fetch(user_with("assets/logo.png"), 64)
         end
       ensure
         File.chmod(path, 0o644) rescue nil
@@ -141,7 +141,7 @@ describe HallOfFame::HTTPAvatarSource do
   describe "#fetch" do
     it "returns bytes and content type" do
       with_test_server do |base, _requests|
-        source = HallOfFame::HTTPAvatarSource.new(backoff_base: 0.seconds)
+        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds)
         bytes, content_type = source.fetch(user_with("#{base}/ok.png"), 64)
         String.new(bytes).should eq("JPEGDATA")
         content_type.should eq("image/jpeg")
@@ -150,7 +150,7 @@ describe HallOfFame::HTTPAvatarSource do
 
     it "follows absolute and relative redirects" do
       with_test_server do |base, _requests|
-        source = HallOfFame::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_redirects: true)
+        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_redirects: true)
         bytes, _ = source.fetch(user_with("#{base}/redirect"), 64)
         String.new(bytes).should eq("JPEGDATA")
 
@@ -161,8 +161,8 @@ describe HallOfFame::HTTPAvatarSource do
 
     it "gives up on redirect loops" do
       with_test_server do |base, _requests|
-        source = HallOfFame::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_redirects: true)
-        expect_raises(HallOfFame::AvatarError, /too many redirects/) do
+        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_redirects: true)
+        expect_raises(ContributorMural::AvatarError, /too many redirects/) do
           source.fetch(user_with("#{base}/loop"), 64)
         end
       end
@@ -170,8 +170,8 @@ describe HallOfFame::HTTPAvatarSource do
 
     it "does not retry a 404" do
       with_test_server do |base, requests|
-        source = HallOfFame::HTTPAvatarSource.new(backoff_base: 0.seconds)
-        error = expect_raises(HallOfFame::AvatarError, /404/) do
+        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds)
+        error = expect_raises(ContributorMural::AvatarError, /404/) do
           source.fetch(user_with("#{base}/missing"), 64)
         end
         error.status.should eq(404)
@@ -181,7 +181,7 @@ describe HallOfFame::HTTPAvatarSource do
 
     it "falls back to image/png for malformed or non-image content types" do
       with_test_server do |base, _requests|
-        source = HallOfFame::HTTPAvatarSource.new(backoff_base: 0.seconds)
+        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds)
         # `@@@` makes MIME parsing raise; `text/html` is simply not an image.
         _, content_type = source.fetch(user_with("#{base}/bad-mime"), 64)
         content_type.should eq("image/png")
@@ -192,11 +192,11 @@ describe HallOfFame::HTTPAvatarSource do
 
     it "refuses redirects that leave https or target internal addresses" do
       with_test_server do |base, _requests|
-        source = HallOfFame::HTTPAvatarSource.new(backoff_base: 0.seconds)
-        expect_raises(HallOfFame::AvatarError, /non-https avatar redirect/) do
+        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds)
+        expect_raises(ContributorMural::AvatarError, /non-https avatar redirect/) do
           source.fetch(user_with("#{base}/redirect"), 64)
         end
-        expect_raises(HallOfFame::AvatarError, /internal address/) do
+        expect_raises(ContributorMural::AvatarError, /internal address/) do
           source.fetch(user_with("#{base}/redirect-internal"), 64)
         end
       end
@@ -204,7 +204,7 @@ describe HallOfFame::HTTPAvatarSource do
 
     it "retries server errors and succeeds" do
       with_test_server do |base, requests|
-        source = HallOfFame::HTTPAvatarSource.new(backoff_base: 0.seconds)
+        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds)
         bytes, _ = source.fetch(user_with("#{base}/flaky"), 64)
         String.new(bytes).should eq("RECOVERED")
         requests.count("/flaky").should eq(3)

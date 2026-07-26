@@ -8,6 +8,26 @@ generated files.
 
 ## [Unreleased]
 
+## [2.0.0]
+
+The project is now **Contributor Mural**. The old name collided with an
+existing organization on GitHub Marketplace, and "hall of fame" described a
+wall of portraits rather than what this actually generates.
+
+### Changed
+
+- **Breaking** — the repository, the image, and the `uses:` reference are now
+  `crystal-actions/contributor-mural`. The `v1` tags and the
+  `ghcr.io/crystal-actions/hall-of-fame` image are left in place and keep
+  working, so existing workflows do not break; they simply stop receiving
+  updates.
+- **Breaking** — the default config path is now `.github/contributor-mural.yml`
+  (was `.github/hall-of-fame.yml`). Pass `config:` to keep the old path.
+- **Breaking** — the default output file is now `CONTRIBUTOR_MURAL.svg` (was
+  `HALL_OF_FAME.svg`), and the default commit message is now
+  `chore: update contributor mural`. Set `output:` and `commit_message:` to
+  keep the old values.
+
 ## [1.0.2]
 
 ### Changed
@@ -42,7 +62,7 @@ First public release.
 
 - A curated `users` list, `contributors`, `members`, `stargazers`, and
   `sponsors` (tier amount becomes weight). Writing a block enables it, and
-  everything merges into one wall.
+  everything merges into one mural.
 - Per-user `role` labels and titled `group` sections, for the people the
   contributors API cannot see.
 - `avatar_url` accepts a repository-relative file, for logos or contributors
@@ -58,7 +78,8 @@ First public release.
 - Several files in one run through `outputs`, sharing one set of avatar
   fetches.
 
-[Unreleased]: https://github.com/crystal-actions/hall-of-fame/compare/v1.0.2...HEAD
-[1.0.2]: https://github.com/crystal-actions/hall-of-fame/releases/tag/v1.0.2
-[1.0.1]: https://github.com/crystal-actions/hall-of-fame/releases/tag/v1.0.1
-[1.0.0]: https://github.com/crystal-actions/hall-of-fame/releases/tag/v1.0.0
+[Unreleased]: https://github.com/crystal-actions/contributor-mural/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/crystal-actions/contributor-mural/releases/tag/v2.0.0
+[1.0.2]: https://github.com/crystal-actions/contributor-mural/releases/tag/v1.0.2
+[1.0.1]: https://github.com/crystal-actions/contributor-mural/releases/tag/v1.0.1
+[1.0.0]: https://github.com/crystal-actions/contributor-mural/releases/tag/v1.0.0

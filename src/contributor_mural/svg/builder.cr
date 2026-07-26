@@ -1,6 +1,6 @@
 require "html"
 
-module HallOfFame
+module ContributorMural
   module SVG
     def self.escape(value : String) : String
       HTML.escape(value)

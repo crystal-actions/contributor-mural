@@ -5,30 +5,30 @@ require "./support/fake_github_source"
 require "./support/fake_rasterizer"
 
 private def run_in_tmp(config_yaml : String, source = FakeAvatarSource.new,
-                       github_source : HallOfFame::GitHubSource? = nil,
-                       rasterizer : HallOfFame::Rasterizer? = nil,
+                       github_source : ContributorMural::GitHubSource? = nil,
+                       rasterizer : ContributorMural::Rasterizer? = nil,
                        & : Int32, String, String ->)
-  workspace = File.tempname("hof_ws")
+  workspace = File.tempname("mural_ws")
   Dir.mkdir_p(workspace)
   output_file = File.tempname("gh_output")
   annotations = IO::Memory.new
-  HallOfFame::Annotations.io = annotations
+  ContributorMural::Annotations.io = annotations
   ENV["GITHUB_OUTPUT"] = output_file
   begin
-    config = HallOfFame::Config.parse(config_yaml)
+    config = ContributorMural::Config.parse(config_yaml)
     config.validate!
-    exit_code = HallOfFame::Runner.new(config, source, workspace, github_source, nil, rasterizer).run
+    exit_code = ContributorMural::Runner.new(config, source, workspace, github_source, nil, rasterizer).run
     outputs = File.exists?(output_file) ? File.read(output_file) : ""
     yield exit_code, outputs, workspace
   ensure
-    HallOfFame::Annotations.io = STDOUT
+    ContributorMural::Annotations.io = STDOUT
     ENV.delete("GITHUB_OUTPUT")
     File.delete?(output_file)
     FileUtils.rm_rf(workspace)
   end
 end
 
-describe HallOfFame::Runner do
+describe ContributorMural::Runner do
   it "writes the SVG and step outputs" do
     yaml = <<-YAML
       output: art/wall.svg
@@ -74,7 +74,7 @@ describe HallOfFame::Runner do
 
     run_in_tmp(yaml, FakeAvatarSource.new(missing: ["gone"])) do |exit_code, outputs, _workspace|
       exit_code.should eq(0)
-      HallOfFame::Annotations.io.to_s.should contain("::warning::skipped gone")
+      ContributorMural::Annotations.io.to_s.should contain("::warning::skipped gone")
       outputs.should contain("user_count=1")
     end
   end
@@ -82,23 +82,23 @@ describe HallOfFame::Runner do
   it "merges contributors from the API source" do
     yaml = <<-YAML
       contributors:
-        repo: hahwul/hall-of-fame
+        repo: hahwul/contributor-mural
       users:
         - login: hahwul
           weight: 99
       YAML
 
     api_users = [
-      HallOfFame::ResolvedUser.new("contributor", weight: 5),
-      HallOfFame::ResolvedUser.new("hahwul", weight: 1),
+      ContributorMural::ResolvedUser.new("contributor", weight: 5),
+      ContributorMural::ResolvedUser.new("hahwul", weight: 1),
     ]
     github_source = FakeGitHubSource.new(api_users)
 
     run_in_tmp(yaml, github_source: github_source) do |exit_code, outputs, workspace|
       exit_code.should eq(0)
-      github_source.requested_repos.should eq(["hahwul/hall-of-fame"])
+      github_source.requested_repos.should eq(["hahwul/contributor-mural"])
       outputs.should contain("user_count=2")
-      svg = File.read(File.join(workspace, "HALL_OF_FAME.svg"))
+      svg = File.read(File.join(workspace, "CONTRIBUTOR_MURAL.svg"))
       svg.should contain(%(href="https://github.com/contributor"))
     end
   end
@@ -138,7 +138,7 @@ describe HallOfFame::Runner do
 
     run_in_tmp(yaml) do |exit_code, _outputs, _workspace|
       exit_code.should eq(1)
-      HallOfFame::Annotations.io.to_s.should contain("no rasterizer")
+      ContributorMural::Annotations.io.to_s.should contain("no rasterizer")
     end
   end
 
@@ -151,7 +151,7 @@ describe HallOfFame::Runner do
         org: crystal-actions
         group: Team
       stargazers:
-        repo: crystal-actions/hall-of-fame
+        repo: crystal-actions/contributor-mural
         group: Stars
       sponsors:
         login: hahwul
@@ -159,18 +159,18 @@ describe HallOfFame::Runner do
       YAML
 
     github_source = FakeGitHubSource.new(
-      members: [HallOfFame::ResolvedUser.new("teammate", group: "Team")],
-      stargazers: [HallOfFame::ResolvedUser.new("fan", group: "Stars")],
-      sponsors: [HallOfFame::ResolvedUser.new("patron", weight: 25, group: "Sponsors")],
+      members: [ContributorMural::ResolvedUser.new("teammate", group: "Team")],
+      stargazers: [ContributorMural::ResolvedUser.new("fan", group: "Stars")],
+      sponsors: [ContributorMural::ResolvedUser.new("patron", weight: 25, group: "Sponsors")],
     )
 
     run_in_tmp(yaml, github_source: github_source) do |exit_code, outputs, workspace|
       exit_code.should eq(0)
       github_source.requested_orgs.should eq(["crystal-actions"])
-      github_source.requested_star_repos.should eq(["crystal-actions/hall-of-fame"])
+      github_source.requested_star_repos.should eq(["crystal-actions/contributor-mural"])
       github_source.requested_sponsor_logins.should eq(["hahwul"])
       outputs.should contain("user_count=4")
-      svg = File.read(File.join(workspace, "HALL_OF_FAME.svg"))
+      svg = File.read(File.join(workspace, "CONTRIBUTOR_MURAL.svg"))
       svg.should contain(">Team</text>")
       svg.should contain(">Stars</text>")
       svg.should contain(">Sponsors</text>")
@@ -186,7 +186,7 @@ describe HallOfFame::Runner do
     run_in_tmp(yaml) do |exit_code, outputs, _workspace|
       exit_code.should eq(0)
       outputs.should contain("changed=false")
-      outputs.should contain("paths=HALL_OF_FAME.svg")
+      outputs.should contain("paths=CONTRIBUTOR_MURAL.svg")
     end
   end
 
@@ -202,7 +202,7 @@ describe HallOfFame::Runner do
       File.write(File.join(workspace, "wall.svg"), "PRECIOUS")
       exit_code.should eq(1)
       File.read(File.join(workspace, "wall.svg")).should eq("PRECIOUS")
-      HallOfFame::Annotations.io.to_s.should contain("no users to render")
+      ContributorMural::Annotations.io.to_s.should contain("no users to render")
     end
   end
 
@@ -218,19 +218,19 @@ describe HallOfFame::Runner do
     run_in_tmp(yaml) do |exit_code, _outputs, workspace|
       exit_code.should eq(1)
       File.exists?(File.join(workspace, "first.svg")).should be_false
-      HallOfFame::Annotations.io.to_s.should contain("no rasterizer is available")
+      ContributorMural::Annotations.io.to_s.should contain("no rasterizer is available")
     end
   end
 
   it "fails cleanly when contributors are requested without API access" do
     yaml = <<-YAML
       contributors:
-        repo: hahwul/hall-of-fame
+        repo: hahwul/contributor-mural
       YAML
 
     run_in_tmp(yaml) do |exit_code, _outputs, _workspace|
       exit_code.should eq(1)
-      HallOfFame::Annotations.io.to_s.should contain("::error::the configured sources need GitHub API access")
+      ContributorMural::Annotations.io.to_s.should contain("::error::the configured sources need GitHub API access")
     end
   end
 
@@ -243,7 +243,7 @@ describe HallOfFame::Runner do
 
     run_in_tmp(yaml, FakeAvatarSource.new(missing: ["gone"])) do |exit_code, _outputs, _workspace|
       exit_code.should eq(1)
-      HallOfFame::Annotations.io.to_s.should contain("::error::gone")
+      ContributorMural::Annotations.io.to_s.should contain("::error::gone")
     end
   end
 end

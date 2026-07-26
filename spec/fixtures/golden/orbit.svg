@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="414" height="414" viewBox="0 0 414 414">
-  <style>.hof-label{fill:#57606a}.hof-role{fill:#6e7781}.hof-title{fill:#24292f}.hof-bg{fill:transparent}.hof-ring{stroke:#57606a}@media (prefers-color-scheme:dark){.hof-label{fill:#8b949e}.hof-role{fill:#7d8590}.hof-title{fill:#e6edf3}.hof-bg{fill:transparent}.hof-ring{stroke:#8b949e}}</style>
+  <style>.mural-label{fill:#57606a}.mural-role{fill:#6e7781}.mural-title{fill:#24292f}.mural-bg{fill:transparent}.mural-ring{stroke:#57606a}@media (prefers-color-scheme:dark){.mural-label{fill:#8b949e}.mural-role{fill:#7d8590}.mural-title{fill:#e6edf3}.mural-bg{fill:transparent}.mural-ring{stroke:#8b949e}}</style>
   <defs><clipPath id="orbit-clip" clipPathUnits="objectBoundingBox"><circle cx="0.5" cy="0.5" r="0.5"/></clipPath></defs>
-  <circle cx="207" cy="207" r="102" fill="none" stroke-width="1" stroke-dasharray="3 5" opacity="0.35" class="hof-ring"/>
-  <circle cx="207" cy="207" r="174" fill="none" stroke-width="1" stroke-dasharray="3 5" opacity="0.35" class="hof-ring"/>
+  <circle cx="207" cy="207" r="102" fill="none" stroke-width="1" stroke-dasharray="3 5" opacity="0.35" class="mural-ring"/>
+  <circle cx="207" cy="207" r="174" fill="none" stroke-width="1" stroke-dasharray="3 5" opacity="0.35" class="mural-ring"/>
   <a href="https://github.com/user00" target="_blank">
     <title>user00</title>
     <image href="data:image/png;base64,SU1HOnVzZXIwMDoyMDg=" x="155" y="155" width="104" height="104" preserveAspectRatio="xMidYMid slice" clip-path="url(#orbit-clip)"/>

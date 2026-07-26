@@ -52,14 +52,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Build image
-        run: docker build -t hall-of-fame:ci .
+        run: docker build -t contributor-mural:ci .
       - name: Smoke test
         run: |
           mkdir -p /tmp/ws
           printf 'users:\n  - login: hahwul\n  - login: octocat\noutputs:\n  - path: wall.svg\n  - path: wall.png\n' > /tmp/ws/config.yml
           docker run --rm -w /ws -v /tmp/ws:/ws \
             -e INPUT_CONFIG=config.yml -e INPUT_NO_COMMIT=true -e GITHUB_WORKSPACE=/ws \
-            hall-of-fame:ci
+            contributor-mural:ci
           grep -q "data:image" /tmp/ws/wall.svg
           head -c 4 /tmp/ws/wall.png | grep -q PNG
 
@@ -80,15 +80,15 @@ jobs:
         run: |
           mkdir -p .github
           printf 'users:\n  - login: hahwul\n  - login: octocat\noutput: ci-wall.svg\n' \
-            > .github/hall-of-fame.yml
+            > .github/contributor-mural.yml
       - name: Run the action
-        id: hof
+        id: mural
         uses: ./
         with:
           no_commit: "true"
       - name: Check outputs
         run: |
-          test "${{ steps.hof.outputs.paths }}" = "ci-wall.svg"
-          test "${{ steps.hof.outputs.user_count }}" = "2"
-          test "${{ steps.hof.outputs.changed }}" = "false"
+          test "${{ steps.mural.outputs.paths }}" = "ci-wall.svg"
+          test "${{ steps.mural.outputs.user_count }}" = "2"
+          test "${{ steps.mural.outputs.changed }}" = "false"
           grep -q "data:image" ci-wall.svg

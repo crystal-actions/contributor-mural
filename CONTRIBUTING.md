@@ -18,7 +18,7 @@ The binary doubles as a CLI, which is the fastest way to see a change:
 
 ```bash
 shards build
-bin/hall-of-fame -c examples/showcase.yml   # regenerates examples/*.svg
+bin/contributor-mural -c examples/showcase.yml   # regenerates examples/*.svg
 ```
 
 ## Before opening a pull request
@@ -34,7 +34,7 @@ through `action.yml` the way a consumer does.
 
 ## Renderers and golden files
 
-Each style is a `Renderer` subclass in `src/hall_of_fame/renderers/`. A style
+Each style is a `Renderer` subclass in `src/contributor_mural/renderers/`. A style
 implements `fetch_size`, `block_size`, and `draw_block`; the base class takes
 care of theming, group sections, and stacking.
 

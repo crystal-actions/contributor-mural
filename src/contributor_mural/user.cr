@@ -1,4 +1,4 @@
-module HallOfFame
+module ContributorMural
   # A user after merging config entries and API contributors.
   struct ResolvedUser
     getter login : String

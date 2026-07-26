@@ -1,6 +1,6 @@
-# hall-of-fame
+# contributor-mural
 
-Generate avatar-wall art for your repository — a "hall of fame" of the people who make your project happen. Ships as a GitHub Action (written in [Crystal](https://crystal-lang.org)) that renders your list of users, your contributors, or both into embeddable SVG art and commits it to your repository.
+Paint a mural of the people who make your project happen. Ships as a GitHub Action (written in [Crystal](https://crystal-lang.org)) that renders your list of users, your contributors, or both into embeddable SVG art and commits it to your repository.
 
 | Grid | Honeycomb | Mosaic |
 | :--: | :-------: | :----: |
@@ -13,15 +13,15 @@ Generate avatar-wall art for your repository — a "hall of fame" of the people 
 *(Curated samples from [`examples/showcase.yml`](examples/showcase.yml). This repository also runs the action on itself every week — the live result lands in [`docs/`](docs/).)*
 
 - **Five styles** — a classic grid (circle/rounded/square), honeycomb hexagons, a weight-tiered mosaic, a golden-angle spiral, and an orbit with your lead contributor at its centre.
-- **Many sources, one wall** — your curated `users` list, repository contributors, org members, stargazers, and GitHub Sponsors (tier amounts become weights). Write a source to enable it; everything merges, and your YAML entries always win.
-- **Sections & roles** — split the wall into titled groups (say, *Contributors* and *Special Thanks*) and tag people with a role line (*Creator*, *Design*, *Docs*) — made for honoring the folks the contributors API can't see.
+- **Many sources, one mural** — your curated `users` list, repository contributors, org members, stargazers, and GitHub Sponsors (tier amounts become weights). Write a source to enable it; everything merges, and your YAML entries always win.
+- **Sections & roles** — split the mural into titled groups (say, *Contributors* and *Special Thanks*) and tag people with a role line (*Creator*, *Design*, *Docs*) — made for honoring the folks the contributors API can't see.
 - **Adapts to GitHub dark mode** — by default the SVG carries both palettes and follows the viewer's theme. Pick a `preset` (`github`, `midnight`, `paper`, `mono`) or tune every color for light and dark separately.
 - **SVG and PNG** — self-contained SVGs (avatars embedded as base64, so they render inside READMEs) plus rasterized PNGs for places SVG can't go, including light/dark pairs.
 - **Local avatars** — point `avatar_url` at a file in your repository for logos or people without a GitHub account.
 
 ## Quick start
 
-Create `.github/hall-of-fame.yml`:
+Create `.github/contributor-mural.yml`:
 
 ```yaml
 # List the sources you want — writing one is what turns it on.
@@ -38,10 +38,10 @@ exclude:
 
 The smallest useful config is one line: `contributors:` on its own.
 
-Add a workflow, e.g. `.github/workflows/hall-of-fame.yml`:
+Add a workflow, e.g. `.github/workflows/contributor-mural.yml`:
 
 ```yaml
-name: Hall of Fame
+name: Contributor Mural
 on:
   workflow_dispatch:
   schedule:
@@ -51,30 +51,30 @@ permissions:
   contents: write
 
 concurrency:
-  group: hall-of-fame
+  group: contributor-mural
 
 jobs:
   generate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: crystal-actions/hall-of-fame@v0
+      - uses: crystal-actions/contributor-mural@v2
 ```
 
 Then embed the result in your README:
 
 ```markdown
-![Hall of Fame](HALL_OF_FAME.svg)
+![Contributor Mural](CONTRIBUTOR_MURAL.svg)
 ```
 
 ## Action inputs
 
 | Input | Default | Description |
 | ----- | ------- | ----------- |
-| `config` | `.github/hall-of-fame.yml` | Path to the config YAML, relative to the repository root |
+| `config` | `.github/contributor-mural.yml` | Path to the config YAML, relative to the repository root |
 | `token` | `${{ github.token }}` | GitHub API token. Required for `sponsors`; also lifts rate limits and reaches private repos for the other API sources |
 | `no_commit` | `false` | Generate files but skip commit/push (must be `true` or `false`) |
-| `commit_message` | `chore: update hall of fame` | Commit message |
+| `commit_message` | `chore: update contributor mural` | Commit message |
 
 Outputs: `paths` (comma-separated generated files, SVG and PNG), `user_count`, and `changed` (whether a commit was pushed; `false` when `no_commit` is set). `svg_path` still works as an alias for `paths`.
 
@@ -84,7 +84,7 @@ Everything about the art lives in the config YAML:
 
 ```yaml
 style: grid                 # grid | honeycomb | mosaic | spiral | orbit
-output: HALL_OF_FAME.svg    # path relative to the repository root
+output: CONTRIBUTOR_MURAL.svg    # path relative to the repository root
 
 # --- Sources: write a block to enable it; results are merged ---
 
@@ -192,7 +192,7 @@ This is the recipe for honoring people the API misses — unlinked commit emails
 
 ## Notes
 
-- A config file is required; the action fails if `.github/hall-of-fame.yml` (or the path you pass as `config`) does not exist.
+- A config file is required; the action fails if `.github/contributor-mural.yml` (or the path you pass as `config`) does not exist.
 - The workflow needs `permissions: contents: write` to push the generated file, and a `concurrency` group avoids racing pushes on busy repositories.
 - Avatars link to profiles and carry name/role tooltips, but a README embed (`![](wall.svg)`) renders as an `<img>`, where neither is active. Open the SVG directly — or inline it — to get links.
 - `members` returns public organization members only; a token with `read:org` is needed for the rest. Stargazers arrive oldest-first with no weight, so under the default `sort: weight` they trail contributors — use `sort: none` to keep the API order.
@@ -208,8 +208,8 @@ The action binary is also a local CLI:
 
 ```bash
 shards build --release
-bin/hall-of-fame --config examples/showcase.yml   # regenerates the committed examples/*.svg
-bin/hall-of-fame -c my.yml --commit               # opt in to commit/push locally
+bin/contributor-mural --config examples/showcase.yml   # regenerates the committed examples/*.svg
+bin/contributor-mural -c my.yml --commit               # opt in to commit/push locally
 ```
 
 `--config` is resolved against the current directory, while output paths and local `avatar_url` files are resolved against `--workspace` (the current directory by default; `GITHUB_WORKSPACE` inside the action). Committing happens automatically when `GITHUB_ACTIONS=true` — including on runners that emulate it, such as act or Forgejo — and otherwise only with `--commit`.
@@ -224,7 +224,7 @@ crystal tool format
 bin/ameba src spec
 ```
 
-Release flow: pushing a `vX.Y.Z` tag builds a multi-arch image to `ghcr.io/crystal-actions/hall-of-fame` and force-moves the major tag (`v1`, `v2`, …). The image is pushed before the git tag moves, so the moving tag always references an existing image.
+Release flow: pushing a `vX.Y.Z` tag builds a multi-arch image to `ghcr.io/crystal-actions/contributor-mural` and force-moves the major tag (`v1`, `v2`, …). The image is pushed before the git tag moves, so the moving tag always references an existing image.
 
 `action.yml` points at that published image, which is why consumers start in seconds rather than building Crystal on their runner. The CI job that runs the action rewrites `action.yml` back to `image: Dockerfile` first, so it tests the code under review instead of the last release.
 

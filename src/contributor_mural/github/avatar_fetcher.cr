@@ -2,7 +2,7 @@ require "http/client"
 require "socket"
 require "uri"
 
-module HallOfFame
+module ContributorMural
   class AvatarError < Exception
     getter status : Int32?
 

@@ -14,15 +14,15 @@ ensure
   end
 end
 
-describe HallOfFame::Inputs do
+describe ContributorMural::Inputs do
   it "uses CLI values and defaults outside of actions" do
     with_clean_env({} of String => String) do
-      inputs = HallOfFame::Inputs.resolve("conf.yml", "/tmp/ws", false)
+      inputs = ContributorMural::Inputs.resolve("conf.yml", "/tmp/ws", false)
       inputs.config_path.should eq("conf.yml")
       inputs.workspace.should eq("/tmp/ws")
       inputs.token.should be_nil
       inputs.commit?.should be_false
-      inputs.commit_message.should eq(HallOfFame::Inputs::DEFAULT_COMMIT_MESSAGE)
+      inputs.commit_message.should eq(ContributorMural::Inputs::DEFAULT_COMMIT_MESSAGE)
     end
   end
 
@@ -35,7 +35,7 @@ describe HallOfFame::Inputs do
       "GITHUB_ACTIONS"       => "true",
     }
     with_clean_env(env) do
-      inputs = HallOfFame::Inputs.resolve("conf.yml", "/tmp/ws", false)
+      inputs = ContributorMural::Inputs.resolve("conf.yml", "/tmp/ws", false)
       inputs.config_path.should eq("action.yml")
       inputs.workspace.should eq("/github/workspace")
       inputs.token.should eq("tok")
@@ -47,20 +47,20 @@ describe HallOfFame::Inputs do
   it "respects no_commit inside actions" do
     env = {"GITHUB_ACTIONS" => "true", "INPUT_NO_COMMIT" => "true"}
     with_clean_env(env) do
-      HallOfFame::Inputs.resolve.commit?.should be_false
+      ContributorMural::Inputs.resolve.commit?.should be_false
     end
   end
 
   it "commits locally only with the explicit flag" do
     with_clean_env({} of String => String) do
-      HallOfFame::Inputs.resolve(commit_flag: true).commit?.should be_true
-      HallOfFame::Inputs.resolve.commit?.should be_false
+      ContributorMural::Inputs.resolve(commit_flag: true).commit?.should be_true
+      ContributorMural::Inputs.resolve.commit?.should be_false
     end
   end
 
   it "falls back to GITHUB_TOKEN" do
     with_clean_env({"GITHUB_TOKEN" => "ghtok"}) do
-      HallOfFame::Inputs.resolve.token.should eq("ghtok")
+      ContributorMural::Inputs.resolve.token.should eq("ghtok")
     end
   end
 end

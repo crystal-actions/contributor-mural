@@ -1,4 +1,4 @@
-module HallOfFame
+module ContributorMural
   # Orchestrates the pipeline: resolve users, embed avatars, render styles,
   # write files. Returns a process exit code.
   class Runner
@@ -51,7 +51,7 @@ module HallOfFame
       changed = false
       if committer = @committer
         changed = committer.commit(written_paths)
-        Annotations.notice(changed ? "hall of fame updated" : "hall of fame already up to date")
+        Annotations.notice(changed ? "contributor mural updated" : "contributor mural already up to date")
       end
       Annotations.output("changed", changed.to_s)
       0

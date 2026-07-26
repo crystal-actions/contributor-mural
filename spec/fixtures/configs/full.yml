@@ -9,7 +9,7 @@ users:
     avatar_url: https://example.com/a.png
 
 contributors:
-  repo: hahwul/hall-of-fame
+  repo: hahwul/contributor-mural
   include_bots: true
   include_anonymous: true
   max: 50

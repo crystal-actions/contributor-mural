@@ -1,5 +1,5 @@
-name: Avatar Hall of Fame
-description: Generate avatar-wall art (SVG or PNG) from contributors, sponsors, stargazers, org members, or your own list
+name: Contributor Mural
+description: Generate a mural of contributor avatars (SVG or PNG) from contributors, sponsors, stargazers, org members, or your own list
 author: hahwul
 
 branding:
@@ -10,7 +10,7 @@ inputs:
   config:
     description: Path to the config YAML, relative to the repository root
     required: false
-    default: .github/hall-of-fame.yml
+    default: .github/contributor-mural.yml
   token:
     description: >-
       Token for the GitHub API. Required for the sponsors source; also raises
@@ -25,7 +25,7 @@ inputs:
   commit_message:
     description: Commit message for the generated files
     required: false
-    default: "chore: update hall of fame"
+    default: "chore: update contributor mural"
 
 outputs:
   paths:
@@ -41,5 +41,5 @@ runs:
   using: docker
   # Prebuilt so consumers start in seconds instead of building Crystal on
   # their runner. The release workflow pushes this image before it moves the
-  # matching major tag, so `@v1` never points at an image that is missing.
-  image: docker://ghcr.io/crystal-actions/hall-of-fame:v1
+  # matching major tag, so `@v2` never points at an image that is missing.
+  image: docker://ghcr.io/crystal-actions/contributor-mural:v2

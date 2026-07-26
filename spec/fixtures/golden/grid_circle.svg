@@ -1,34 +1,34 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="304.6" height="188" viewBox="0 0 304.6 188">
-  <style>.hof-label{fill:#57606a}.hof-role{fill:#6e7781}.hof-title{fill:#24292f}.hof-bg{fill:transparent}@media (prefers-color-scheme:dark){.hof-label{fill:#8b949e}.hof-role{fill:#7d8590}.hof-title{fill:#e6edf3}.hof-bg{fill:transparent}}</style>
+  <style>.mural-label{fill:#57606a}.mural-role{fill:#6e7781}.mural-title{fill:#24292f}.mural-bg{fill:transparent}@media (prefers-color-scheme:dark){.mural-label{fill:#8b949e}.mural-role{fill:#7d8590}.mural-title{fill:#e6edf3}.mural-bg{fill:transparent}}</style>
   <defs><clipPath id="avatar-clip" clipPathUnits="objectBoundingBox"><circle cx="0.5" cy="0.5" r="0.5"/></clipPath></defs>
   <a href="https://github.com/hahwul" target="_blank">
     <title>HAHWUL (@hahwul)</title>
     <image href="data:image/png;base64,SU1HOmhhaHd1bDoxMjg=" x="12.3" y="8" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#avatar-clip)"/>
-    <text x="44.3" y="85" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="hof-label">HAHWUL</text>
+    <text x="44.3" y="85" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">HAHWUL</text>
   </a>
   <a href="https://github.com/octocat" target="_blank">
     <title>The Octocat (@octocat)</title>
     <image href="data:image/png;base64,SU1HOm9jdG9jYXQ6MTI4" x="84.3" y="8" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#avatar-clip)"/>
-    <text x="116.3" y="85" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="hof-label">The Octocat</text>
+    <text x="116.3" y="85" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">The Octocat</text>
   </a>
   <a href="https://github.com/long-name-user" target="_blank">
     <title>An Extremely Long Display Name (@long-name-user)</title>
     <image href="data:image/png;base64,SU1HOmxvbmctbmFtZS11c2VyOjEyOA==" x="156.3" y="8" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#avatar-clip)"/>
-    <text x="188.3" y="85" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="hof-label">An Extremel…</text>
+    <text x="188.3" y="85" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">An Extremel…</text>
   </a>
   <a href="https://github.com/escaper" target="_blank">
     <title>R&amp;D &lt;Team&gt; (@escaper)</title>
     <image href="data:image/png;base64,SU1HOmVzY2FwZXI6MTI4" x="228.3" y="8" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#avatar-clip)"/>
-    <text x="260.3" y="85" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="hof-label">R&amp;D &lt;Team&gt;</text>
+    <text x="260.3" y="85" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">R&amp;D &lt;Team&gt;</text>
   </a>
   <a href="https://github.com/hangul" target="_blank">
     <title>한글이름 (@hangul)</title>
     <image href="data:image/png;base64,SU1HOmhhbmd1bDoxMjg=" x="12.3" y="98" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#avatar-clip)"/>
-    <text x="44.3" y="175" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="hof-label">한글이름</text>
+    <text x="44.3" y="175" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">한글이름</text>
   </a>
   <a href="https://github.com/plain" target="_blank">
     <title>plain</title>
     <image href="data:image/png;base64,SU1HOnBsYWluOjEyOA==" x="84.3" y="98" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#avatar-clip)"/>
-    <text x="116.3" y="175" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="hof-label">plain</text>
+    <text x="116.3" y="175" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">plain</text>
   </a>
 </svg>

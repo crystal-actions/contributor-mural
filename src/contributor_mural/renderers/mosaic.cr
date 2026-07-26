@@ -1,4 +1,4 @@
-module HallOfFame::Renderers
+module ContributorMural::Renderers
   # Weight-tiered collage: heavier users occupy larger squares. Tier spans
   # come from weight rank across the whole render (top fraction gets
   # tiers[0], and so on); each section is packed first-fit onto its own unit

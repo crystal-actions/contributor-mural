@@ -1,20 +1,20 @@
 require "./spec_helper"
 require "./support/fake_avatar_source"
 
-private def theme_from(yaml : String) : HallOfFame::ThemeConfig
-  HallOfFame::Config.parse(yaml).theme
+private def theme_from(yaml : String) : ContributorMural::ThemeConfig
+  ContributorMural::Config.parse(yaml).theme
 end
 
 private def render_with(yaml : String) : String
-  config = HallOfFame::Config.parse(yaml)
-  users = HallOfFame::Resolver.resolve(config)
-  renderer = HallOfFame::Renderer.for(config.style, config)
-  embedded, _ = HallOfFame::Embedder.new(FakeAvatarSource.new)
+  config = ContributorMural::Config.parse(yaml)
+  users = ContributorMural::Resolver.resolve(config)
+  renderer = ContributorMural::Renderer.for(config.style, config)
+  embedded, _ = ContributorMural::Embedder.new(FakeAvatarSource.new)
     .embed(users, renderer, fail_on_missing: false)
   renderer.render(embedded)
 end
 
-describe HallOfFame::ThemeConfig do
+describe ContributorMural::ThemeConfig do
   it "resolves preset palettes" do
     theme = theme_from("theme:\n  preset: midnight\nusers:\n  - login: x")
     theme.light_palette.background.should eq("#0b1021")
@@ -37,19 +37,19 @@ describe HallOfFame::ThemeConfig do
   end
 
   it "rejects unknown presets" do
-    config = HallOfFame::Config.parse("theme:\n  preset: vaporwave\nusers:\n  - login: x")
-    expect_raises(HallOfFame::ConfigError, /unknown theme `preset`/) { config.validate! }
+    config = ContributorMural::Config.parse("theme:\n  preset: vaporwave\nusers:\n  - login: x")
+    expect_raises(ContributorMural::ConfigError, /unknown theme `preset`/) { config.validate! }
   end
 
   it "rejects colors that could escape the style block" do
-    config = HallOfFame::Config.parse(<<-YAML)
+    config = ContributorMural::Config.parse(<<-YAML)
       theme:
         label_color: "red}.x{fill:blue"
       users:
         - login: x
       YAML
 
-    expect_raises(HallOfFame::ConfigError, /unsafe characters/) { config.validate! }
+    expect_raises(ContributorMural::ConfigError, /unsafe characters/) { config.validate! }
   end
 end
 
@@ -58,8 +58,8 @@ describe "theme rendering modes" do
     svg = render_with("users:\n  - login: x")
     svg.should contain("<style>")
     svg.should contain("@media (prefers-color-scheme:dark)")
-    svg.should contain(".hof-label{fill:#57606a}")
-    svg.should contain(%(class="hof-label"))
+    svg.should contain(".mural-label{fill:#57606a}")
+    svg.should contain(%(class="mural-label"))
     svg.should_not contain(%(fill="#57606a"))
   end
 
@@ -77,12 +77,12 @@ describe "theme rendering modes" do
 
   it "skips the background rect when both palettes are transparent" do
     svg = render_with("users:\n  - login: x")
-    svg.should_not contain("<rect class=\"hof-bg\"")
+    svg.should_not contain("<rect class=\"mural-bg\"")
   end
 
   it "draws the background rect when a preset sets one" do
     svg = render_with("theme:\n  preset: midnight\nusers:\n  - login: x")
-    svg.should contain(%(.hof-bg{fill:#0b1021}))
-    svg.should contain(%(<rect class="hof-bg"))
+    svg.should contain(%(.mural-bg{fill:#0b1021}))
+    svg.should contain(%(<rect class="mural-bg"))
   end
 end

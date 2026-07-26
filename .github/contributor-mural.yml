@@ -1,0 +1,12 @@
+sort: weight
+
+contributors:
+  include_bots: false
+
+outputs:
+  - path: docs/contributor-mural-grid.svg
+    style: grid
+  - path: docs/contributor-mural-honeycomb.svg
+    style: honeycomb
+  - path: docs/contributor-mural-mosaic.svg
+    style: mosaic

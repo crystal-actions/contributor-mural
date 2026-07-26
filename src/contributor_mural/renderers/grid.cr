@@ -1,4 +1,4 @@
-module HallOfFame::Renderers
+module ContributorMural::Renderers
   # Classic avatar wall: fixed-size avatars in rows, optional name labels and
   # a smaller role line beneath them.
   class Grid < Renderer

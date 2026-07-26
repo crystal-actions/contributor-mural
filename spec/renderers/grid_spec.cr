@@ -2,12 +2,12 @@ require "../spec_helper"
 require "../support/fake_avatar_source"
 require "../support/golden"
 
-private def render(config : HallOfFame::Config) : String
-  users = HallOfFame::Resolver.resolve(config)
-  renderer = HallOfFame::Renderer.for(config.style, config)
-  embedded, _ = HallOfFame::Embedder.new(FakeAvatarSource.new)
+private def render(config : ContributorMural::Config) : String
+  users = ContributorMural::Resolver.resolve(config)
+  renderer = ContributorMural::Renderer.for(config.style, config)
+  embedded, _ = ContributorMural::Embedder.new(FakeAvatarSource.new)
     .embed(users, renderer, fail_on_missing: false)
-  renderer.render(HallOfFame::Resolver.grouped(embedded, config))
+  renderer.render(ContributorMural::Resolver.grouped(embedded, config))
 end
 
 private GOLDEN_USERS = <<-YAML
@@ -26,9 +26,9 @@ private GOLDEN_USERS = <<-YAML
     - login: plain
   YAML
 
-describe HallOfFame::Renderers::Grid do
+describe ContributorMural::Renderers::Grid do
   it "renders the circle grid golden file" do
-    config = HallOfFame::Config.parse(<<-YAML)
+    config = ContributorMural::Config.parse(<<-YAML)
       #{GOLDEN_USERS}
       grid:
         columns: 4
@@ -50,7 +50,7 @@ describe HallOfFame::Renderers::Grid do
   end
 
   it "renders the square label-less golden file" do
-    config = HallOfFame::Config.parse(<<-YAML)
+    config = ContributorMural::Config.parse(<<-YAML)
       #{GOLDEN_USERS}
       theme:
         background: "#0d1117"
@@ -65,28 +65,28 @@ describe HallOfFame::Renderers::Grid do
     svg = render(config)
     svg.should_not contain("clip-path")
     svg.should_not contain("<text")
-    svg.should contain(%(.hof-bg{fill:#0d1117}))
-    svg.should contain(%(<rect class="hof-bg" width="100%" height="100%"/>))
+    svg.should contain(%(.mural-bg{fill:#0d1117}))
+    svg.should contain(%(<rect class="mural-bg" width="100%" height="100%"/>))
     Golden.assert("grid_square.svg", svg)
   end
 
   it "links every avatar to the user's page" do
-    config = HallOfFame::Config.parse(GOLDEN_USERS)
+    config = ContributorMural::Config.parse(GOLDEN_USERS)
     svg = render(config)
     svg.scan(/<a href=/).size.should eq(6)
     svg.should contain(%(href="https://github.com/hahwul"))
   end
 
   it "renders an empty document without users" do
-    config = HallOfFame::Config.parse("contributors: {}")
-    svg = HallOfFame::Renderer.for(HallOfFame::Style::Grid, config)
-      .render([] of HallOfFame::EmbeddedUser)
+    config = ContributorMural::Config.parse("contributors: {}")
+    svg = ContributorMural::Renderer.for(ContributorMural::Style::Grid, config)
+      .render([] of ContributorMural::EmbeddedUser)
     svg.should contain("<svg")
     svg.should_not contain("<image")
   end
 
   it "renders role lines and taller cells for sections with roles" do
-    config = HallOfFame::Config.parse(<<-YAML)
+    config = ContributorMural::Config.parse(<<-YAML)
       sort: none
       users:
         - login: hahwul
@@ -102,8 +102,8 @@ describe HallOfFame::Renderers::Grid do
     svg = render(config)
     svg.should contain(%(font-size="9"))
     svg.should contain(">Creator</text>")
-    svg.should contain(%(class="hof-role"))
-    svg.should contain(%(.hof-role{fill:#6e7781}))
+    svg.should contain(%(class="mural-role"))
+    svg.should contain(%(.mural-role{fill:#6e7781}))
     # label area grows 18 -> 32: height = 1 row * (64+32) + 2*8 = 112
     svg.should contain(%(height="112"))
     svg.should contain("<title>HAHWUL (@hahwul) · Creator</title>")
@@ -111,7 +111,7 @@ describe HallOfFame::Renderers::Grid do
   end
 
   it "renders titled sections for grouped users" do
-    config = HallOfFame::Config.parse(<<-YAML)
+    config = ContributorMural::Config.parse(<<-YAML)
       sort: none
       groups: [Contributors, Special Thanks]
       users:

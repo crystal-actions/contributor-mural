@@ -1,4 +1,4 @@
-module HallOfFame
+module ContributorMural
   # Merges config users and API contributors into the final render list.
   # Pure: takes already-fetched contributor data, performs no IO.
   module Resolver

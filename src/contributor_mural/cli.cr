@@ -1,6 +1,6 @@
 require "option_parser"
 
-module HallOfFame
+module ContributorMural
   module CLI
     def self.run(argv = ARGV) : Int32
       config_flag = nil
@@ -8,7 +8,7 @@ module HallOfFame
       commit_flag = false
 
       parser = OptionParser.new do |opts|
-        opts.banner = "Usage: hall-of-fame [options]"
+        opts.banner = "Usage: contributor-mural [options]"
         opts.on("-c PATH", "--config PATH", "Config file (default: #{Inputs::DEFAULT_CONFIG_PATH})") { |value| config_flag = value }
         opts.on("-w DIR", "--workspace DIR", "Directory output paths are relative to (default: cwd)") { |value| workspace_flag = value }
         opts.on("--commit", "Commit and push the generated files") { commit_flag = true }

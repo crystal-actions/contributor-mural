@@ -1,9 +1,9 @@
-module HallOfFame
+module ContributorMural
   # Action-facing settings. GitHub exposes each action input as an
   # `INPUT_<NAME>` env var; those take precedence over CLI flags.
   struct Inputs
-    DEFAULT_CONFIG_PATH    = ".github/hall-of-fame.yml"
-    DEFAULT_COMMIT_MESSAGE = "chore: update hall of fame"
+    DEFAULT_CONFIG_PATH    = ".github/contributor-mural.yml"
+    DEFAULT_COMMIT_MESSAGE = "chore: update contributor mural"
 
     getter config_path : String
     getter workspace : String

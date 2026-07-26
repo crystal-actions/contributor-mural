@@ -1,18 +1,18 @@
-name: hall-of-fame
+name: contributor-mural
 version: 0.1.0
 
 authors:
   - HAHWUL <hahwul@gmail.com>
 
 description: |
-  Generate avatar-wall art (grid, honeycomb, mosaic SVG) for your repository's hall of fame.
+  Generate a mural of contributor avatars (grid, honeycomb, mosaic SVG) for your repository.
 
 license: MIT
 
 crystal: ">= 1.10.0"
 
 targets:
-  hall-of-fame:
+  contributor-mural:
     main: src/main.cr
 
 development_dependencies:

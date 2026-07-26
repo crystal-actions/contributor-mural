@@ -1,5 +1,5 @@
 require "spec"
-require "../src/hall_of_fame"
+require "../src/contributor_mural"
 
 module SpecHelper
   FIXTURES = Path[__DIR__] / "fixtures"

@@ -2,7 +2,7 @@ require "http/client"
 require "json"
 require "uri"
 
-module HallOfFame
+module ContributorMural
   class ApiError < Exception
   end
 
@@ -316,7 +316,7 @@ module HallOfFame
     private def headers : HTTP::Headers
       result = HTTP::Headers{
         "Accept"               => "application/vnd.github+json",
-        "User-Agent"           => "hall-of-fame/#{VERSION}",
+        "User-Agent"           => "contributor-mural/#{VERSION}",
         "X-GitHub-Api-Version" => "2022-11-28",
       }
       if token = @token

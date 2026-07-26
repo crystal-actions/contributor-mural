@@ -9,7 +9,7 @@ not patched.
 ## Reporting a vulnerability
 
 Please report privately through
-[GitHub Security Advisories](https://github.com/crystal-actions/hall-of-fame/security/advisories/new)
+[GitHub Security Advisories](https://github.com/crystal-actions/contributor-mural/security/advisories/new)
 rather than a public issue. A first response usually takes a few days.
 
 Include what the action was configured to do (a redacted config helps), what

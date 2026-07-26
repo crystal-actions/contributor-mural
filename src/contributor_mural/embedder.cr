@@ -1,6 +1,6 @@
 require "base64"
 
-module HallOfFame
+module ContributorMural
   # Fetches avatars in parallel and turns them into base64 data URIs.
   # Results are cached by URL so multiple render targets reuse fetches.
   class Embedder

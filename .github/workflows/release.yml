@@ -37,9 +37,9 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/crystal-actions/hall-of-fame:${{ github.ref_name }}
-            ghcr.io/crystal-actions/hall-of-fame:${{ steps.meta.outputs.major }}
-            ghcr.io/crystal-actions/hall-of-fame:latest
+            ghcr.io/crystal-actions/contributor-mural:${{ github.ref_name }}
+            ghcr.io/crystal-actions/contributor-mural:${{ steps.meta.outputs.major }}
+            ghcr.io/crystal-actions/contributor-mural:latest
 
       # The image must exist before the moving major tag points at a commit
       # whose action.yml references it.

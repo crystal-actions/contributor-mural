@@ -1,4 +1,4 @@
-module HallOfFame
+module ContributorMural
   # Emits GitHub Actions workflow commands (annotations) and step outputs.
   # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions
   module Annotations

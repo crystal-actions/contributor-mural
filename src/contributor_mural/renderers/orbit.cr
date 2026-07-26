@@ -1,4 +1,4 @@
-module HallOfFame::Renderers
+module ContributorMural::Renderers
   # The wall as a small solar system: the top contributor holds the centre and
   # everyone else orbits at a distance set by their rank. Each ring holds as
   # many avatars as its circumference allows and is rotated against the one
@@ -12,7 +12,7 @@ module HallOfFame::Renderers
     end
 
     protected def style_rules(palette : Palette) : String
-      ".hof-ring{stroke:#{palette.label_color}}"
+      ".mural-ring{stroke:#{palette.label_color}}"
     end
 
     protected def defs(io : String::Builder) : Nil
@@ -91,7 +91,7 @@ module HallOfFame::Renderers
     end
 
     private def ring_paint : String
-      mode.auto? ? %(class="hof-ring") : %(stroke="#{SVG.escape(palette.label_color)}")
+      mode.auto? ? %(class="mural-ring") : %(stroke="#{SVG.escape(palette.label_color)}")
     end
   end
 end

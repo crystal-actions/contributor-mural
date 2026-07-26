@@ -24,18 +24,18 @@ private MOSAIC_CONFIG = <<-YAML
     gap: 2
   YAML
 
-private def render_mosaic(config : HallOfFame::Config) : {HallOfFame::Renderer, String}
-  users = HallOfFame::Resolver.resolve(config)
-  renderer = HallOfFame::Renderer.for(HallOfFame::Style::Mosaic, config)
+private def render_mosaic(config : ContributorMural::Config) : {ContributorMural::Renderer, String}
+  users = ContributorMural::Resolver.resolve(config)
+  renderer = ContributorMural::Renderer.for(ContributorMural::Style::Mosaic, config)
   renderer.prepare(users)
-  embedded, _ = HallOfFame::Embedder.new(FakeAvatarSource.new)
+  embedded, _ = ContributorMural::Embedder.new(FakeAvatarSource.new)
     .embed(users, renderer, fail_on_missing: false)
   {renderer, renderer.render(embedded)}
 end
 
-describe HallOfFame::Renderers::Mosaic do
+describe ContributorMural::Renderers::Mosaic do
   it "renders the mosaic golden file with tiered sizes" do
-    config = HallOfFame::Config.parse(MOSAIC_CONFIG)
+    config = ContributorMural::Config.parse(MOSAIC_CONFIG)
     _, svg = render_mosaic(config)
 
     # Top tercile gets 3x3 cells (124px), middle 2x2 (82px), rest 1x1 (40px).
@@ -47,9 +47,9 @@ describe HallOfFame::Renderers::Mosaic do
   end
 
   it "fetches avatars at twice the tier size" do
-    config = HallOfFame::Config.parse(MOSAIC_CONFIG)
-    users = HallOfFame::Resolver.resolve(config)
-    renderer = HallOfFame::Renderer.for(HallOfFame::Style::Mosaic, config)
+    config = ContributorMural::Config.parse(MOSAIC_CONFIG)
+    users = ContributorMural::Resolver.resolve(config)
+    renderer = ContributorMural::Renderer.for(ContributorMural::Style::Mosaic, config)
     renderer.prepare(users)
 
     renderer.fetch_size(users.first).should eq(240) # span 3 * 40 * 2
@@ -57,8 +57,8 @@ describe HallOfFame::Renderers::Mosaic do
   end
 
   it "defaults to span 1 for unknown users" do
-    config = HallOfFame::Config.parse(MOSAIC_CONFIG)
-    renderer = HallOfFame::Renderer.for(HallOfFame::Style::Mosaic, config)
-    renderer.fetch_size(HallOfFame::ResolvedUser.new("stranger")).should eq(80)
+    config = ContributorMural::Config.parse(MOSAIC_CONFIG)
+    renderer = ContributorMural::Renderer.for(ContributorMural::Style::Mosaic, config)
+    renderer.fetch_size(ContributorMural::ResolvedUser.new("stranger")).should eq(80)
   end
 end

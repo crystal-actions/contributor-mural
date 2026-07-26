@@ -1,4 +1,4 @@
-module HallOfFame::Renderers
+module ContributorMural::Renderers
   # Phyllotaxis: the arrangement sunflower seeds use. Each avatar sits one
   # golden angle further around than the last, at a radius growing with the
   # square root of its rank, which spaces them evenly with no rings or rows.

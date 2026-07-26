@@ -1,4 +1,4 @@
-module HallOfFame
+module ContributorMural
   # Turns embedded users into an SVG document. Styles implement `defs` (shared
   # clip paths, emitted once), `block_size`, and `draw_block` (one section of
   # users at a vertical offset); the base class stacks sections with optional
@@ -106,15 +106,15 @@ module HallOfFame
     end
 
     protected def label_paint : String
-      mode.auto? ? %(class="hof-label") : %(fill="#{SVG.escape(palette.label_color)}")
+      mode.auto? ? %(class="mural-label") : %(fill="#{SVG.escape(palette.label_color)}")
     end
 
     protected def role_paint : String
-      mode.auto? ? %(class="hof-role") : %(fill="#{SVG.escape(palette.role_color)}")
+      mode.auto? ? %(class="mural-role") : %(fill="#{SVG.escape(palette.role_color)}")
     end
 
     protected def title_paint : String
-      mode.auto? ? %(class="hof-title") : %(fill="#{SVG.escape(palette.title_color)}")
+      mode.auto? ? %(class="mural-title") : %(fill="#{SVG.escape(palette.title_color)}")
     end
 
     # Theme style block (auto mode) and background rect.
@@ -123,9 +123,9 @@ module HallOfFame
       dark = theme.dark_palette
       case mode
       in .auto?
-        io << %(  <style>.hof-label{fill:#{light.label_color}}.hof-role{fill:#{light.role_color}}.hof-title{fill:#{light.title_color}}.hof-bg{fill:#{light.background}}#{style_rules(light)}@media (prefers-color-scheme:dark){.hof-label{fill:#{dark.label_color}}.hof-role{fill:#{dark.role_color}}.hof-title{fill:#{dark.title_color}}.hof-bg{fill:#{dark.background}}#{style_rules(dark)}}</style>\n)
+        io << %(  <style>.mural-label{fill:#{light.label_color}}.mural-role{fill:#{light.role_color}}.mural-title{fill:#{light.title_color}}.mural-bg{fill:#{light.background}}#{style_rules(light)}@media (prefers-color-scheme:dark){.mural-label{fill:#{dark.label_color}}.mural-role{fill:#{dark.role_color}}.mural-title{fill:#{dark.title_color}}.mural-bg{fill:#{dark.background}}#{style_rules(dark)}}</style>\n)
         unless light.background == "transparent" && dark.background == "transparent"
-          io << %(  <rect class="hof-bg" width="100%" height="100%"/>\n)
+          io << %(  <rect class="mural-bg" width="100%" height="100%"/>\n)
         end
       in .light?, .dark?
         background = palette.background

@@ -1,4 +1,4 @@
-name: Hall of Fame
+name: Contributor Mural
 
 on:
   workflow_dispatch:
@@ -9,14 +9,14 @@ permissions:
   contents: write
 
 concurrency:
-  group: hall-of-fame
+  group: contributor-mural
 
 jobs:
   generate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      # Uses the published image, like any consumer on @v1 — this run doubles
+      # Uses the published image, like any consumer on @v2 — this run doubles
       # as a check that the released action still works. CI covers HEAD.
-      - name: Generate hall of fame
+      - name: Generate contributor mural
         uses: ./

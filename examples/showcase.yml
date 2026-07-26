@@ -1,5 +1,5 @@
 # Renders the three styles side by side. Try it:
-#   hall-of-fame -c examples/showcase.yml
+#   contributor-mural -c examples/showcase.yml
 sort: weight
 
 users:

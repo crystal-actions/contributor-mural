@@ -1,34 +1,34 @@
 require "./spec_helper"
 
-describe HallOfFame::Config do
+describe ContributorMural::Config do
   describe ".load" do
     it "applies defaults for a minimal config" do
-      config = HallOfFame::Config.load(SpecHelper.fixture("configs", "minimal.yml"))
+      config = ContributorMural::Config.load(SpecHelper.fixture("configs", "minimal.yml"))
 
-      config.style.should eq(HallOfFame::Style::Grid)
-      config.output.should eq("HALL_OF_FAME.svg")
-      config.sort.should eq(HallOfFame::SortMode::Weight)
+      config.style.should eq(ContributorMural::Style::Grid)
+      config.output.should eq("CONTRIBUTOR_MURAL.svg")
+      config.sort.should eq(ContributorMural::SortMode::Weight)
       config.limit.should be_nil
       config.fail_on_missing?.should be_false
       config.users.size.should eq(1)
       config.users.first.login.should eq("hahwul")
       config.grid.columns.should eq(8)
-      config.grid.shape.should eq(HallOfFame::Shape::Circle)
+      config.grid.shape.should eq(ContributorMural::Shape::Circle)
       config.honeycomb.cell_size.should eq(72)
       config.mosaic.tiers.should eq([3, 2, 1])
-      config.theme.mode.should eq(HallOfFame::ThemeMode::Auto)
+      config.theme.mode.should eq(ContributorMural::ThemeMode::Auto)
       config.theme.preset.should eq("github")
       config.theme.light_palette.background.should eq("transparent")
       config.theme.dark_palette.label_color.should eq("#8b949e")
       config.png.scale.should eq(2.0)
-      config.render_targets.should eq([{"HALL_OF_FAME.svg", HallOfFame::Style::Grid, nil}])
+      config.render_targets.should eq([{"CONTRIBUTOR_MURAL.svg", ContributorMural::Style::Grid, nil}])
     end
 
     it "parses every field of a full config" do
-      config = HallOfFame::Config.load(SpecHelper.fixture("configs", "full.yml"))
+      config = ContributorMural::Config.load(SpecHelper.fixture("configs", "full.yml"))
 
       contributors = config.contributors.should_not be_nil
-      contributors.repo.should eq("hahwul/hall-of-fame")
+      contributors.repo.should eq("hahwul/contributor-mural")
       contributors.include_bots?.should be_true
       contributors.max.should eq(50)
       config.exclude.should eq(["dependabot[bot]"])
@@ -37,49 +37,49 @@ describe HallOfFame::Config do
       config.users.first.name.should eq("HAHWUL")
       config.users.first.weight.should eq(10)
       config.users[1].avatar_url.should eq("https://example.com/a.png")
-      config.grid.shape.should eq(HallOfFame::Shape::Rounded)
+      config.grid.shape.should eq(ContributorMural::Shape::Rounded)
       config.grid.show_names?.should be_false
       config.mosaic.tiers.should eq([4, 2, 1])
       config.render_targets.should eq([
-        {"docs/grid.svg", HallOfFame::Style::Grid, nil},
-        {"docs/hex.svg", HallOfFame::Style::Honeycomb, nil},
-        {"docs/wall.png", HallOfFame::Style::Mosaic, HallOfFame::ThemeMode::Dark},
+        {"docs/grid.svg", ContributorMural::Style::Grid, nil},
+        {"docs/hex.svg", ContributorMural::Style::Honeycomb, nil},
+        {"docs/wall.png", ContributorMural::Style::Mosaic, ContributorMural::ThemeMode::Dark},
       ])
     end
 
     it "fails when the file does not exist" do
-      expect_raises(HallOfFame::ConfigError, /not found/) do
-        HallOfFame::Config.load(SpecHelper.fixture("configs", "nope.yml"))
+      expect_raises(ContributorMural::ConfigError, /not found/) do
+        ContributorMural::Config.load(SpecHelper.fixture("configs", "nope.yml"))
       end
     end
 
     it "fails on unknown keys (typo protection)" do
-      expect_raises(HallOfFame::ConfigError, /avatarsize/) do
-        HallOfFame::Config.load(SpecHelper.fixture("configs", "invalid_unknown_key.yml"))
+      expect_raises(ContributorMural::ConfigError, /avatarsize/) do
+        ContributorMural::Config.load(SpecHelper.fixture("configs", "invalid_unknown_key.yml"))
       end
     end
 
     it "fails when no source would produce any user" do
-      expect_raises(HallOfFame::ConfigError, /nothing to render/) do
-        HallOfFame::Config.load(SpecHelper.fixture("configs", "invalid_no_users.yml"))
+      expect_raises(ContributorMural::ConfigError, /nothing to render/) do
+        ContributorMural::Config.load(SpecHelper.fixture("configs", "invalid_no_users.yml"))
       end
     end
 
     it "accepts an API-only source without a users list" do
-      config = HallOfFame::Config.parse("stargazers:\n  repo: o/r")
+      config = ContributorMural::Config.parse("stargazers:\n  repo: o/r")
       config.validate!
       config.api_sources?.should be_true
     end
 
     it "enables a source block written with no options under it" do
-      config = HallOfFame::Config.parse("contributors:")
+      config = ContributorMural::Config.parse("contributors:")
       config.validate!
       config.contributors.should_not be_nil
       config.api_sources?.should be_true
     end
 
     it "combines a users list with a contributors block" do
-      config = HallOfFame::Config.parse(<<-YAML)
+      config = ContributorMural::Config.parse(<<-YAML)
         users:
           - login: hahwul
         contributors:
@@ -92,49 +92,49 @@ describe HallOfFame::Config do
     end
 
     it "points at the replacement when the removed `source` key is used" do
-      expect_raises(HallOfFame::ConfigError, /`source` was removed/) do
-        HallOfFame::Config.parse("source: contributors")
+      expect_raises(ContributorMural::ConfigError, /`source` was removed/) do
+        ContributorMural::Config.parse("source: contributors")
       end
     end
 
     it "asks for an org when `members` is written bare" do
-      expect_raises(HallOfFame::ConfigError, /`members` needs an `org`/) do
-        HallOfFame::Config.parse("members:")
+      expect_raises(ContributorMural::ConfigError, /`members` needs an `org`/) do
+        ContributorMural::Config.parse("members:")
       end
     end
 
     it "names the accepted values for a misspelled enum" do
-      error = expect_raises(HallOfFame::ConfigError) do
-        HallOfFame::Config.load(SpecHelper.fixture("configs", "invalid_style.yml"))
+      error = expect_raises(ContributorMural::ConfigError) do
+        ContributorMural::Config.load(SpecHelper.fixture("configs", "invalid_style.yml"))
       end
       message = error.message || ""
       message.should contain(%(unknown value "cubism"))
       message.should contain("grid, honeycomb, mosaic")
-      message.should_not contain("HallOfFame::Style")
+      message.should_not contain("ContributorMural::Style")
     end
 
     it "fails on an unknown style" do
-      expect_raises(HallOfFame::ConfigError, /cubism/) do
-        HallOfFame::Config.load(SpecHelper.fixture("configs", "invalid_style.yml"))
+      expect_raises(ContributorMural::ConfigError, /cubism/) do
+        ContributorMural::Config.load(SpecHelper.fixture("configs", "invalid_style.yml"))
       end
     end
 
     it "fails on duplicate logins regardless of case" do
-      expect_raises(HallOfFame::ConfigError, /duplicate user login/) do
-        HallOfFame::Config.load(SpecHelper.fixture("configs", "invalid_dup_users.yml"))
+      expect_raises(ContributorMural::ConfigError, /duplicate user login/) do
+        ContributorMural::Config.load(SpecHelper.fixture("configs", "invalid_dup_users.yml"))
       end
     end
 
     it "fails on output paths escaping the repository" do
-      expect_raises(HallOfFame::ConfigError, /relative to the repository/) do
-        HallOfFame::Config.load(SpecHelper.fixture("configs", "invalid_output.yml"))
+      expect_raises(ContributorMural::ConfigError, /relative to the repository/) do
+        ContributorMural::Config.load(SpecHelper.fixture("configs", "invalid_output.yml"))
       end
     end
   end
 
   describe "#validate!" do
     it "collects multiple errors into one message" do
-      config = HallOfFame::Config.parse(<<-YAML)
+      config = ContributorMural::Config.parse(<<-YAML)
         users:
           - login: hahwul
             weight: 0
@@ -143,7 +143,7 @@ describe HallOfFame::Config do
           columns: 0
         YAML
 
-      error = expect_raises(HallOfFame::ConfigError) { config.validate! }
+      error = expect_raises(ContributorMural::ConfigError) { config.validate! }
       message = error.message || ""
       message.should contain("`weight` must be >= 1")
       message.should contain("`limit` must be >= 1")
@@ -151,7 +151,7 @@ describe HallOfFame::Config do
     end
 
     it "parses role and group fields" do
-      config = HallOfFame::Config.parse(<<-YAML)
+      config = ContributorMural::Config.parse(<<-YAML)
         groups: [Contributors, Special Thanks]
         users:
           - login: hahwul
@@ -172,7 +172,7 @@ describe HallOfFame::Config do
     end
 
     it "rejects group values missing from an explicit groups list" do
-      config = HallOfFame::Config.parse(<<-YAML)
+      config = ContributorMural::Config.parse(<<-YAML)
         groups: [Contributors]
         users:
           - login: hahwul
@@ -181,40 +181,40 @@ describe HallOfFame::Config do
           group: Nope
         YAML
 
-      error = expect_raises(HallOfFame::ConfigError) { config.validate! }
+      error = expect_raises(ContributorMural::ConfigError) { config.validate! }
       message = error.message || ""
       message.should contain(%(group "Contributrs" is not listed))
       message.should contain(%(contributors: group "Nope" is not listed))
     end
 
     it "rejects duplicate or empty groups entries" do
-      config = HallOfFame::Config.parse(<<-YAML)
+      config = ContributorMural::Config.parse(<<-YAML)
         groups: [A, A, " "]
         users:
           - login: hahwul
         YAML
 
-      error = expect_raises(HallOfFame::ConfigError) { config.validate! }
+      error = expect_raises(ContributorMural::ConfigError) { config.validate! }
       message = error.message || ""
       message.should contain("must not be empty")
       message.should contain("duplicate `groups`")
     end
 
     it "rejects unsupported output extensions" do
-      config = HallOfFame::Config.parse(<<-YAML)
+      config = ContributorMural::Config.parse(<<-YAML)
         output: art.txt
         users:
           - login: hahwul
         YAML
 
-      expect_raises(HallOfFame::ConfigError, /end with .svg or .png/) { config.validate! }
+      expect_raises(ContributorMural::ConfigError, /end with .svg or .png/) { config.validate! }
     end
   end
 end
 
 describe "local avatar validation" do
   it "rejects local avatar paths escaping the repository" do
-    config = HallOfFame::Config.parse(<<-YAML)
+    config = ContributorMural::Config.parse(<<-YAML)
       users:
         - login: a
           avatar_url: ../secrets.png
@@ -224,7 +224,7 @@ describe "local avatar validation" do
           avatar_url: assets/ok.png
       YAML
 
-    error = expect_raises(HallOfFame::ConfigError) { config.validate! }
+    error = expect_raises(ContributorMural::ConfigError) { config.validate! }
     message = error.message || ""
     message.should contain("user a: local `avatar_url`")
     message.should contain("user b: local `avatar_url`")

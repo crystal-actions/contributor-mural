@@ -1,4 +1,4 @@
-module HallOfFame
+module ContributorMural
   class CommitError < Exception
   end
 

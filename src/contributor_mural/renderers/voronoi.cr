@@ -10,7 +10,11 @@ module ContributorMural::Renderers
   # page showing through, which themes itself for free under a transparent
   # background.
   class Voronoi < Renderer
-    CLIP_PREFIX = "vor-"
+    # These ids land in a generated file that consumers run spell checkers
+    # over, so the prefix has to stay clear of dictionary near-misses: an
+    # abbreviation of "voronoi" reads as a misspelling of "for" to
+    # crate-ci/typos, once per cell, in a file nobody can correct by hand.
+    CLIP_PREFIX = "vcell-"
 
     # Cap on how far weight may push a boundary, as a fraction of the closest
     # seed pair. At 0.5 every cell provably still contains a disc of radius

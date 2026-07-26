@@ -26,7 +26,7 @@ private def ranked_users(count : Int32) : String
 end
 
 private def cells(svg : String) : Array(Array(Corner))
-  svg.scan(/<clipPath id="vor-\d+"><polygon points="([^"]+)"/).map do |match|
+  svg.scan(/<clipPath id="vcell-\d+"><polygon points="([^"]+)"/).map do |match|
     match[1].split(' ').map do |pair|
       x, y = pair.split(',')
       {x.to_f, y.to_f}
@@ -76,8 +76,8 @@ describe ContributorMural::Renderers::Voronoi do
       #{ranked_users(12)}
       YAML
 
-    svg.should contain(%(<clipPath id="vor-0">))
-    svg.should contain(%(clip-path="url(#vor-0)"))
+    svg.should contain(%(<clipPath id="vcell-0">))
+    svg.should contain(%(clip-path="url(#vcell-0)"))
     Golden.assert("voronoi.svg", svg)
   end
 
@@ -159,8 +159,8 @@ describe ContributorMural::Renderers::Voronoi do
           group: Two
       YAML
 
-    ids = svg.scan(/<clipPath id="(vor-\d+)">/).map(&.[](1))
-    ids.should eq(["vor-0", "vor-1", "vor-2"])
+    ids = svg.scan(/<clipPath id="(vcell-\d+)">/).map(&.[](1))
+    ids.should eq(["vcell-0", "vcell-1", "vcell-2"])
     ids.each do |id|
       svg.index!(%(<clipPath id="#{id}">)).should be < svg.index!(%(url(##{id})))
     end

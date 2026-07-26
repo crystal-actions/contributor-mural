@@ -209,6 +209,41 @@ describe ContributorMural::Config do
 
       expect_raises(ContributorMural::ConfigError, /end with .svg or .png/) { config.validate! }
     end
+
+    it "names the character a stencil word cannot set, and what it can" do
+      config = ContributorMural::Config.parse("users:\n  - login: a\nstencil:\n  text: \"R&D @ 5\"")
+      error = expect_raises(ContributorMural::ConfigError) { config.validate! }
+      message = error.message || ""
+      message.should contain(%(unsupported characters: "&", "@"))
+      message.should contain("A-Z, 0-9, space")
+    end
+
+    it "rejects a stencil word with nothing to draw" do
+      config = ContributorMural::Config.parse("users:\n  - login: a\nstencil:\n  text: \"   \"")
+      expect_raises(ContributorMural::ConfigError, /at least one letter, digit, or symbol/) do
+        config.validate!
+      end
+    end
+
+    it "accepts a lowercase stencil word and an emoji heart" do
+      config = ContributorMural::Config.parse("users:\n  - login: a\nstencil:\n  text: \"thanks \u{2764}\u{FE0F}\"")
+      config.validate!
+      config.stencil.glyph_lines.first.should eq("THANKS ♥".chars)
+    end
+
+    it "caps the voronoi lead against the cell it has to fit inside" do
+      config = ContributorMural::Config.parse(<<-YAML)
+        users:
+          - login: a
+        voronoi:
+          cell_size: 40
+          jitter: 0.5
+          gap: 9
+        YAML
+
+      error = expect_raises(ContributorMural::ConfigError) { config.validate! }
+      (error.message || "").should contain("voronoi `gap` must be at most 5")
+    end
   end
 end
 

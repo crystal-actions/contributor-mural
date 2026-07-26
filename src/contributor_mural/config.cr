@@ -15,6 +15,8 @@ module ContributorMural
     Mosaic
     Spiral
     Orbit
+    Voronoi
+    Stencil
   end
 
   enum Shape
@@ -55,6 +57,8 @@ module ContributorMural
     property mosaic : MosaicConfig = MosaicConfig.new
     property spiral : SpiralConfig = SpiralConfig.new
     property orbit : OrbitConfig = OrbitConfig.new
+    property voronoi : VoronoiConfig = VoronoiConfig.new
+    property stencil : StencilConfig = StencilConfig.new
     property theme : ThemeConfig = ThemeConfig.new
     property png : PngConfig = PngConfig.new
 
@@ -172,6 +176,8 @@ module ContributorMural
       errors.concat(mosaic.validate)
       errors.concat(spiral.validate)
       errors.concat(orbit.validate)
+      errors.concat(voronoi.validate)
+      errors.concat(stencil.validate)
       errors.concat(theme.validate)
 
       raise ConfigError.new(errors.join("; ")) unless errors.empty?
@@ -506,6 +512,90 @@ module ContributorMural
       errors << "orbit `min_size` must not exceed `avatar_size`" if min_size > avatar_size
       errors << "orbit `ring_gap` must be between 1 and 400" unless (1..400).includes?(ring_gap)
       errors << "orbit `gap` must be between 0 and 200" unless (0..200).includes?(gap)
+      errors
+    end
+  end
+
+  class VoronoiConfig
+    include YAML::Serializable
+    include YAML::Serializable::Strict
+
+    property width : Int32 = 720
+    property cell_size : Int32 = 96
+    property gap : Int32 = 4
+    @[YAML::Field(converter: ContributorMural::NumberConverter)]
+    property jitter : Float64 = 0.5
+    @[YAML::Field(converter: ContributorMural::NumberConverter)]
+    property weight_influence : Float64 = 0.6
+    property? outline : Bool = false
+
+    def initialize
+    end
+
+    def validate : Array(String)
+      errors = [] of String
+      errors << "voronoi `width` must be between 64 and 8000" unless (64..8000).includes?(width)
+      errors << "voronoi `cell_size` must be between 16 and 512" unless (16..512).includes?(cell_size)
+      errors << "voronoi `cell_size` must not exceed `width`" if cell_size > width
+      errors << "voronoi `jitter` must be between 0 and 0.8" unless (0.0..0.8).includes?(jitter)
+      errors << "voronoi `weight_influence` must be between 0 and 1" unless (0.0..1.0).includes?(weight_influence)
+      errors << "voronoi `gap` must be between 0 and 64" unless (0..64).includes?(gap)
+      # Every cell provably holds a disc of radius 0.25 * d_min around its
+      # seed, and d_min is at least (1 - jitter) * pitch. The lead eats half
+      # the gap off each side, so past this it could swallow a cell whole.
+      if errors.empty? && gap > (limit = lead_limit)
+        errors << "voronoi `gap` must be at most #{limit} for this `cell_size` and `jitter`"
+      end
+      errors
+    end
+
+    private def lead_limit : Int32
+      (0.25 * (1.0 - jitter) * cell_size).floor.to_i
+    end
+  end
+
+  class StencilConfig
+    include YAML::Serializable
+    include YAML::Serializable::Strict
+
+    MAX_LINES      =  4
+    MAX_LINE_CHARS = 16
+
+    property text : String = "THANKS"
+    property pixel_size : Int32 = 24
+    property gap : Int32 = 4
+    property letter_spacing : Int32 = 1
+    property line_gap : Int32 = 1
+    property shape : Shape = Shape::Circle
+    property? ghosts : Bool = true
+
+    def initialize
+    end
+
+    def glyph_lines : Array(Array(Char))
+      StencilFont.lines(text)
+    end
+
+    def validate : Array(String)
+      errors = [] of String
+      lines = glyph_lines
+      if lines.empty? || lines.all?(&.all?(' '))
+        errors << "stencil `text` must contain at least one letter, digit, or symbol"
+      end
+      errors << "stencil `text` must be at most #{MAX_LINES} lines" if lines.size > MAX_LINES
+      if lines.any? { |line| line.size > MAX_LINE_CHARS }
+        errors << "stencil `text` must be at most #{MAX_LINE_CHARS} characters per line"
+      end
+      unknown = lines.flatten.reject { |char| StencilFont.supports?(char) }.uniq!
+      unless unknown.empty?
+        shown = unknown.first(3).map(&.to_s.inspect).join(", ")
+        shown += ", …" if unknown.size > 3
+        errors << "stencil `text` has unsupported characters: #{shown} (supported: #{StencilFont::ALPHABET})"
+      end
+      errors << "stencil `pixel_size` must be between 8 and 512" unless (8..512).includes?(pixel_size)
+      errors << "stencil `gap` must be between 0 and 200" unless (0..200).includes?(gap)
+      errors << "stencil `letter_spacing` must be between 0 and 8" unless (0..8).includes?(letter_spacing)
+      errors << "stencil `line_gap` must be between 0 and 8" unless (0..8).includes?(line_gap)
       errors
     end
   end

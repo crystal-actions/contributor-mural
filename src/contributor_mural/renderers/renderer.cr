@@ -73,11 +73,26 @@ module ContributorMural
       in .mosaic?    then Renderers::Mosaic.new(config, mode)
       in .spiral?    then Renderers::Spiral.new(config, mode)
       in .orbit?     then Renderers::Orbit.new(config, mode)
+      in .voronoi?   then Renderers::Voronoi.new(config, mode)
+      in .stencil?   then Renderers::Stencil.new(config, mode)
       end
     end
 
     # Style-wide <defs>, emitted once per document.
     protected def defs(io : String::Builder) : Nil
+    end
+
+    # The avatar clip for a `shape`, emitted once per document. `square` needs
+    # no clip at all, so callers keep gating the `clip-path` attribute on
+    # `shape.square?` rather than on a return value from here.
+    protected def shape_clip(io : String::Builder, id : String, shape : Shape) : Nil
+      inner =
+        case shape
+        in .square?  then return
+        in .circle?  then %(<circle cx="0.5" cy="0.5" r="0.5"/>)
+        in .rounded? then %(<rect width="1" height="1" rx="0.15"/>)
+        end
+      io << %(  <defs><clipPath id="#{id}" clipPathUnits="objectBoundingBox">#{inner}</clipPath></defs>\n)
     end
 
     # Extra CSS a style needs in auto mode, emitted for both palettes.

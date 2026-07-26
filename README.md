@@ -6,13 +6,17 @@ Paint a mural of the people who make your project happen. Ships as a GitHub Acti
 | :--: | :-------: | :----: |
 | ![grid](examples/grid.svg) | ![honeycomb](examples/honeycomb.svg) | ![mosaic](examples/mosaic.svg) |
 
-| Spiral | Orbit |
-| :----: | :---: |
-| ![spiral](examples/spiral.svg) | ![orbit](examples/orbit.svg) |
+| Spiral | Orbit | Voronoi |
+| :----: | :---: | :-----: |
+| ![spiral](examples/spiral.svg) | ![orbit](examples/orbit.svg) | ![voronoi](examples/voronoi.svg) |
+
+| Stencil |
+| :-----: |
+| ![stencil](examples/stencil.svg) |
 
 *(Curated samples from [`examples/showcase.yml`](examples/showcase.yml). This repository also runs the action on itself every week — the live result lands in [`docs/`](docs/).)*
 
-- **Five styles** — a classic grid (circle/rounded/square), honeycomb hexagons, a weight-tiered mosaic, a golden-angle spiral, and an orbit with your lead contributor at its centre.
+- **Seven styles** — a classic grid (circle/rounded/square), honeycomb hexagons, a weight-tiered mosaic, a golden-angle spiral, an orbit with your lead contributor at its centre, a stained-glass voronoi, and a stencil that spells a word out of faces.
 - **Many sources, one mural** — your curated `users` list, repository contributors, org members, stargazers, and GitHub Sponsors (tier amounts become weights). Write a source to enable it; everything merges, and your YAML entries always win.
 - **Sections & roles** — split the mural into titled groups (say, *Contributors* and *Special Thanks*) and tag people with a role line (*Creator*, *Design*, *Docs*) — made for honoring the folks the contributors API can't see.
 - **Adapts to GitHub dark mode** — by default the SVG carries both palettes and follows the viewer's theme. Pick a `preset` (`github`, `midnight`, `paper`, `mono`) or tune every color for light and dark separately.
@@ -83,7 +87,7 @@ Outputs: `paths` (comma-separated generated files, SVG and PNG), `user_count`, a
 Everything about the art lives in the config YAML:
 
 ```yaml
-style: grid                 # grid | honeycomb | mosaic | spiral | orbit
+style: grid                 # grid | honeycomb | mosaic | spiral | orbit | voronoi | stencil
 output: CONTRIBUTOR_MURAL.svg    # path relative to the repository root
 
 # --- Sources: write a block to enable it; results are merged ---
@@ -170,6 +174,24 @@ orbit:                      # one avatar at the centre, the rest in rings
   ring_gap: 22
   gap: 8
   rings: true               # draw the faint orbit lines
+
+voronoi:                    # stained glass; cells tile the block edge to edge
+  width: 720
+  cell_size: 96             # target cell pitch, not a hard size
+  gap: 4                    # the lead between cells — the page shows through
+  jitter: 0.5               # 0 is a plain lattice, 0.8 is as loose as it gets
+  weight_influence: 0.6     # 0..1, how much weight widens a cell
+  outline: false            # hairline cell borders, for busy backgrounds
+
+stencil:                    # avatars fill the pixels of a word
+  text: THANKS              # A-Z, 0-9, space, and - . ! ? + ' ♥ (use "\n" for
+                            # a second line; size the word to your crowd)
+  pixel_size: 24            # one glyph pixel, and the avatar that fills it
+  gap: 4
+  letter_spacing: 1         # blank columns between glyphs, in glyph pixels
+  line_gap: 1
+  shape: circle             # circle | rounded | square
+  ghosts: true              # faint dots on the pixels nobody has filled yet
 
 theme:
   preset: github            # github | midnight | paper | mono

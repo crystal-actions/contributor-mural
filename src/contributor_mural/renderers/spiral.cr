@@ -28,13 +28,7 @@ module ContributorMural::Renderers
     end
 
     protected def defs(io : String::Builder) : Nil
-      inner =
-        case @config.spiral.shape
-        in .square?  then return
-        in .circle?  then %(<circle cx="0.5" cy="0.5" r="0.5"/>)
-        in .rounded? then %(<rect width="1" height="1" rx="0.15"/>)
-        end
-      io << %(  <defs><clipPath id="#{CLIP_ID}" clipPathUnits="objectBoundingBox">#{inner}</clipPath></defs>\n)
+      shape_clip(io, CLIP_ID, @config.spiral.shape)
     end
 
     protected def block_size(users : Array(EmbeddedUser)) : {Float64, Float64}

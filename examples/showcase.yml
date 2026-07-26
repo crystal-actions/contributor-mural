@@ -1,4 +1,4 @@
-# Renders the three styles side by side. Try it:
+# Renders every style side by side. Try it:
 #   contributor-mural -c examples/showcase.yml
 sort: weight
 
@@ -43,6 +43,10 @@ outputs:
     style: spiral
   - path: examples/orbit.svg
     style: orbit
+  - path: examples/voronoi.svg
+    style: voronoi
+  - path: examples/stencil.svg
+    style: stencil
 
 grid:
   columns: 6
@@ -68,3 +72,13 @@ spiral:
 orbit:
   center_size: 96
   avatar_size: 54
+
+voronoi:
+  width: 480
+  cell_size: 120
+  gap: 4
+
+stencil:
+  text: THANKS
+  pixel_size: 14
+  gap: 2

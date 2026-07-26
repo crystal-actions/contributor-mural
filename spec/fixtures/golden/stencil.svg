@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="312" height="200" viewBox="0 0 312 200">
+  <style>.mural-label{fill:#57606a}.mural-role{fill:#6e7781}.mural-title{fill:#24292f}.mural-bg{fill:transparent}.mural-ghost{fill:#57606a}@media (prefers-color-scheme:dark){.mural-label{fill:#8b949e}.mural-role{fill:#7d8590}.mural-title{fill:#e6edf3}.mural-bg{fill:transparent}.mural-ghost{fill:#8b949e}}</style>
+  <defs><clipPath id="stencil-clip" clipPathUnits="objectBoundingBox"><circle cx="0.5" cy="0.5" r="0.5"/></clipPath></defs>
+  <g class="mural-ghost" opacity="0.38">
+    <circle cx="16" cy="100" r="7.44"/>
+    <circle cx="44" cy="100" r="7.44"/>
+    <circle cx="72" cy="100" r="7.44"/>
+    <circle cx="100" cy="100" r="7.44"/>
+    <circle cx="128" cy="100" r="7.44"/>
+    <circle cx="16" cy="128" r="7.44"/>
+    <circle cx="128" cy="128" r="7.44"/>
+    <circle cx="16" cy="156" r="7.44"/>
+    <circle cx="128" cy="156" r="7.44"/>
+    <circle cx="16" cy="184" r="7.44"/>
+    <circle cx="128" cy="184" r="7.44"/>
+    <circle cx="184" cy="16" r="7.44"/>
+    <circle cx="212" cy="16" r="7.44"/>
+    <circle cx="240" cy="16" r="7.44"/>
+    <circle cx="268" cy="16" r="7.44"/>
+    <circle cx="296" cy="16" r="7.44"/>
+    <circle cx="240" cy="44" r="7.44"/>
+    <circle cx="240" cy="72" r="7.44"/>
+    <circle cx="240" cy="100" r="7.44"/>
+    <circle cx="240" cy="128" r="7.44"/>
+    <circle cx="240" cy="156" r="7.44"/>
+    <circle cx="184" cy="184" r="7.44"/>
+    <circle cx="212" cy="184" r="7.44"/>
+    <circle cx="240" cy="184" r="7.44"/>
+    <circle cx="268" cy="184" r="7.44"/>
+    <circle cx="296" cy="184" r="7.44"/>
+  </g>
+  <a href="https://github.com/user000" target="_blank">
+    <title>user000</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDA6NDg=" x="4" y="4" width="24" height="24" preserveAspectRatio="xMidYMid slice" clip-path="url(#stencil-clip)"/>
+  </a>
+  <a href="https://github.com/user001" target="_blank">
+    <title>user001</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDE6NDg=" x="116" y="4" width="24" height="24" preserveAspectRatio="xMidYMid slice" clip-path="url(#stencil-clip)"/>
+  </a>
+  <a href="https://github.com/user002" target="_blank">
+    <title>user002</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDI6NDg=" x="4" y="32" width="24" height="24" preserveAspectRatio="xMidYMid slice" clip-path="url(#stencil-clip)"/>
+  </a>
+  <a href="https://github.com/user003" target="_blank">
+    <title>user003</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDM6NDg=" x="116" y="32" width="24" height="24" preserveAspectRatio="xMidYMid slice" clip-path="url(#stencil-clip)"/>
+  </a>
+  <a href="https://github.com/user004" target="_blank">
+    <title>user004</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDQ6NDg=" x="4" y="60" width="24" height="24" preserveAspectRatio="xMidYMid slice" clip-path="url(#stencil-clip)"/>
+  </a>
+  <a href="https://github.com/user005" target="_blank">
+    <title>user005</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDU6NDg=" x="116" y="60" width="24" height="24" preserveAspectRatio="xMidYMid slice" clip-path="url(#stencil-clip)"/>
+  </a>
+</svg>

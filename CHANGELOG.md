@@ -8,6 +8,18 @@ generated files.
 
 ## [Unreleased]
 
+### Styles
+
+- `voronoi` — stained glass. Avatars are clipped into irregular cells that tile
+  the block edge to edge, separated by a hairline lead that lets the page show
+  through. Cell area follows weight, and no cell can be squeezed to nothing
+  however lopsided the weights are.
+- `stencil` — the wall as a word. Avatars fill the lit pixels of `text` set in a
+  built-in 5x7 face, and the pixels nobody has filled yet stay as faint dots, so
+  the word completes itself as contributors arrive. Everyone gets a pixel to
+  themselves before anyone shares one, and a crowd larger than the word splits
+  pixels rather than dropping people.
+
 ## [1.0.0]
 
 First public release.

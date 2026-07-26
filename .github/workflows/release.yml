@@ -30,6 +30,18 @@ jobs:
             *) echo "refusing malformed release tag: $GITHUB_REF_NAME" >&2; exit 1 ;;
           esac
           echo "major=${GITHUB_REF_NAME%%.*}" >> "$GITHUB_OUTPUT"
+
+      # The binary prints its VERSION on every run, and consumers read that to
+      # tell which build produced a file. Publishing a tag that disagrees with
+      # it would make the log actively misleading, so stop here instead.
+      - name: Check VERSION matches the tag
+        run: |
+          version=$(sed -n 's/^ *VERSION *= *"\(.*\)"/\1/p' src/contributor_mural/version.cr)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "src/contributor_mural/version.cr says $version, but the tag is $GITHUB_REF_NAME" >&2
+            echo "bump VERSION (and shard.yml) before tagging" >&2
+            exit 1
+          fi
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
@@ -41,19 +53,54 @@ jobs:
             ghcr.io/crystal-actions/contributor-mural:${{ steps.meta.outputs.major }}
             ghcr.io/crystal-actions/contributor-mural:latest
 
-      # The image must exist before the moving major tag points at a commit
-      # whose action.yml references it.
-      # MAJOR goes through env, never `${{ }}` inside the script: a tag named
+      # `action.yml` on main names the floating `:v1` image, which is what
+      # `@main` should track. A released ref must not: the image tag would keep
+      # moving under it, so the code a consumer pinned is not the code that
+      # runs, and a cached image runs an older build silently.
+      #
+      # So the release is republished on a commit whose action.yml names this
+      # version's own immutable image, and both the version tag and the major
+      # tag are moved onto it. `@v1.1.0` then resolves to `:v1.1.0` forever,
+      # and `@v1` picks up the next release by the git tag moving rather than
+      # by the image tag moving.
+      #
+      # The image must already exist: the moment a tag points at this commit,
+      # a consumer can resolve it.
+      #
+      # Values reach the script through env, never `${{ }}` inline: a tag named
       # `v1$(...)` would otherwise be substituted into the shell and run.
-      - name: Move major version tag
+      - name: Point the release tags at an immutable image
         env:
           MAJOR: ${{ steps.meta.outputs.major }}
+          RELEASE: ${{ github.ref_name }}
+          IMAGE: ghcr.io/crystal-actions/contributor-mural
         run: |
           case "$MAJOR" in
             v[0-9]*) ;;
             *) echo "refusing unexpected major tag: $MAJOR" >&2; exit 1 ;;
           esac
+          case "$RELEASE" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "refusing unexpected release tag: $RELEASE" >&2; exit 1 ;;
+          esac
+
+          sed -i "s|image: docker://$IMAGE:.*|image: docker://$IMAGE:$RELEASE|" action.yml
+          grep -q "image: docker://$IMAGE:$RELEASE\$" action.yml \
+            || { echo "action.yml was not pinned; check the image reference" >&2; exit 1; }
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Re-tagging a commit that is already pinned leaves nothing to
+          # commit, and `git commit` treats that as an error.
+          if git diff --quiet; then
+            echo "action.yml already names $RELEASE; moving tags only"
+          else
+            git commit -am "chore: pin $RELEASE to its own image tag"
+          fi
+
+          # Force-moving these re-matches this workflow's tag trigger, but a
+          # push authenticated with GITHUB_TOKEN does not start another run,
+          # so this does not recurse.
+          git tag -f "$RELEASE"
           git tag -f "$MAJOR"
-          git push origin "$MAJOR" --force
+          git push origin "$RELEASE" "$MAJOR" --force

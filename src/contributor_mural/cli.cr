@@ -28,6 +28,11 @@ module ContributorMural
       end
       parser.parse(argv)
 
+      # First line of every run. The action ships as a container image, and an
+      # image tag can move under a pinned action ref, so "which build is this"
+      # has to be answerable from the log alone.
+      Annotations.io.puts "contributor-mural v#{VERSION}"
+
       begin
         inputs = Inputs.resolve(config_flag, workspace_flag, commit_flag)
       rescue ex : ConfigError

@@ -141,7 +141,11 @@ module ContributorMural
         else                  [] of String
         end
       return message if values.empty?
-      "unknown value #{match[2]} (expected one of: #{values.map(&.downcase).join(", ")})"
+      # Name the version: this list is authoritative only for the build that
+      # printed it, and a stale image rejecting a style that does exist is
+      # exactly the error that reads as "your config is wrong".
+      "unknown value #{match[2]} (expected one of: #{values.map(&.downcase).join(", ")}) " \
+      "— reported by contributor-mural v#{VERSION}"
     end
 
     # The (path, style, mode override) tuples to render: the `outputs` array

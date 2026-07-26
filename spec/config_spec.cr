@@ -150,6 +150,20 @@ describe ContributorMural::Config do
       message.should contain("grid `columns` must be between 1 and 100")
     end
 
+    it "rejects a source weight below 1" do
+      config = ContributorMural::Config.parse(<<-YAML)
+        contributors:
+          weight: 0
+        sponsors:
+          weight: -3
+        YAML
+
+      error = expect_raises(ContributorMural::ConfigError) { config.validate! }
+      message = error.message || ""
+      message.should contain("contributors `weight` must be >= 1")
+      message.should contain("sponsors `weight` must be >= 1")
+    end
+
     it "parses role and group fields" do
       config = ContributorMural::Config.parse(<<-YAML)
         groups: [Contributors, Special Thanks]

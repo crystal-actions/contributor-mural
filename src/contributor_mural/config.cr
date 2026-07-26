@@ -207,18 +207,27 @@ module ContributorMural
     private def validate_api_sources(errors : Array(String)) : Nil
       if block = contributors
         errors << "contributors `max` must be >= 1" if block.max < 1
+        validate_source_weight(errors, "contributors", block.weight)
       end
       if block = members
         errors << "members `org` must not be empty" if block.org.strip.empty?
         errors << "members `org` must be a plain organization name: #{block.org.inspect}" if block.org.includes?('/')
         errors << "members `max` must be >= 1" if block.max < 1
+        validate_source_weight(errors, "members", block.weight)
       end
       if block = stargazers
         errors << "stargazers `max` must be >= 1" if block.max < 1
+        validate_source_weight(errors, "stargazers", block.weight)
       end
       if block = sponsors
         errors << "sponsors `max` must be >= 1" if block.max < 1
+        validate_source_weight(errors, "sponsors", block.weight)
       end
+    end
+
+    private def validate_source_weight(errors : Array(String), section : String, weight : Int32?) : Nil
+      return unless weight
+      errors << "#{section} `weight` must be >= 1" if weight < 1
     end
 
     private def validate_groups(errors : Array(String)) : Nil
@@ -333,6 +342,10 @@ module ContributorMural
     property? include_anonymous : Bool = false
     property max : Int32 = 100
     property group : String? = nil
+    # Flattens every user this source yields onto one rung, replacing the
+    # contribution count. `users:` entries still win field by field, so the
+    # curated list carries the exceptions and nothing else.
+    property weight : Int32? = nil
 
     def initialize
     end
@@ -346,6 +359,7 @@ module ContributorMural
     property org : String
     property max : Int32 = 100
     property group : String? = nil
+    property weight : Int32? = nil
   end
 
   class StargazersConfig
@@ -355,6 +369,7 @@ module ContributorMural
     property repo : String? = nil
     property max : Int32 = 100
     property group : String? = nil
+    property weight : Int32? = nil
 
     def initialize
     end
@@ -367,6 +382,8 @@ module ContributorMural
     property login : String? = nil
     property max : Int32 = 100
     property group : String? = nil
+    # Set this to ignore tier amounts and treat every sponsor alike.
+    property weight : Int32? = nil
 
     def initialize
     end

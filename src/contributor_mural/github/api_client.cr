@@ -52,7 +52,7 @@ module ContributorMural
 
       users = [] of ResolvedUser
       each_page("/orgs/#{org}/members", "organization #{org}", AccountDTO) do |dto|
-        users << account_to_user(dto, options.group)
+        users << account_to_user(dto, options.group, options.weight)
         return users if users.size >= options.max
       end
       users
@@ -65,7 +65,7 @@ module ContributorMural
 
       users = [] of ResolvedUser
       each_page("/repos/#{repo}/stargazers", "repository #{repo}", AccountDTO) do |dto|
-        users << account_to_user(dto, options.group)
+        users << account_to_user(dto, options.group, options.weight)
         return users if users.size >= options.max
       end
       users
@@ -83,7 +83,7 @@ module ContributorMural
       loop do
         connection = sponsors_page(login, Math.min(PER_PAGE, options.max), cursor)
         connection["nodes"].as_a.each do |node|
-          next unless user = sponsor_from(node, options.group)
+          next unless user = sponsor_from(node, options.group, options.weight)
           users << user
           return users if users.size >= options.max
         end
@@ -97,7 +97,7 @@ module ContributorMural
     end
 
     # A private or deleted sponsor comes back as an explicit null entity.
-    private def sponsor_from(node : JSON::Any, group : String?) : ResolvedUser?
+    private def sponsor_from(node : JSON::Any, group : String?, weight : Int32?) : ResolvedUser?
       entity = node["sponsorEntity"]?.try(&.as_h?)
       return unless entity
       sponsor_login = entity["login"]?.try(&.as_s?)
@@ -109,7 +109,7 @@ module ContributorMural
         name: entity["name"]?.try(&.as_s?) || sponsor_login,
         link: entity["url"]?.try(&.as_s?) || "https://github.com/#{sponsor_login}",
         avatar_url: entity["avatarUrl"]?.try(&.as_s?),
-        weight: Math.max(monthly, 1),
+        weight: weight || Math.max(monthly, 1),
         group: group,
       )
     end
@@ -278,13 +278,14 @@ module ContributorMural
 
     private def contributor_to_user(dto : ContributorDTO, repo : String,
                                     options : ContributorsConfig) : ResolvedUser?
+      weight = options.weight || Math.max(dto.contributions, 1)
       if login = dto.login
         return if bot?(dto) && !options.include_bots?
         ResolvedUser.new(
           login: login,
           link: dto.html_url || "https://github.com/#{login}",
           avatar_url: dto.avatar_url,
-          weight: Math.max(dto.contributions, 1),
+          weight: weight,
           group: options.group,
         )
       else
@@ -294,17 +295,18 @@ module ContributorMural
           login: seed,
           link: "https://github.com/#{repo}/commits?author=#{URI.encode_www_form(dto.email || seed)}",
           avatar_url: "https://github.com/identicons/#{URI.encode_path_segment(seed)}.png",
-          weight: Math.max(dto.contributions, 1),
+          weight: weight,
           group: options.group,
         )
       end
     end
 
-    private def account_to_user(dto : AccountDTO, group : String?) : ResolvedUser
+    private def account_to_user(dto : AccountDTO, group : String?, weight : Int32?) : ResolvedUser
       ResolvedUser.new(
         login: dto.login,
         link: dto.html_url || "https://github.com/#{dto.login}",
         avatar_url: dto.avatar_url,
+        weight: weight || 1,
         group: group,
       )
     end

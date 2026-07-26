@@ -119,6 +119,24 @@ describe ContributorMural::GitHubApi do
     end
   end
 
+  it "flattens contribution counts onto the source weight when set" do
+    pages = {1 => "[#{contributor_json("alice", 3540)},#{contributor_json("bob", 2)}]"}
+    with_api_server(pages) do |base, _seen|
+      options = options_from("contributors:\n  weight: 1")
+      users = ContributorMural::GitHubApi.new(config: options, api_base: base).contributors("o/r")
+      users.map(&.weight).should eq([1, 1])
+    end
+  end
+
+  it "applies the source weight to anonymous contributors too" do
+    pages = {1 => "[#{ANON_JSON}]"}
+    with_api_server(pages) do |base, _seen|
+      options = options_from("contributors:\n  include_anonymous: true\n  weight: 4")
+      users = ContributorMural::GitHubApi.new(config: options, api_base: base).contributors("o/r")
+      users.map(&.weight).should eq([4])
+    end
+  end
+
   it "sends the token as a bearer authorization" do
     pages = {1 => "[]"}
     with_api_server(pages) do |base, seen|
@@ -244,6 +262,22 @@ describe "ContributorMural::GitHubApi extra sources" do
       users[1].weight.should eq(1)
       users[1].link.should eq("https://github.com/smallfan")
       seen.count(&.starts_with?("POST /graphql")).should eq(1)
+    end
+  end
+
+  it "ignores tier amounts when the sponsors block sets a weight" do
+    with_sources_server([SPONSOR_PAGE]) do |base, _seen|
+      config = config_with("sponsors:\n  login: hahwul\n  weight: 5")
+      users = ContributorMural::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("hahwul")
+      users.map(&.weight).should eq([5, 5])
+    end
+  end
+
+  it "lifts members onto the configured source weight" do
+    with_sources_server do |base, _seen|
+      config = config_with("members:\n  org: crystal-actions\n  weight: 3")
+      users = ContributorMural::GitHubApi.new(config: config, api_base: base).members("crystal-actions")
+      users.map(&.weight).should eq([3])
     end
   end
 

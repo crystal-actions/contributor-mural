@@ -26,13 +26,17 @@ module ContributorMural
       embedder = Embedder.new(@avatar_source)
       user_count = 0
       warned = Set(String).new
+      # Reported for the first target only — it is what `svg_path` names and
+      # what a single-output config (the common case) means by "the mural".
+      size = nil.as({Int32, Int32}?)
 
       # Render everything before writing anything: a failure halfway through
       # would otherwise leave some outputs updated and others stale.
       rendered = targets.map do |path, style, mode_override|
-        content = render_target(path, style, mode_override, users, embedder, warned)
-        user_count = content[1]
-        {path, content[0]}
+        content, count, dimensions = render_target(path, style, mode_override, users, embedder, warned)
+        user_count = count
+        size ||= dimensions
+        {path, content}
       end
 
       rendered.each do |path, content|
@@ -47,6 +51,10 @@ module ContributorMural
 
       Annotations.output("paths", written_paths.join(","))
       Annotations.output("user_count", user_count.to_s)
+      if dimensions = size
+        Annotations.output("width", dimensions[0].to_s)
+        Annotations.output("height", dimensions[1].to_s)
+      end
 
       changed = false
       if committer = @committer
@@ -60,10 +68,11 @@ module ContributorMural
       1
     end
 
-    # Returns the file contents and how many users made it into them.
+    # Returns the file contents, how many users made it into them, and the
+    # pixel size of the result.
     private def render_target(path : String, style : Style, mode_override : ThemeMode?,
                               users : Array(ResolvedUser), embedder : Embedder,
-                              warned : Set(String)) : {Bytes | String, Int32}
+                              warned : Set(String)) : {Bytes | String, Int32, {Int32, Int32}}
       mode = mode_override || @config.theme.mode
       # A PNG can't adapt to the viewer's theme, so pin auto to light.
       mode = ThemeMode::Light if png?(path) && mode.auto?
@@ -79,8 +88,32 @@ module ContributorMural
       end
 
       svg = renderer.render(Resolver.grouped(embedded, @config))
-      content = png?(path) ? rasterize(svg).as(Bytes | String) : svg.as(Bytes | String)
-      {content, embedded.size}
+      if png?(path)
+        png = rasterize(svg)
+        # Read the size back off the PNG rather than scaling the SVG's own:
+        # rsvg-convert decides the rounding, and a reported size that is one
+        # pixel off is worse than none for anyone writing it into an <img>.
+        {png.as(Bytes | String), embedded.size, png_size(png) || scaled_size(renderer.last_size)}
+      else
+        width, height = renderer.last_size
+        {svg.as(Bytes | String), embedded.size, {width.ceil.to_i, height.ceil.to_i}}
+      end
+    end
+
+    # Width and height out of the IHDR chunk, which a PNG is required to open
+    # with: 8-byte signature, 4-byte length, "IHDR", then the two dimensions
+    # as big-endian 32-bit integers.
+    private def png_size(png : Bytes) : {Int32, Int32}?
+      return if png.size < 24
+      return unless png[12, 4] == "IHDR".to_slice
+      width = IO::ByteFormat::BigEndian.decode(UInt32, png[16, 4])
+      height = IO::ByteFormat::BigEndian.decode(UInt32, png[20, 4])
+      return if width.zero? || height.zero?
+      {width.to_i, height.to_i}
+    end
+
+    private def scaled_size(size : {Float64, Float64}) : {Int32, Int32}
+      {(size[0] * @config.png.scale).ceil.to_i, (size[1] * @config.png.scale).ceil.to_i}
     end
 
     private def png?(path : String) : Bool

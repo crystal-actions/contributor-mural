@@ -34,12 +34,22 @@ outputs:
     description: Deprecated alias for `paths`, kept for existing workflows
   user_count:
     description: Number of users rendered in the last output
+  width:
+    description: >-
+      Pixel width of the first generated file, for embedding with explicit
+      dimensions. PNG outputs report their rasterized size.
+  height:
+    description: Pixel height of the first generated file
   changed:
     description: Whether the files changed and were committed (false when no_commit is set)
 
 runs:
   using: docker
   # Prebuilt so consumers start in seconds instead of building Crystal on
-  # their runner. The release workflow pushes this image before it moves the
-  # matching major tag, so `@v1` never points at an image that is missing.
+  # their runner.
+  #
+  # This floating tag is what `@main` tracks. Released refs do not use it: the
+  # release workflow rewrites this line to the version's own immutable tag and
+  # moves `vX.Y.Z` and `vX` onto that commit, so a pinned action ref always
+  # determines the image — see .github/workflows/release.yml.
   image: docker://ghcr.io/crystal-actions/contributor-mural:v1

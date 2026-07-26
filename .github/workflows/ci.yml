@@ -92,3 +92,7 @@ jobs:
           test "${{ steps.mural.outputs.user_count }}" = "2"
           test "${{ steps.mural.outputs.changed }}" = "false"
           grep -q "data:image" ci-wall.svg
+          # That the dimensions reach a consumer as whole numbers at all;
+          # spec/runner_spec.cr pins what they are relative to the file.
+          echo "${{ steps.mural.outputs.width }}" | grep -Eq '^[1-9][0-9]*$'
+          echo "${{ steps.mural.outputs.height }}" | grep -Eq '^[1-9][0-9]*$'

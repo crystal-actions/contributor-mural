@@ -16,6 +16,10 @@ module ContributorMural
 
     getter mode : ThemeMode
 
+    # Document size of the most recent `render`, so a caller can report the
+    # dimensions it just wrote without parsing the SVG back.
+    getter last_size : {Float64, Float64} = {0.0, 0.0}
+
     # Pixel size at which to fetch this user's avatar (2x render size for
     # crisp display on high-DPI screens).
     abstract def fetch_size(user : ResolvedUser) : Int32
@@ -28,6 +32,7 @@ module ContributorMural
     def render(groups : Array({String?, Array(EmbeddedUser)})) : String
       groups = groups.reject { |(_title, users)| users.empty? }
       if groups.empty?
+        @last_size = {16.0, 16.0}
         return SVG.document(16, 16) { |io| chrome(io) }
       end
 
@@ -45,6 +50,7 @@ module ContributorMural
         height += size[1]
       end
 
+      @last_size = {width, height}
       SVG.document(width, height) do |io|
         chrome(io)
         defs(io)

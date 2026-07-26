@@ -46,6 +46,87 @@ describe ContributorMural::Runner do
     end
   end
 
+  # A voronoi block can land on a fractional width, and an <img> width
+  # attribute has to be a whole number, so the output is the SVG's own size
+  # rounded up — never down, which would crop it.
+  it "reports the rendered size, rounded up from the SVG root element" do
+    yaml = <<-YAML
+      style: voronoi
+      output: wall.svg
+      users:
+        - login: alpha
+        - login: bravo
+        - login: charlie
+      YAML
+
+    run_in_tmp(yaml) do |exit_code, outputs, workspace|
+      exit_code.should eq(0)
+      svg = File.read(File.join(workspace, "wall.svg"))
+      root = svg.lines.first
+      svg_width = root.match!(/ width="([\d.]+)"/)[1].to_f
+      svg_height = root.match!(/ height="([\d.]+)"/)[1].to_f
+
+      outputs.should contain("width=#{svg_width.ceil.to_i}")
+      outputs.should contain("height=#{svg_height.ceil.to_i}")
+    end
+  end
+
+  it "reports a PNG's own dimensions rather than the SVG's scaled" do
+    yaml = <<-YAML
+      output: wall.png
+      png:
+        scale: 2
+      users:
+        - login: alpha
+      YAML
+
+    run_in_tmp(yaml, rasterizer: FakeRasterizer.new({321, 123})) do |exit_code, outputs, _workspace|
+      exit_code.should eq(0)
+      outputs.should contain("width=321")
+      outputs.should contain("height=123")
+    end
+  end
+
+  # A rasterizer that hands back something unparseable should still leave the
+  # embed side with a usable number rather than no output at all.
+  it "falls back to the scaled SVG size when the PNG cannot be read" do
+    yaml = <<-YAML
+      output: wall.png
+      png:
+        scale: 2
+      users:
+        - login: alpha
+      YAML
+
+    run_in_tmp(yaml, rasterizer: FakeRasterizer.new) do |exit_code, outputs, _workspace|
+      exit_code.should eq(0)
+      width = outputs.lines.find!(&.starts_with?("width=")).split('=', 2).last.to_i
+      width.should be > 0
+    end
+  end
+
+  it "reports the first target when several files are rendered" do
+    yaml = <<-YAML
+      outputs:
+        - path: small.svg
+          style: grid
+        - path: big.svg
+          style: orbit
+      users:
+        - login: alpha
+        - login: bravo
+      YAML
+
+    run_in_tmp(yaml) do |exit_code, outputs, workspace|
+      exit_code.should eq(0)
+      grid_width = File.read(File.join(workspace, "small.svg")).lines.first.match!(/ width="([\d.]+)"/)[1].to_f
+      orbit_width = File.read(File.join(workspace, "big.svg")).lines.first.match!(/ width="([\d.]+)"/)[1].to_f
+      grid_width.should_not eq(orbit_width) # otherwise this proves nothing
+
+      outputs.should contain("width=#{grid_width.ceil.to_i}")
+    end
+  end
+
   it "renders multiple outputs reusing fetches" do
     yaml = <<-YAML
       outputs:

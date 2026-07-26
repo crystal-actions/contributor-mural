@@ -1,0 +1,30 @@
+# mosaic.tiers: [4, 2, 1, 1] — see also mosaic-tiers-default.yml
+style: mosaic
+output: examples/variants/mosaic-tiers-steep.svg
+sort: weight
+
+users:
+  - login: hahwul
+    name: HAHWUL
+    weight: 10
+  - login: torvalds
+    name: Linus
+    weight: 8
+  - login: matz
+    name: Matz
+    weight: 6
+  - login: octocat
+    name: Octocat
+    weight: 4
+  - login: sindresorhus
+    name: Sindre
+    weight: 2
+  - login: tj
+    name: TJ
+    weight: 1
+
+mosaic:
+  width: 260
+  base_cell: 36
+  tiers: [4, 2, 1, 1]
+  gap: 3

@@ -1,0 +1,60 @@
+# stencil.text over two lines ("\n"), with square pixels
+style: stencil
+output: examples/variants/stencil-multiline.svg
+sort: none
+
+users:
+  - login: hahwul
+  - login: torvalds
+  - login: matz
+  - login: octocat
+  - login: sindresorhus
+  - login: tj
+  - login: dhh
+  - login: antirez
+  - login: mitchellh
+  - login: kentcdodds
+  - login: rauchg
+  - login: defunkt
+  - login: gaearon
+  - login: addyosmani
+  - login: yyx990803
+  - login: ry
+  - login: isaacs
+  - login: jashkenas
+  - login: paulirish
+  - login: sokra
+  - login: developit
+  - login: wycats
+  - login: tenderlove
+  - login: jeresig
+  - login: mojombo
+  - login: pjhyett
+  - login: schacon
+  - login: bkeepers
+  - login: technoweenie
+  - login: kneath
+  - login: holman
+  - login: atmos
+  - login: mislav
+  - login: josh
+  - login: tekkub
+  - login: vanpelt
+  - login: jbarnette
+  - login: rtomayko
+  - login: antfu
+  - login: sdras
+  - login: bradfitz
+  - login: mbostock
+  - login: kripken
+  - login: jonschlinkert
+  - login: feross
+  - login: egoist
+  - login: sethvargo
+
+stencil:
+  text: "OPEN\nSOURCE"
+  pixel_size: 12
+  gap: 2
+  line_gap: 1
+  shape: square

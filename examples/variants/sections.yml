@@ -1,0 +1,33 @@
+# Titled sections (`groups`) and role lines (`role`)
+style: grid
+output: examples/variants/sections.svg
+sort: weight
+
+groups: [Maintainers, Special Thanks]
+
+users:
+  - login: hahwul
+    name: HAHWUL
+    role: Creator
+    group: Maintainers
+    weight: 10
+  - login: torvalds
+    name: Linus
+    role: Reviewer
+    group: Maintainers
+    weight: 8
+  - login: matz
+    name: Matz
+    role: Docs
+    group: Special Thanks
+    weight: 6
+  - login: octocat
+    name: Octocat
+    role: Design
+    group: Special Thanks
+    weight: 4
+
+grid:
+  columns: 2
+  avatar_size: 48
+  show_names: true

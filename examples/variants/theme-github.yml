@@ -1,0 +1,29 @@
+# theme.preset: github — see also theme-midnight.yml, theme-paper.yml, theme-mono.yml
+style: grid
+output: examples/variants/theme-github.svg
+sort: weight
+
+users:
+  - login: hahwul
+    name: HAHWUL
+    role: Creator
+    group: Core Team
+    weight: 10
+  - login: torvalds
+    name: Linus
+    role: Kernel
+    group: Core Team
+    weight: 8
+  - login: matz
+    name: Matz
+    role: Ruby
+    group: Core Team
+    weight: 6
+
+grid:
+  columns: 3
+  avatar_size: 44
+  show_names: true
+
+theme:
+  preset: github

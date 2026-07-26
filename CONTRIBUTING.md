@@ -21,6 +21,30 @@ shards build
 bin/contributor-mural -c examples/showcase.yml   # regenerates examples/*.svg
 ```
 
+## The README gallery
+
+Every image in the README is generated from a committed config, and the YAML snippet
+next to an image is expected to match that config verbatim — so a snippet cannot
+describe something the renderer does not do. `examples/showcase.yml` produces the seven
+style heroes; `examples/variants/*.yml` produce the per-option comparisons, one file per
+variant (the per-style blocks are global, so `shape: circle` and `shape: square` cannot
+share a run).
+
+After a change that moves geometry or colors, regenerate both (needs network — avatars
+come from github.com) and eyeball the diff:
+
+```bash
+bin/contributor-mural -c examples/showcase.yml
+for f in examples/variants/*.yml; do bin/contributor-mural -c "$f"; done
+```
+
+`spec/examples_spec.cr` keeps the two in sync without rendering: it loads every example
+config, checks the file it names exists, and checks the README links to it. Adding a
+variant means adding a `.yml`, generating its `.svg`, and referencing it in the README —
+the spec fails until all three are done. Keep variants on the small shared cast and
+under ~80 KB each; the SVGs embed their avatars, so the gallery is most of the
+repository's weight.
+
 ## Before opening a pull request
 
 ```bash

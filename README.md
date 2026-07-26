@@ -1,27 +1,46 @@
-# contributor-mural
+<h1 align="center">contributor-mural</h1>
 
-Paint a mural of the people who make your project happen. Ships as a GitHub Action (written in [Crystal](https://crystal-lang.org)) that renders your list of users, your contributors, or both into embeddable SVG art and commits it to your repository.
+<p align="center">
+  <a href="https://github.com/crystal-actions/contributor-mural/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/crystal-actions/contributor-mural/ci.yml?branch=main&label=ci&style=flat-square"></a>
+  <a href="https://github.com/marketplace/actions/contributor-mural"><img alt="Marketplace" src="https://img.shields.io/badge/GitHub-Marketplace-0076D6?style=flat-square&logo=github&logoColor=white"></a>
+  <a href="https://crystal-lang.org"><img alt="Crystal" src="https://img.shields.io/badge/built%20with-Crystal-000000?style=flat-square&logo=crystal&logoColor=white"></a>
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/github/license/crystal-actions/contributor-mural?style=flat-square"></a>
+</p>
 
-| Grid | Honeycomb | Mosaic |
-| :--: | :-------: | :----: |
-| ![grid](examples/grid.svg) | ![honeycomb](examples/honeycomb.svg) | ![mosaic](examples/mosaic.svg) |
+<p align="center"><strong>Paint a mural of the people who make your project happen.</strong></p>
 
-| Spiral | Orbit | Voronoi |
-| :----: | :---: | :-----: |
-| ![spiral](examples/spiral.svg) | ![orbit](examples/orbit.svg) | ![voronoi](examples/voronoi.svg) |
+<p align="center">
+  <img alt="a stencil mural spelling THANKS out of contributor avatars" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/stencil-crowd.svg">
+</p>
 
-| Stencil |
-| :-----: |
-| ![stencil](examples/stencil.svg) |
+A GitHub Action that renders your users, your contributors, or both into embeddable
+SVG art and commits it to your repository.
 
-*(Curated samples from [`examples/showcase.yml`](examples/showcase.yml). This repository also runs the action on itself every week — the live result lands in [`docs/`](docs/).)*
+- **Seven styles** — a classic grid, honeycomb hexagons, a weight-tiered mosaic, a
+  golden-angle spiral, an orbit with your lead contributor at its centre, a
+  stained-glass voronoi, and a stencil that spells a word out of faces.
+- **Many sources, one mural** — your curated `users` list, repository contributors,
+  org members, stargazers, and GitHub Sponsors (tier amounts become weights). Write a
+  source to enable it; everything merges, and your YAML entries always win.
+- **Sections & roles** — split the mural into titled groups and tag people with a role
+  line, for honoring the folks the contributors API cannot see.
+- **Adapts to GitHub dark mode** — the SVG carries both palettes and follows the
+  viewer's theme, or pick one of four presets and tune every color yourself.
+- **SVG and PNG** — self-contained SVGs (avatars embedded as base64, so they render
+  inside READMEs) plus rasterized PNGs, including light/dark pairs.
 
-- **Seven styles** — a classic grid (circle/rounded/square), honeycomb hexagons, a weight-tiered mosaic, a golden-angle spiral, an orbit with your lead contributor at its centre, a stained-glass voronoi, and a stencil that spells a word out of faces.
-- **Many sources, one mural** — your curated `users` list, repository contributors, org members, stargazers, and GitHub Sponsors (tier amounts become weights). Write a source to enable it; everything merges, and your YAML entries always win.
-- **Sections & roles** — split the mural into titled groups (say, *Contributors* and *Special Thanks*) and tag people with a role line (*Creator*, *Design*, *Docs*) — made for honoring the folks the contributors API can't see.
-- **Adapts to GitHub dark mode** — by default the SVG carries both palettes and follows the viewer's theme. Pick a `preset` (`github`, `midnight`, `paper`, `mono`) or tune every color for light and dark separately.
-- **SVG and PNG** — self-contained SVGs (avatars embedded as base64, so they render inside READMEs) plus rasterized PNGs for places SVG can't go, including light/dark pairs.
-- **Local avatars** — point `avatar_url` at a file in your repository for logos or people without a GitHub account.
+## Contents
+
+- [Quick start](#quick-start)
+- [Styles](#styles) — [grid](#grid) · [honeycomb](#honeycomb) · [mosaic](#mosaic) · [spiral](#spiral) · [orbit](#orbit) · [voronoi](#voronoi) · [stencil](#stencil)
+- [Theme](#theme)
+- [Sections and roles](#sections-and-roles)
+- [Sources](#sources)
+- [Multiple outputs and PNG](#multiple-outputs-and-png)
+- [Action inputs and outputs](#action-inputs-and-outputs)
+- [Full config reference](#full-config-reference)
+- [Notes](#notes)
+- [CLI](#cli) · [Development](#development) · [License](#license)
 
 ## Quick start
 
@@ -71,7 +90,392 @@ Then embed the result in your README:
 ![Contributor Mural](CONTRIBUTOR_MURAL.svg)
 ```
 
-## Action inputs
+## Styles
+
+Pick one with `style:`, and tune it with the block of the same name. Every image below
+is generated by this action from the config shown next to it — the full files live in
+[`examples/`](examples/) and [`examples/variants/`](examples/variants/).
+
+### Grid
+
+A classic avatar wall: fixed-size avatars in rows, with optional names and role lines.
+
+```yaml
+style: grid
+grid:
+  columns: 6
+  avatar_size: 64
+  shape: circle
+  show_names: true
+```
+
+![grid](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/grid.svg)
+
+| Option | Default | Accepts |
+| ------ | ------- | ------- |
+| `columns` | `8` | 1–100 |
+| `avatar_size` | `64` | 8–512 |
+| `shape` | `circle` | `circle`, `rounded`, `square` |
+| `margin` | `8` | 0–200 |
+| `show_names` | `true` | draws the name under each avatar |
+| `truncate` | `12` | max name length; `0` disables truncation |
+
+**`shape`**
+
+| `circle` | `rounded` | `square` |
+| :------: | :-------: | :------: |
+| <img alt="grid with circular avatars" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/grid-circle.svg" width="180"> | <img alt="grid with rounded avatars" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/grid-rounded.svg" width="180"> | <img alt="grid with square avatars" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/grid-square.svg" width="180"> |
+
+### Honeycomb
+
+Pointy-top hexagons that tessellate; odd rows shift half a cell and hold one fewer
+avatar. No name labels — the tiling is the point.
+
+```yaml
+style: honeycomb
+honeycomb:
+  columns: 6
+  cell_size: 72
+  gap: 4
+```
+
+![honeycomb](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/honeycomb.svg)
+
+| Option | Default | Accepts |
+| ------ | ------- | ------- |
+| `columns` | `9` | 1–100 (cells in an even row) |
+| `cell_size` | `72` | 8–512 (hex width; height is `cell_size × 2/√3`) |
+| `gap` | `4` | 0–200 |
+
+### Mosaic
+
+A weight-tiered collage: heavier people get bigger squares. Tier spans come from weight
+rank across the whole render, then each section is packed first-fit in list order.
+
+```yaml
+style: mosaic
+mosaic:
+  width: 480
+  base_cell: 56
+  tiers: [3, 2, 1]
+  gap: 3
+```
+
+![mosaic](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/mosaic.svg)
+
+| Option | Default | Accepts |
+| ------ | ------- | ------- |
+| `width` | `800` | `base_cell`–8000 |
+| `base_cell` | `48` | 8–512 (one unit cell) |
+| `tiers` | `[3, 2, 1]` | cell spans per weight tier, heaviest first; each 1–12 |
+| `gap` | `2` | 0–200 |
+
+**`tiers`** — more tiers means a finer ranking; a bigger first span means a louder lead.
+
+| `[3, 2, 1]` | `[4, 2, 1, 1]` |
+| :---------: | :------------: |
+| <img alt="mosaic with three tiers" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/mosaic-tiers-default.svg" width="240"> | <img alt="mosaic with four tiers" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/mosaic-tiers-steep.svg" width="240"> |
+
+### Spiral
+
+Sunflower (phyllotaxis) packing on the golden angle. Rank sets both size and distance
+from the centre, so the wall reads as a single organic bloom.
+
+```yaml
+style: spiral
+spiral:
+  max_size: 76
+  min_size: 34
+```
+
+![spiral](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/spiral.svg)
+
+| Option | Default | Accepts |
+| ------ | ------- | ------- |
+| `max_size` | `72` | 8–512 (the centre avatar) |
+| `min_size` | `32` | 8–512, must be ≤ `max_size` (the outermost) |
+| `gap` | `6` | 0–200 |
+| `shape` | `circle` | `circle`, `rounded`, `square` |
+
+**`shape`**
+
+| `circle` | `square` |
+| :------: | :------: |
+| <img alt="spiral of circular avatars" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/spiral-circle.svg" width="220"> | <img alt="spiral of square avatars" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/spiral-square.svg" width="220"> |
+
+### Orbit
+
+One avatar at the centre and the rest in rings around it, each ring a little smaller
+than the last.
+
+```yaml
+style: orbit
+orbit:
+  center_size: 96
+  avatar_size: 54
+```
+
+![orbit](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/orbit.svg)
+
+| Option | Default | Accepts |
+| ------ | ------- | ------- |
+| `center_size` | `104` | 8–512 |
+| `avatar_size` | `56` | 8–512 (the first ring) |
+| `min_size` | `36` | 8–512, must be ≤ `avatar_size` |
+| `ring_gap` | `22` | 1–400 |
+| `gap` | `8` | 0–200 |
+| `rings` | `true` | the faint dashed orbit lines |
+
+**`rings`**
+
+| `true` | `false` |
+| :----: | :-----: |
+| <img alt="orbit with guide rings" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/orbit-rings.svg" width="220"> | <img alt="orbit without guide rings" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/orbit-no-rings.svg" width="220"> |
+
+### Voronoi
+
+Stained glass: cells tile the block edge to edge, separated by a hairline lead that lets
+the page show through. Weight widens a cell without moving it.
+
+```yaml
+style: voronoi
+voronoi:
+  width: 480
+  cell_size: 120
+  gap: 4
+```
+
+![voronoi](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/voronoi.svg)
+
+| Option | Default | Accepts |
+| ------ | ------- | ------- |
+| `width` | `720` | 64–8000 |
+| `cell_size` | `96` | 16–512 — a target pitch, not a hard size |
+| `gap` | `4` | 0–64, and at most `0.25 × (1 − jitter) × cell_size` |
+| `jitter` | `0.5` | 0–0.8 |
+| `weight_influence` | `0.6` | 0–1, how much weight widens a cell |
+| `outline` | `false` | hairline cell borders, for busy backgrounds |
+
+**`jitter`** — how far seeds wander off the lattice. `0` is a plain grid; `0.8` is as
+loose as it gets.
+
+| `0.0` | `0.5` (default) | `0.8` |
+| :---: | :-------------: | :---: |
+| <img alt="voronoi with no jitter" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/voronoi-jitter-0.svg" width="200"> | <img alt="voronoi with default jitter" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/voronoi-jitter-5.svg" width="200"> | <img alt="voronoi with maximum jitter" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/voronoi-jitter-8.svg" width="200"> |
+
+### Stencil
+
+The wall as a word: avatars fill the lit pixels of `text` set in a built-in 5×7 face, and
+every pixel still waiting for someone shows a faint dot. The mural is legible from the
+first contributor and finishes itself as more arrive.
+
+```yaml
+style: stencil
+stencil:
+  text: THANKS
+  pixel_size: 14
+  gap: 2
+```
+
+Same word, same geometry, 12 people and then 47:
+
+![stencil with twelve people](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/stencil.svg)
+
+![stencil with forty-seven people](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/stencil-crowd.svg)
+
+| Option | Default | Accepts |
+| ------ | ------- | ------- |
+| `text` | `THANKS` | `A–Z`, `0–9`, space, `- . ! ? + ' ♥`; up to 4 lines of 16 chars, split on `\n` |
+| `pixel_size` | `24` | 8–512 — one glyph pixel, and the avatar that fills it |
+| `gap` | `4` | 0–200 |
+| `letter_spacing` | `1` | 0–8, blank columns between glyphs in glyph pixels |
+| `line_gap` | `1` | 0–8 |
+| `shape` | `circle` | `circle`, `rounded`, `square` |
+| `ghosts` | `true` | faint dots on the pixels nobody has filled yet |
+
+**`ghosts`** — with the dots the word is readable from person one; without them you get
+only what your crowd covers.
+
+| `true` | `false` |
+| :----: | :-----: |
+| <img alt="stencil with ghost dots" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/stencil-ghosts.svg" width="220"> | <img alt="stencil without ghost dots" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/stencil-plain.svg" width="220"> |
+
+**Two lines and square pixels** — `text: "OPEN\nSOURCE"`, `shape: square`:
+
+![two-line stencil](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/stencil-multiline.svg)
+
+Size the word to your crowd: the block is the same size whether one person or six
+hundred show up, so a long word with few contributors is mostly ghosts.
+
+## Theme
+
+Four presets, each a light/dark palette pair:
+
+```yaml
+theme:
+  preset: github            # github | midnight | paper | mono
+```
+
+| `github` | `midnight` | `paper` | `mono` |
+| :------: | :--------: | :-----: | :----: |
+| <img alt="github theme" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/theme-github.svg" width="170"> | <img alt="midnight theme" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/theme-midnight.svg" width="170"> | <img alt="paper theme" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/theme-paper.svg" width="170"> | <img alt="mono theme" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/theme-mono.svg" width="170"> |
+
+| Preset | Light background | Dark background | Notes |
+| ------ | ---------------- | --------------- | ----- |
+| `github` | `transparent` | `transparent` | inherits the page; the default |
+| `midnight` | `#0b1021` | `#0b1021` | one dark palette in both modes |
+| `paper` | `#faf8f2` | `#221f1a` | warm off-white / warm near-black |
+| `mono` | `#ffffff` | `#000000` | greyscale chrome |
+
+### Dark mode
+
+With `mode: auto` (the default) the SVG carries both palettes and a
+`prefers-color-scheme` media query, so **the images on this page already follow your
+GitHub theme** — flip your appearance setting and the `github` swatch above changes with
+it. Set `mode: light` or `mode: dark` to pin one.
+
+### Custom colors
+
+Top-level keys override the light palette; `dark:` overrides the dark one. Anything you
+leave out falls back to the preset.
+
+```yaml
+theme:
+  preset: github
+  mode: auto
+  background: transparent
+  label_color: "#57606a"    # the name under an avatar
+  role_color: "#6e7781"     # the role line under the name
+  title_color: "#24292f"    # section titles
+  dark:
+    label_color: "#8b949e"
+    title_color: "#e6edf3"
+  font_family: "-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
+```
+
+## Sections and roles
+
+`group` files a person under a titled section; `groups` fixes the order of those
+sections (and doubles as a typo guard — an unknown `group` is a config error). `role`
+adds a small line under the name. Together they are how you honor people the
+contributors API cannot see: unlinked commit emails, design work, documentation,
+translations.
+
+```yaml
+style: grid
+groups: [Maintainers, Special Thanks]
+
+users:
+  - login: hahwul
+    name: HAHWUL
+    role: Creator
+    group: Maintainers
+  - login: torvalds
+    name: Linus
+    role: Reviewer
+    group: Maintainers
+  - login: matz
+    name: Matz
+    role: Docs
+    group: Special Thanks
+  - login: octocat
+    name: Octocat
+    role: Design
+    group: Special Thanks
+
+grid:
+  columns: 2
+  avatar_size: 48
+  show_names: true
+```
+
+<img alt="a mural split into Maintainers and Special Thanks sections" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/sections.svg" width="200">
+
+A user with no `group` renders in the untitled leading section — even if an API source
+put that person in one. Placement is always yours.
+
+## Sources
+
+Write a block to enable it. Everything merges into one list, then `exclude`, `sort`, and
+`limit` apply.
+
+```yaml
+users:                      # your curated list — always wins on conflicts
+  - login: hahwul
+    name: HAHWUL            # optional display name (default: login)
+    weight: 10              # optional, drives mosaic/voronoi sizing and weight sort
+    role: Creator           # optional label under the name
+    group: Contributors     # optional section
+    link: https://hahwul.com          # optional (default: the GitHub profile)
+    avatar_url: assets/logo.png       # optional; a URL or a repo-relative file
+
+contributors:               # this repository's contributors
+  repo: owner/name          # default: the current repository
+  include_bots: false       # keep type=Bot / *[bot] accounts
+  include_anonymous: false  # include anonymous (email-only) contributors
+  max: 100                  # contribution counts become weights
+  group: Contributors
+
+members:                    # organization members (`org` is required)
+  org: crystal-actions
+  max: 100
+  group: Team
+
+stargazers:                 # the repository's stargazers
+  repo: owner/name
+  max: 100
+  group: Stargazers
+
+sponsors:                   # GitHub Sponsors (needs a token)
+  login: hahwul             # default: the repository owner
+  max: 100                  # tier $/month becomes each sponsor's weight
+  group: Sponsors
+```
+
+| Source | Requires | Weight comes from |
+| ------ | -------- | ----------------- |
+| `users` | — | your `weight:`, else `1` |
+| `contributors` | — (token lifts rate limits, reaches private repos) | commit count |
+| `members` | `org:`; a `read:org` token for non-public members | none (`1`) |
+| `stargazers` | — | none (`1`), returned oldest-first |
+| `sponsors` | a `token` | monthly tier amount in dollars |
+
+**How they merge.** When someone appears in both your `users` list and an API source,
+your entry wins field by field — set a custom `name` or `weight` and let the contribution
+count fill everyone else's. Someone returned by more than one API source (a contributor
+who also sponsors) appears once, keeping the highest weight and the first source's group.
+
+```yaml
+exclude: [dependabot[bot]]  # drop logins from any source
+sort: weight                # weight | login | none (none keeps list order)
+limit: 60                   # cap rendered users after merge and sort
+fail_on_missing: false      # true: fail the run when an avatar cannot be fetched
+```
+
+## Multiple outputs and PNG
+
+One run can render several files. Each entry may override `style` and `mode`; everything
+else (the style blocks, the theme, the sources) is shared.
+
+```yaml
+style: grid
+outputs:
+  - path: docs/wall-grid.svg
+  - path: docs/wall-hex.svg
+    style: honeycomb
+  - path: docs/wall-light.png     # .png is rasterized with rsvg-convert
+  - path: docs/wall-dark.png
+    mode: dark
+
+png:
+  scale: 2                        # rasterization zoom, 0 < scale ≤ 8
+```
+
+Use `output:` for a single file and `outputs:` for a list — setting both is an error.
+PNGs cannot adapt to a theme, so a `.png` under `mode: auto` is pinned to the light
+palette; add a second output with `mode: dark` for a pair.
+
+## Action inputs and outputs
 
 | Input | Default | Description |
 | ----- | ------- | ----------- |
@@ -80,11 +484,17 @@ Then embed the result in your README:
 | `no_commit` | `false` | Generate files but skip commit/push (must be `true` or `false`) |
 | `commit_message` | `chore: update contributor mural` | Commit message |
 
-Outputs: `paths` (comma-separated generated files, SVG and PNG), `user_count`, and `changed` (whether a commit was pushed; `false` when `no_commit` is set). `svg_path` still works as an alias for `paths`.
+| Output | Description |
+| ------ | ----------- |
+| `paths` | Comma-separated generated files, SVG and PNG |
+| `user_count` | Number of users rendered in the last output |
+| `changed` | Whether a commit was pushed; `false` when `no_commit` is set |
+| `svg_path` | Deprecated alias for `paths`, kept for existing workflows |
 
-## Configuration
+## Full config reference
 
-Everything about the art lives in the config YAML:
+<details>
+<summary>Every key on one page</summary>
 
 ```yaml
 style: grid                 # grid | honeycomb | mosaic | spiral | orbit | voronoi | stencil
@@ -208,21 +618,28 @@ png:
   scale: 2                  # rasterization zoom for .png outputs
 ```
 
-When someone appears in both your `users` list and an API source, your entry wins field by field — set a custom `name` or `weight` while the contribution count fills everyone else's. Placement is always yours: an entry without `group` renders in the untitled leading section even if the API put that person in one, so add `group:` when you want them filed under a heading. Someone returned by more than one API source (a contributor who also sponsors) appears once, keeping the highest weight and the first source's group.
-
-This is the recipe for honoring people the API misses — unlinked commit emails, design or docs work: add them to `users` with a `role` and their own section.
+</details>
 
 ## Notes
 
-- A config file is required; the action fails if `.github/contributor-mural.yml` (or the path you pass as `config`) does not exist.
-- The workflow needs `permissions: contents: write` to push the generated file, and a `concurrency` group avoids racing pushes on busy repositories.
-- Avatars link to profiles and carry name/role tooltips, but a README embed (`![](wall.svg)`) renders as an `<img>`, where neither is active. Open the SVG directly — or inline it — to get links.
-- `members` returns public organization members only; a token with `read:org` is needed for the rest. Stargazers arrive oldest-first with no weight, so under the default `sort: weight` they trail contributors — use `sort: none` to keep the API order.
-- On `pull_request` events the checkout is a detached HEAD, so pushes fail — use push/schedule/dispatch triggers, or set `no_commit: true` and handle the file yourself.
-- SVG size grows with user count (roughly 5–15 KB per avatar). Use `limit` and moderate avatar sizes for large walls.
-- With `mode: auto` (the default) the SVG contains both palettes and a `prefers-color-scheme` media query, so it follows GitHub's light/dark theme. PNGs can't adapt, so `.png` outputs pin `auto` to the light palette — add a second output with `mode: dark` for a pair.
-- PNG output uses `rsvg-convert`, bundled in the action image. For local runs install librsvg (`brew install librsvg` / `apt install librsvg2-bin` / `apk add rsvg-convert`).
-- `sponsors` always needs a `token` (GraphQL API); the default `github.token` works for public sponsor lists.
+- A config file is required; the action fails if `.github/contributor-mural.yml` (or the
+  path you pass as `config`) does not exist. Unknown keys are errors, not warnings.
+- The workflow needs `permissions: contents: write` to push the generated file, and a
+  `concurrency` group avoids racing pushes on busy repositories.
+- Avatars link to profiles and carry name/role tooltips, but a README embed
+  (`![](wall.svg)`) renders as an `<img>`, where neither is active. Open the SVG
+  directly — or inline it — to get links.
+- `members` returns public organization members only; a token with `read:org` is needed
+  for the rest. Stargazers arrive oldest-first with no weight, so under the default
+  `sort: weight` they trail contributors — use `sort: none` to keep the API order.
+- On `pull_request` events the checkout is a detached HEAD, so pushes fail — use
+  push/schedule/dispatch triggers, or set `no_commit: true` and handle the file yourself.
+- SVG size grows with user count (roughly 5–15 KB per avatar). Use `limit` and moderate
+  avatar sizes for large walls.
+- PNG output uses `rsvg-convert`, bundled in the action image. For local runs install
+  librsvg (`brew install librsvg` / `apt install librsvg2-bin` / `apk add rsvg-convert`).
+- `sponsors` always needs a `token` (GraphQL API); the default `github.token` works for
+  public sponsor lists.
 
 ## CLI
 
@@ -230,11 +647,15 @@ The action binary is also a local CLI:
 
 ```bash
 shards build --release
-bin/contributor-mural --config examples/showcase.yml   # regenerates the committed examples/*.svg
+bin/contributor-mural --config examples/showcase.yml   # regenerates examples/*.svg
 bin/contributor-mural -c my.yml --commit               # opt in to commit/push locally
 ```
 
-`--config` is resolved against the current directory, while output paths and local `avatar_url` files are resolved against `--workspace` (the current directory by default; `GITHUB_WORKSPACE` inside the action). Committing happens automatically when `GITHUB_ACTIONS=true` — including on runners that emulate it, such as act or Forgejo — and otherwise only with `--commit`.
+`--config` is resolved against the current directory, while output paths and local
+`avatar_url` files are resolved against `--workspace` (the current directory by default;
+`GITHUB_WORKSPACE` inside the action). Committing happens automatically when
+`GITHUB_ACTIONS=true` — including on runners that emulate it, such as act or Forgejo —
+and otherwise only with `--commit`.
 
 ## Development
 
@@ -246,9 +667,24 @@ crystal tool format
 bin/ameba src spec
 ```
 
-Release flow: pushing a `vX.Y.Z` tag builds a multi-arch image to `ghcr.io/crystal-actions/contributor-mural` and force-moves the major tag (`v1`, `v2`, …). The image is pushed before the git tag moves, so the moving tag always references an existing image.
+Every image in this README is generated from a committed config, so the snippets above
+cannot drift from what the renderer does. To regenerate them (needs network — avatars
+come from github.com):
 
-`action.yml` points at that published image, which is why consumers start in seconds rather than building Crystal on their runner. The CI job that runs the action rewrites `action.yml` back to `image: Dockerfile` first, so it tests the code under review instead of the last release.
+```bash
+bin/contributor-mural -c examples/showcase.yml            # the seven style heroes
+for f in examples/variants/*.yml; do bin/contributor-mural -c "$f"; done
+```
+
+Release flow: pushing a `vX.Y.Z` tag builds a multi-arch image to
+`ghcr.io/crystal-actions/contributor-mural` and force-moves the major tag (`v1`, `v2`, …).
+The image is pushed before the git tag moves, so the moving tag always references an
+existing image.
+
+`action.yml` points at that published image, which is why consumers start in seconds
+rather than building Crystal on their runner. The CI job that runs the action rewrites
+`action.yml` back to `image: Dockerfile` first, so it tests the code under review instead
+of the last release.
 
 ## License
 

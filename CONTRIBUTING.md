@@ -87,8 +87,8 @@ just vu 1.2.0     # or: crystal run scripts/version_update.cr -- 1.2.0
 ```
 
 That rewrites `shard.yml`, `src/contributor_mural/version.cr`, and the README's
-pinning table and banner example, then opens a `## [1.2.0]` section in the
-changelog with the notes that had accumulated under `## [Unreleased]`.
+pinning table and banner example, then opens a `## v1.2.0` section at the top of
+the changelog's release list for you to write the notes under.
 
 `just vc` reports what every file claims and fails if they disagree, or if the
 current version has no changelog section. It runs in CI, and the release

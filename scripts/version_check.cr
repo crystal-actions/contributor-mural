@@ -41,8 +41,8 @@ else
   end
 
   unless Version.changelog_documents?(current)
-    STDERR.puts "\n#{Version::CHANGELOG} has no `## [#{current}]` section"
-    STDERR.puts "a released version whose notes are still under `## [Unreleased]` is how 1.1.0 shipped"
+    STDERR.puts "\n#{Version::CHANGELOG} has no `#{Version.changelog_heading(current)}` section"
+    STDERR.puts "a version bumped everywhere but the changelog is how 1.1.0 shipped its notes as unreleased"
     failed = true
   end
 end

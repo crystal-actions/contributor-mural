@@ -55,9 +55,17 @@ module Version
   # Deliberately NOT a site: the changelog mentions unrelated versions —
   # `keepachangelog.com/en/1.1.0/` among them — so it is never rewritten by
   # substitution. What is checked is that the current version has a release
-  # heading, which is what catches a release whose notes were left sitting
-  # under "Unreleased" (exactly how 1.1.0 shipped).
+  # heading of its own, which is what catches a version that was bumped
+  # everywhere else while its notes were never written up (1.1.0 shipped with
+  # its notes still filed as unreleased).
   CHANGELOG = "CHANGELOG.md"
+
+  # `## v1.2.0`. The changelog heads each release with the tag people actually
+  # pin, not a bracketed link reference, so the version has to be read and
+  # written in that form.
+  def self.changelog_heading(version : String) : String
+    "## v#{version}"
+  end
 
   def self.read(site : Site) : String?
     return unless File.exists?(site.path)
@@ -73,7 +81,11 @@ module Version
 
   def self.changelog_documents?(version : String) : Bool
     return false unless File.exists?(CHANGELOG)
-    File.read(CHANGELOG).matches?(/^##\s*\[#{Regex.escape(version)}\]/m)
+    File.read(CHANGELOG).matches?(changelog_heading_pattern(version))
+  end
+
+  def self.changelog_heading_pattern(version : String) : Regex
+    /^##\s+v#{Regex.escape(version)}\s*$/m
   end
 
   def self.valid?(version : String) : Bool

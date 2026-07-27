@@ -1,15 +1,13 @@
 require "./version"
 
-# Sets the version everywhere at once, and rotates the changelog's
-# `## [Unreleased]` section into a release heading.
+# Sets the version everywhere at once, and opens a release heading in the
+# changelog for the notes to be written under.
 #
 # Usage: crystal run scripts/version_update.cr -- 1.2.0
 #        crystal run scripts/version_update.cr        (prompts)
 #
 # Run this before tagging: the release workflow refuses to publish a tag that
 # disagrees with VERSION.
-
-REPO = "https://github.com/crystal-actions/contributor-mural"
 
 current = Version.canonical
 unless current
@@ -63,26 +61,26 @@ Version::SITES.each do |site|
   puts "  #{site.path} → #{target}"
 end
 
-# Open a fresh Unreleased section and promote the notes that have accumulated
-# under it, so the release ships with its own heading rather than leaving them
-# to be read as still-unreleased.
+# Open a section for the release above the newest one, so the notes are written
+# under the version that ships them rather than read as still-unreleased.
+heading = Version.changelog_heading(target)
+
 if File.exists?(Version::CHANGELOG)
   changelog = File.read(Version::CHANGELOG)
-  if changelog.matches?(/^##\s*\[#{Regex.escape(target)}\]/m)
-    puts "  #{Version::CHANGELOG} already has a [#{target}] section; left alone"
-  elsif changelog.includes?("## [Unreleased]")
-    changelog = changelog.sub("## [Unreleased]", "## [Unreleased]\n\n## [#{target}]")
-    changelog = changelog.sub(
-      "[Unreleased]: #{REPO}/compare/v#{current}...HEAD",
-      "[Unreleased]: #{REPO}/compare/v#{target}...HEAD\n" \
-      "[#{target}]: #{REPO}/releases/tag/v#{target}"
-    )
+  # Anchored to the newest release heading rather than to a line count: the
+  # prose above it is free to change, and a new section always belongs directly
+  # on top of the previous release.
+  newest = changelog.match(/^##\s+v\d+\.\d+\.\d+\s*$/m)
+  if changelog.matches?(Version.changelog_heading_pattern(target))
+    puts "  #{Version::CHANGELOG} already has a #{heading} section; left alone"
+  elsif newest
+    changelog = changelog.sub(newest[0], "#{heading}\n\n#{newest[0]}")
     File.write(Version::CHANGELOG, changelog)
-    puts "  #{Version::CHANGELOG} → opened [#{target}]"
+    puts "  #{Version::CHANGELOG} → opened #{heading}"
   else
-    STDERR.puts "  #{Version::CHANGELOG} has no `## [Unreleased]` section; add the [#{target}] notes by hand"
+    STDERR.puts "  #{Version::CHANGELOG} has no release heading to file this under; add the #{heading} notes by hand"
   end
 end
 
 puts
-puts "now: review the [#{target}] notes, commit, then tag v#{target}"
+puts "now: write the #{heading} notes, commit, then tag v#{target}"

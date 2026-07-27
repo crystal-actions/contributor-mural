@@ -297,6 +297,63 @@ describe ContributorMural::Runner do
     end
   end
 
+  it "merges the sources in configuration order, not completion order" do
+    # The four sources are fetched together now, so the order they come back in
+    # is no longer the order they finish in. It still has to be the order the
+    # config lists them, because that is what decides who wins a duplicate and
+    # who lands where in the mural.
+    yaml = <<-YAML
+      sort: none
+      contributors:
+        repo: o/r
+      members:
+        org: acme
+      stargazers:
+        repo: o/r
+      sponsors:
+        login: acme
+      YAML
+
+    github_source = FakeGitHubSource.new(
+      contributors: [ContributorMural::ResolvedUser.new("from_contributors")],
+      members: [ContributorMural::ResolvedUser.new("from_members")],
+      stargazers: [ContributorMural::ResolvedUser.new("from_stargazers")],
+      sponsors: [ContributorMural::ResolvedUser.new("from_sponsors")],
+    )
+
+    run_in_tmp(yaml, github_source: github_source) do |exit_code, _outputs, workspace|
+      exit_code.should eq(0)
+      svg = File.read(File.join(workspace, "CONTRIBUTOR_MURAL.svg"))
+      logins = svg.scan(/href="https:\/\/github\.com\/(from_\w+)"/).map(&.[1])
+      logins.should eq(["from_contributors", "from_members", "from_stargazers", "from_sponsors"])
+    end
+  end
+
+  it "reports a missing repo before any source is contacted" do
+    # The config errors are settled on the calling fiber, ahead of the fan-out,
+    # so which one is reported cannot depend on request timing.
+    yaml = <<-YAML
+      stargazers:
+        max: 10
+      members:
+        org: acme
+      YAML
+
+    github_source = FakeGitHubSource.new(
+      members: [ContributorMural::ResolvedUser.new("teammate")],
+    )
+    previous = ENV["GITHUB_REPOSITORY"]?
+    ENV.delete("GITHUB_REPOSITORY")
+    begin
+      run_in_tmp(yaml, github_source: github_source) do |exit_code, _outputs, _workspace|
+        exit_code.should eq(1)
+        github_source.requested_orgs.should be_empty
+      end
+    ensure
+      ENV["GITHUB_REPOSITORY"] = previous if previous
+    end
+  end
+
   it "always reports `changed`, including when committing is off" do
     yaml = <<-YAML
       users:

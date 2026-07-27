@@ -18,6 +18,35 @@ generated files.
   have no per-user size to multiply and ignore it — a run that asks for one
   anyway says so as a workflow warning.
 
+### Changed
+
+- HTTP connections are pooled and kept alive per host. Every avatar and every
+  API page used to open its own connection, so a mural of a few hundred faces
+  paid for a few hundred TLS handshakes against the same one or two hosts —
+  most of the wall clock, and most of the CPU, of a run that moves only a
+  couple of megabytes. Generated files are byte-for-byte unchanged.
+- Work that only waits now overlaps: the source blocks are fetched together
+  instead of one after another, a paginated collection fetches the pages after
+  the first as a bounded fan-out planned off GitHub's `Link` header, several
+  `.png` outputs convert side by side, and a multi-output config fetches every
+  target's avatars in one pass rather than once per target. A collection still
+  stops as soon as the configured `max` is reached, so this costs no extra API
+  requests.
+
+### Fixed
+
+- Every HTTP request now carries connect, read and write timeouts. Without them
+  a stalled socket hung the whole job until the runner killed it, with no output
+  and nothing in the log to say why.
+- A throttled avatar (`429`, or a timeout) is retried instead of treated as a
+  permanent failure. It used to be a client error like any other, which meant a
+  momentary rate limit quietly dropped that person's face from the mural — the
+  kind of thing nobody notices until the picture is already committed. Both
+  clients honor `Retry-After`, capped at 30 seconds, and an exhausted hourly API
+  quota still fails fast with the message that says how to fix it.
+- Retry backoff is jittered on the API client too, so the sources that now run
+  side by side cannot back off in lockstep and retrip the same limit together.
+
 ## [1.1.1]
 
 ### Added

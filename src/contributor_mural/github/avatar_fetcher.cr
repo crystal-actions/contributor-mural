@@ -6,7 +6,11 @@ module ContributorMural
   class AvatarError < Exception
     getter status : Int32?
 
-    def initialize(message : String, @status : Int32? = nil)
+    # What the server asked us to wait, when it said so. Carried on the error
+    # because the decision to retry is made a level up from the response.
+    getter retry_after : Time::Span?
+
+    def initialize(message : String, @status : Int32? = nil, @retry_after : Time::Span? = nil)
       super(message)
     end
   end
@@ -31,6 +35,19 @@ module ContributorMural
     # end up base64-encoded inside a committed file.
     MAX_BYTES = 8 * 1024 * 1024
 
+    # Statuses worth another attempt. 429 and 408 are the reason this is a list
+    # rather than `>= 500`: a throttled or timed-out request used to count as a
+    # permanent failure, and the mural quietly lost that person's face — the one
+    # outcome nobody notices until the picture is already committed.
+    RETRYABLE_STATUSES = {408, 425, 429, 500, 502, 503, 504}
+
+    # A server may name any delay it likes; we still have a job to finish.
+    MAX_RETRY_AFTER = 30.seconds
+
+    # Sent on every request: an unidentified client is the first thing a CDN
+    # throttles, and being throttled here costs us faces.
+    USER_AGENT = "contributor-mural/#{VERSION}"
+
     CONTENT_TYPES = {
       ".png"  => "image/png",
       ".jpg"  => "image/jpeg",
@@ -45,7 +62,11 @@ module ContributorMural
     # `allow_local_redirects` exists for specs, which redirect between
     # 127.0.0.1 ports; production keeps redirects on public https only.
     def initialize(@workspace : String = Dir.current, @backoff_base : Time::Span = 1.second,
-                   @allow_local_redirects : Bool = false)
+                   @allow_local_redirects : Bool = false, pool : HTTPPool? = nil)
+      @pool = pool || HTTPPool.new
+      # Only the UA: an `Accept` narrower than the wild card would let an
+      # avatar host we have never heard of answer 406 where it used to work.
+      @headers = HTTP::Headers{"User-Agent" => USER_AGENT}
     end
 
     def self.local_path?(avatar_url : String) : Bool
@@ -106,24 +127,29 @@ module ContributorMural
       attempt = 0
       loop do
         attempt += 1
+        wait = nil.as(Time::Span?)
         begin
           return get_following_redirects(url)
         rescue ex : AvatarError
           status = ex.status
-          raise ex if status && status < 500 # client errors will not heal
+          # A 404 or a refused redirect will read the same way next time.
+          raise ex if status && !RETRYABLE_STATUSES.includes?(status)
           raise ex if attempt >= MAX_ATTEMPTS
+          wait = ex.retry_after
         rescue ex : Exception
           # Socket, TLS, URI and MIME failures all land here; only AvatarError
           # may escape this method so the worker fiber never dies.
           raise AvatarError.new("could not fetch avatar: #{ex.message}") if attempt >= MAX_ATTEMPTS
         end
-        sleep @backoff_base * (2 ** (attempt - 1)) * (1.0 + rand * 0.25)
+        # A throttled host tells us when to come back; guessing over the top of
+        # that answer is how a run earns a longer ban.
+        sleep(wait || @backoff_base * (2 ** (attempt - 1)) * (1.0 + rand * 0.25))
       end
     end
 
     private def get_following_redirects(url : String) : {Bytes, String}
       MAX_REDIRECTS.times do
-        response = HTTP::Client.get(url)
+        response = @pool.get(url, @headers)
         case response.status_code
         when 200
           body = response.body.to_slice
@@ -138,7 +164,8 @@ module ContributorMural
         when 404
           raise AvatarError.new("avatar not found (404)", 404)
         else
-          raise AvatarError.new("unexpected status #{response.status_code} for #{url}", response.status_code)
+          raise AvatarError.new("unexpected status #{response.status_code} for #{url}",
+            response.status_code, ContributorMural.retry_after(response, MAX_RETRY_AFTER))
         end
       end
       raise AvatarError.new("too many redirects for #{url}")

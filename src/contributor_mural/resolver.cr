@@ -22,7 +22,9 @@ module ContributorMural
         result << user if seen.add?(user.login.downcase)
       end
 
-      result.reject! { |user| excluded?(user.login, config.exclude) }
+      # Lower-cased once rather than once per user tested against them.
+      patterns = config.exclude.map(&.downcase)
+      result.reject! { |user| excluded?(user.login, patterns) }
       result = sort(result, config.sort)
       config.limit.try { |lim| result = result.first(lim) }
       result
@@ -30,11 +32,11 @@ module ContributorMural
 
     # Entries are matched case-insensitively, exactly unless they carry a
     # wildcard. Bare logins stay a plain comparison so nothing that used to
-    # match can stop matching.
+    # match can stop matching. `patterns` arrives already lower-cased.
     private def self.excluded?(login : String, patterns : Array(String)) : Bool
+      return false if patterns.empty?
       subject = login.downcase
-      patterns.any? do |pattern|
-        candidate = pattern.downcase
+      patterns.any? do |candidate|
         if candidate.includes?('*') || candidate.includes?('?')
           glob?(subject, candidate)
         else
@@ -130,13 +132,19 @@ module ContributorMural
     # users come first without a heading; explicit `groups` fixes the order,
     # otherwise groups appear as first mentioned in the config.
     def self.grouped(users : Array(EmbeddedUser), config : Config) : Array({String?, Array(EmbeddedUser)})
+      # Bucketed in one pass rather than re-scanning the whole list once per
+      # group. `order` decides what is emitted and in what sequence, exactly as
+      # it did when this filtered the list instead of bucketing it.
+      members = {} of String? => Array(EmbeddedUser)
       order = group_order(config)
       users.each do |user|
+        (members[user.group] ||= [] of EmbeddedUser) << user
         order << user.group unless order.includes?(user.group)
       end
       order.compact_map do |group|
-        members = users.select { |user| user.group == group }
-        {group, members} unless members.empty?
+        if bucket = members[group]?
+          {group, bucket} unless bucket.empty?
+        end
       end
     end
 

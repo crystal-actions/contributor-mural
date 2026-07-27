@@ -40,6 +40,21 @@ describe ContributorMural::Embedder do
     source.fetch_count.should eq(2)
   end
 
+  it "warms every target's avatars up front, deduplicating across them" do
+    source = FakeAvatarSource.new
+    embedder = ContributorMural::Embedder.new(source)
+    users = [resolved("alpha"), resolved("bravo")]
+
+    # Two targets at one size and a third at another: four fetches, not six.
+    embedder.warm(users, [grid_renderer(64), grid_renderer(32), grid_renderer(64)])
+    source.fetch_count.should eq(4)
+
+    # And rendering afterwards costs nothing, whichever target asks.
+    embedder.embed(users, grid_renderer(64), fail_on_missing: false)
+    embedder.embed(users, grid_renderer(32), fail_on_missing: false)
+    source.fetch_count.should eq(4)
+  end
+
   it "fetches again for a different size" do
     source = FakeAvatarSource.new
     embedder = ContributorMural::Embedder.new(source)

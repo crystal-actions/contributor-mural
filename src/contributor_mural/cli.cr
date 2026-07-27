@@ -47,11 +47,19 @@ module ContributorMural
         return 1
       end
 
-      github_source = config.api_sources? ? GitHubApi.new(inputs.token, config) : nil
+      # One pool for the whole run: the API and the avatars mostly talk to
+      # different hosts, but they share the timeouts, and a single owner means
+      # connections are reused across both phases instead of within each.
+      pool = HTTPPool.new
+      github_source = config.api_sources? ? GitHubApi.new(inputs.token, config, pool: pool) : nil
       committer = inputs.commit? ? Committer.new(inputs.workspace, inputs.commit_message) : nil
 
-      Runner.new(config, HTTPAvatarSource.new(inputs.workspace), inputs.workspace,
-        github_source, committer, RsvgRasterizer.new).run
+      begin
+        Runner.new(config, HTTPAvatarSource.new(inputs.workspace, pool: pool), inputs.workspace,
+          github_source, committer, RsvgRasterizer.new).run
+      ensure
+        pool.close
+      end
     end
   end
 end

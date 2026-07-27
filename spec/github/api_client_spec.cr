@@ -179,6 +179,146 @@ private def config_with(yaml : String) : ContributorMural::Config
   ContributorMural::Config.parse(yaml)
 end
 
+# Serves `last_page` pages of contributors, advertising the last one through a
+# `Link` header the way GitHub does, and records both the pages requested and how
+# many requests were ever in flight at once.
+private class PaginatedServer
+  getter pages_seen = [] of Int32
+  getter peak_in_flight = 0
+  getter address : String
+
+  def initialize(@last_page : Int32, @bot_pages : Array(Int32) = [] of Int32,
+                 @delay : Time::Span = 20.milliseconds)
+    in_flight = 0
+    @server = HTTP::Server.new do |context|
+      page = (context.request.query_params["page"]? || "1").to_i
+      @pages_seen << page
+      in_flight += 1
+      @peak_in_flight = in_flight if in_flight > @peak_in_flight
+      sleep @delay
+      in_flight -= 1
+
+      context.response.content_type = "application/json"
+      context.response.headers["Link"] = link_header(page)
+      # Full pages everywhere but the last, so nothing stops the walk early.
+      count = page < @last_page ? 100 : 40
+      context.response.print("[#{page_body(page, count)}]")
+    end
+    @address = "http://#{@server.bind_unused_port("127.0.0.1")}"
+    spawn { @server.listen }
+  end
+
+  def close : Nil
+    @server.close
+  end
+
+  private def page_body(page : Int32, count : Int32) : String
+    type = @bot_pages.includes?(page) ? "Bot" : "User"
+    (1..count).map { |index| contributor_json("p#{page}u#{index}", count - index + 1, type) }.join(",")
+  end
+
+  private def link_header(page : Int32) : String
+    parts = [%(<https://api/x?page=#{@last_page}>; rel="last")]
+    parts << %(<https://api/x?page=#{page + 1}>; rel="next") if page < @last_page
+    parts.join(", ")
+  end
+end
+
+private def with_paginated_server(last_page : Int32, bot_pages : Array(Int32) = [] of Int32, &)
+  server = PaginatedServer.new(last_page, bot_pages)
+  begin
+    yield server
+  ensure
+    server.close
+  end
+end
+
+describe "ContributorMural::GitHubApi throttling" do
+  it "waits out a secondary rate limit and carries on" do
+    # The burst limit names its own delay and clears on its own, unlike an
+    # exhausted hourly quota. Telling the two apart is what keeps a run that
+    # tripped a momentary limit from failing outright.
+    calls = 0
+    server = HTTP::Server.new do |context|
+      calls += 1
+      if calls < 3
+        context.response.status_code = 429
+        context.response.headers["Retry-After"] = "0"
+      else
+        context.response.content_type = "application/json"
+        context.response.print "[#{contributor_json("late", 1)}]"
+      end
+    end
+    address = server.bind_unused_port "127.0.0.1"
+    spawn { server.listen }
+    begin
+      api = ContributorMural::GitHubApi.new(api_base: "http://#{address}", backoff_base: 0.seconds)
+      api.contributors("o/r").map(&.login).should eq(["late"])
+      calls.should eq(3)
+    ensure
+      server.close
+    end
+  end
+
+  it "does not retry an exhausted hourly quota, even when asked to wait" do
+    headers = HTTP::Headers{
+      "x-ratelimit-remaining" => "0",
+      "x-ratelimit-reset"     => "1753400000",
+      "Retry-After"           => "0",
+    }
+    with_api_server({} of Int32 => String, status: 429, headers: headers) do |base, seen|
+      expect_raises(ContributorMural::ApiError, /rate limit exceeded/) do
+        ContributorMural::GitHubApi.new(api_base: base, backoff_base: 0.seconds).contributors("o/r")
+      end
+      # The quota resets on the hour, so waiting the named moment would only
+      # spend attempts on the same answer.
+      seen.size.should eq(1)
+    end
+  end
+end
+
+describe "ContributorMural::GitHubApi pagination" do
+  it "fetches the pages after the first together, in order" do
+    with_paginated_server(4) do |server|
+      options = config_with("contributors:\n  max: 1000")
+      users = ContributorMural::GitHubApi.new(config: options, api_base: server.address).contributors("o/r")
+
+      users.size.should eq(340) # three full pages plus a last page of forty
+      users.first.login.should eq("p1u1")
+      users.last.login.should eq("p4u40")
+      server.pages_seen.sort.should eq([1, 2, 3, 4])
+      # Page 1 goes alone because it is what names the last page; 2 through 4
+      # then go out together instead of as three waits in a row.
+      server.peak_in_flight.should eq(3)
+    end
+  end
+
+  it "still stops as soon as the caller has enough people" do
+    with_paginated_server(20) do |server|
+      options = config_with("contributors:\n  max: 50")
+      users = ContributorMural::GitHubApi.new(config: options, api_base: server.address).contributors("o/r")
+
+      users.size.should eq(50)
+      # Twenty pages exist; wanting fifty people still costs one request.
+      server.pages_seen.should eq([1])
+    end
+  end
+
+  it "keeps walking when filtering eats whole pages" do
+    # `max` cannot bound the page count by itself: bots are dropped after the
+    # fetch, so a page can yield nobody at all. Planning off the `Link` header
+    # rather than off `max` is what keeps the real people from going missing.
+    with_paginated_server(3, bot_pages: [1, 2]) do |server|
+      options = config_with("contributors:\n  max: 40")
+      users = ContributorMural::GitHubApi.new(config: options, api_base: server.address).contributors("o/r")
+
+      users.size.should eq(40)
+      users.first.login.should eq("p3u1")
+      server.pages_seen.sort.should eq([1, 2, 3])
+    end
+  end
+end
+
 # Serves REST account lists plus a GraphQL sponsors endpoint.
 private def with_sources_server(sponsor_pages : Array(String) = [] of String, &)
   seen = [] of String

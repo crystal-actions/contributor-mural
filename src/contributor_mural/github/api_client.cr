@@ -7,8 +7,13 @@ module ContributorMural
   end
 
   # Server-side failures worth another attempt; carries the same message the
-  # caller would otherwise see.
+  # caller would otherwise see, plus the delay the server named if it named one.
   private class RetryableApiError < ApiError
+    getter retry_after : Time::Span?
+
+    def initialize(message : String, @retry_after : Time::Span? = nil)
+      super(message)
+    end
   end
 
   # Seam for GitHub-backed user sources so specs can inject a fake.
@@ -25,11 +30,22 @@ module ContributorMural
     PER_PAGE     = 100
     MAX_ATTEMPTS =   3
 
+    # How many pages of one collection may be in flight together. Enough that a
+    # thousand stargazers stop being ten round trips in a row, low enough to
+    # stay clear of the secondary rate limit that punishes bursts.
+    PAGE_WINDOW = 4
+
+    # A secondary rate limit names its own delay; anything longer than this is
+    # better spent failing with a message someone can act on.
+    MAX_RETRY_AFTER = 30.seconds
+
     REPO_PATTERN = %r{\A[^/\s]+/[^/\s]+\z}
 
     def initialize(@token : String? = nil, @config : Config = Config.empty,
                    @api_base : String = "https://api.github.com",
-                   @backoff_base : Time::Span = 1.second)
+                   @backoff_base : Time::Span = 1.second,
+                   pool : HTTPPool? = nil)
+      @pool = pool || HTTPPool.new
     end
 
     def contributors(repo : String) : Array(ResolvedUser)
@@ -170,25 +186,69 @@ module ContributorMural
       raise ApiError.new("#{section} `repo` must look like owner/name, got: #{repo.inspect}")
     end
 
+    # Walks a paginated collection, yielding every item in order.
+    #
+    # Page 1 comes back with a `Link` header naming the last page, which turns
+    # the rest of the walk from "request, wait, decide, repeat" into a few
+    # bounded fan-outs — a thousand stargazers used to be ten round trips in
+    # series. The caller still stops the walk by returning out of the block once
+    # it has enough people, so a repository with far more pages than the config
+    # asks for costs no more requests than it did before. Without a `Link`
+    # header there is nothing to plan from, so that path stays sequential.
     private def each_page(path : String, context : String, dto : T.class, & : T ->) : Nil forall T
       separator = path.includes?('?') ? '&' : '?'
-      page = 1
-      loop do
-        url = "#{@api_base}#{path}#{separator}per_page=#{PER_PAGE}&page=#{page}"
-        body = get_body(url, context)
-        # A 204 (or a proxy's HTML error page) is not a JSON array; surface
-        # that as an API error rather than a raw parse exception.
-        break if body.strip.empty?
-        batch =
-          begin
-            Array(T).from_json(body)
-          rescue ex : JSON::ParseException
-            raise ApiError.new("#{context}: unexpected response from GitHub (#{ex.message})")
-          end
-        batch.each { |item| yield item }
-        break if batch.size < PER_PAGE
-        page += 1
+      page_url = ->(page : Int32) do
+        "#{@api_base}#{path}#{separator}per_page=#{PER_PAGE}&page=#{page}"
       end
+
+      response = get_response(page_url.call(1), context)
+      first = parse_page(response.body, context, dto)
+      return unless first
+      first.each { |item| yield item }
+      return if first.size < PER_PAGE
+
+      last = last_page(response)
+      page = 2
+      while last.nil? || page <= last
+        window = last ? Math.min(PAGE_WINDOW, last - page + 1) : 1
+        bodies = Concurrent.map((page...page + window).to_a, PAGE_WINDOW) do |number|
+          get_response(page_url.call(number), context).body
+        end
+        bodies.each do |body|
+          batch = parse_page(body, context, dto)
+          return unless batch
+          batch.each { |item| yield item }
+          return if batch.size < PER_PAGE
+        end
+        page += window
+      end
+    end
+
+    # `nil` means the collection is over: an empty body (a 204, say) is not a
+    # JSON array, and neither is a proxy's HTML error page — that one has to
+    # surface as an API error rather than a raw parse exception.
+    private def parse_page(body : String, context : String, dto : T.class) : Array(T)? forall T
+      return if body.blank?
+      begin
+        Array(T).from_json(body)
+      rescue ex : JSON::ParseException
+        raise ApiError.new("#{context}: unexpected response from GitHub (#{ex.message})")
+      end
+    end
+
+    # `Link: <https://api.github.com/...?page=7>; rel="last", <...>; rel="next"`.
+    # Splitting on commas is safe for the URLs GitHub puts in here.
+    private def last_page(response : HTTP::Client::Response) : Int32?
+      link = response.headers["Link"]?
+      return unless link
+      link.split(',').each do |part|
+        next unless part.includes?(%(rel="last"))
+        if match = part.match(/[?&]page=(\d+)/)
+          number = match[1].to_i?
+          return number if number && number > 1
+        end
+      end
+      nil
     end
 
     private def sponsors_page(login : String, first : Int32, cursor : String?) : JSON::Any
@@ -197,7 +257,7 @@ module ContributorMural
         variables: {login: login, first: first, after: cursor},
       }.to_json
       body = with_retries("GraphQL") do
-        response = HTTP::Client.post("#{@api_base}/graphql", headers: headers, body: payload)
+        response = @pool.post("#{@api_base}/graphql", headers: headers, body: payload)
         check_status(response, "sponsors of #{login}")
         response.body
       end
@@ -220,22 +280,26 @@ module ContributorMural
       connection
     end
 
-    private def get_body(url : String, context : String) : String
+    # The response, not just the body: page 1 of a collection carries the `Link`
+    # header the pagination plan is built from.
+    private def get_response(url : String, context : String) : HTTP::Client::Response
       with_retries(context) do
-        response = HTTP::Client.get(url, headers: headers)
+        response = @pool.get(url, headers)
         check_status(response, context)
-        response.body
+        response
       end
     end
 
-    private def with_retries(context : String, & : -> String) : String
+    private def with_retries(context : String, & : -> T) : T forall T
       attempt = 0
       loop do
         attempt += 1
+        wait = nil.as(Time::Span?)
         begin
           return yield
         rescue ex : RetryableApiError
           raise ApiError.new(ex.message || "GitHub API error") if attempt >= MAX_ATTEMPTS
+          wait = ex.retry_after
         rescue ex : ApiError
           raise ex
         rescue ex : Exception
@@ -243,7 +307,10 @@ module ContributorMural
           # this method so callers have one error type to handle.
           raise ApiError.new("network error talking to GitHub (#{context}): #{ex.message}") if attempt >= MAX_ATTEMPTS
         end
-        sleep @backoff_base * (2 ** (attempt - 1))
+        # Jitter earns its keep now that several sources and several pages are in
+        # flight together: without it they back off in lockstep and hit the same
+        # limit again at the same instant.
+        sleep(wait || @backoff_base * (2 ** (attempt - 1)) * (1.0 + rand * 0.25))
       end
     end
 
@@ -254,6 +321,15 @@ module ContributorMural
       when 401
         raise ApiError.new("GitHub API rejected the token (401) — check the `token` input")
       when 403, 429
+        # Two different failures share these codes. An exhausted hourly quota
+        # will still be exhausted in a second, so it stays fatal with a message
+        # that says what to do about it. A secondary (burst) limit names its own
+        # delay and clears on its own — waiting it out is the whole fix.
+        raise rate_limit_error(response) if response.headers["x-ratelimit-remaining"]? == "0"
+        if wait = ContributorMural.retry_after(response, MAX_RETRY_AFTER)
+          raise RetryableApiError.new(
+            "GitHub API asked for a #{wait.total_seconds.round.to_i}s pause (#{context})", wait)
+        end
         raise rate_limit_error(response)
       when 404
         raise ApiError.new("#{context}: not found or not accessible (pass a token with access?)")

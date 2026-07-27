@@ -2,6 +2,11 @@ module ContributorMural
   # Orchestrates the pipeline: resolve users, embed avatars, render styles,
   # write files. Returns a process exit code.
   class Runner
+    # Each PNG is an `rsvg-convert` process, so this is bounded by cores rather
+    # than by patience — unlike everything else in the pipeline, which waits on
+    # the network.
+    MAX_RASTER_JOBS = 4
+
     getter written_paths = [] of String
 
     def initialize(@config : Config, @avatar_source : AvatarSource,
@@ -25,22 +30,30 @@ module ContributorMural
       end
 
       embedder = Embedder.new(@avatar_source)
+      # Every renderer is built and asked what it needs *before* anything is
+      # fetched, so all the targets' avatars come down in one fan-out. A config
+      # with several outputs used to wait out a separate round of latency per
+      # target, even where the targets wanted the same faces at the same size.
+      plans = targets.map do |path, style, mode_override|
+        renderer = Renderer.for(style, @config, target_mode(path, mode_override))
+        renderer.prepare(users)
+        {path, renderer}
+      end
+      embedder.warm(users, plans.map { |_path, renderer| renderer })
+
       user_count = 0
       warned = Set(String).new
-      # Reported for the first target only — it is what `svg_path` names and
-      # what a single-output config (the common case) means by "the mural".
-      size = nil.as({Int32, Int32}?)
 
       # Render everything before writing anything: a failure halfway through
       # would otherwise leave some outputs updated and others stale.
-      rendered = targets.map do |path, style, mode_override|
-        content, count, dimensions = render_target(path, style, mode_override, users, embedder, warned)
+      drawn = plans.map do |path, renderer|
+        svg, count = draw(path, renderer, users, embedder, warned)
         user_count = count
-        size ||= dimensions
-        {path, content}
+        {path, svg, renderer.last_size}
       end
 
-      rendered.each do |path, content|
+      rendered = convert(drawn)
+      rendered.each do |path, content, _dimensions|
         full_path = File.join(@workspace, path)
         Dir.mkdir_p(File.dirname(full_path))
         case content
@@ -52,9 +65,11 @@ module ContributorMural
 
       Annotations.output("paths", written_paths.join(","))
       Annotations.output("user_count", user_count.to_s)
-      if dimensions = size
-        Annotations.output("width", dimensions[0].to_s)
-        Annotations.output("height", dimensions[1].to_s)
+      # Reported for the first target only — it is what `svg_path` names and
+      # what a single-output config (the common case) means by "the mural".
+      if first = rendered.first?
+        Annotations.output("width", first[2][0].to_s)
+        Annotations.output("height", first[2][1].to_s)
       end
 
       changed = false
@@ -69,17 +84,15 @@ module ContributorMural
       1
     end
 
-    # Returns the file contents, how many users made it into them, and the
-    # pixel size of the result.
-    private def render_target(path : String, style : Style, mode_override : ThemeMode?,
-                              users : Array(ResolvedUser), embedder : Embedder,
-                              warned : Set(String)) : {Bytes | String, Int32, {Int32, Int32}}
+    private def target_mode(path : String, mode_override : ThemeMode?) : ThemeMode
       mode = mode_override || @config.theme.mode
       # A PNG can't adapt to the viewer's theme, so pin auto to light.
-      mode = ThemeMode::Light if png?(path) && mode.auto?
+      png?(path) && mode.auto? ? ThemeMode::Light : mode
+    end
 
-      renderer = Renderer.for(style, @config, mode)
-      renderer.prepare(users)
+    # Returns the SVG for one target and how many users made it into it.
+    private def draw(path : String, renderer : Renderer, users : Array(ResolvedUser),
+                     embedder : Embedder, warned : Set(String)) : {String, Int32}
       embedded, skipped = embedder.embed(users, renderer, @config.fail_on_missing?)
       skipped.each do |login|
         Annotations.warning("skipped #{login}: avatar could not be fetched") if warned.add?(login)
@@ -88,16 +101,24 @@ module ContributorMural
         raise AvatarError.new("no avatars could be fetched — refusing to write an empty #{path}")
       end
 
-      svg = renderer.render(Resolver.grouped(embedded, @config))
-      if png?(path)
-        png = rasterize(svg)
-        # Read the size back off the PNG rather than scaling the SVG's own:
-        # rsvg-convert decides the rounding, and a reported size that is one
-        # pixel off is worse than none for anyone writing it into an <img>.
-        {png.as(Bytes | String), embedded.size, png_size(png) || scaled_size(renderer.last_size)}
-      else
-        width, height = renderer.last_size
-        {svg.as(Bytes | String), embedded.size, {width.ceil.to_i, height.ceil.to_i}}
+      {renderer.render(Resolver.grouped(embedded, @config)), embedded.size}
+    end
+
+    # Turns drawn SVGs into what actually gets written, with the pixel size of
+    # each. Every PNG is an independent subprocess, so they convert side by side
+    # rather than one after another — the SVG targets pass straight through.
+    private def convert(drawn : Array({String, String, {Float64, Float64}})) : Array({String, Bytes | String, {Int32, Int32}})
+      Concurrent.map(drawn, MAX_RASTER_JOBS) do |target|
+        path, svg, svg_size = target
+        if png?(path)
+          png = rasterize(svg)
+          # Read the size back off the PNG rather than scaling the SVG's own:
+          # rsvg-convert decides the rounding, and a reported size that is one
+          # pixel off is worse than none for anyone writing it into an <img>.
+          {path, png.as(Bytes | String), png_size(png) || scaled_size(svg_size)}
+        else
+          {path, svg.as(Bytes | String), {svg_size[0].ceil.to_i, svg_size[1].ceil.to_i}}
+        end
       end
     end
 
@@ -152,29 +173,40 @@ module ContributorMural
     private def fetch_api_users : Array(ResolvedUser)
       return [] of ResolvedUser unless @config.api_sources?
 
-      source = @github_source
-      unless source
-        raise ConfigError.new("the configured sources need GitHub API access, but none is configured")
-      end
+      source = @github_source ||
+               raise ConfigError.new("the configured sources need GitHub API access, but none is configured")
 
-      users = [] of ResolvedUser
+      # Everything that can be settled without the network is settled here, on
+      # this fiber, in configuration order: a missing `repo` has to read the same
+      # way it always did rather than depending on which request failed first.
+      # (Each source also needs its own local to close over — two sources
+      # sharing one `repo` variable would both end up fetching the second one.)
+      fetches = [] of Proc(Array(ResolvedUser))
       if block = @config.contributors
-        users.concat source.contributors(default_repo("contributors", block.repo))
+        contributors_repo = default_repo("contributors", block.repo)
+        fetches << -> { source.contributors(contributors_repo) }
       end
       if block = @config.members
-        users.concat source.members(block.org)
+        org = block.org
+        fetches << -> { source.members(org) }
       end
       if block = @config.stargazers
-        users.concat source.stargazers(default_repo("stargazers", block.repo))
+        stargazers_repo = default_repo("stargazers", block.repo)
+        fetches << -> { source.stargazers(stargazers_repo) }
       end
       if block = @config.sponsors
-        login = block.login || ENV["GITHUB_REPOSITORY"]?.try(&.split('/').first?.presence)
-        unless login
-          raise ConfigError.new("sponsors `login` is not set and GITHUB_REPOSITORY is not available")
-        end
-        users.concat source.sponsors(login)
+        sponsors_login = block.login ||
+                         ENV["GITHUB_REPOSITORY"]?.try(&.split('/').first?.presence) ||
+                         raise ConfigError.new("sponsors `login` is not set and GITHUB_REPOSITORY is not available")
+        fetches << -> { source.sponsors(sponsors_login) }
       end
-      users
+
+      # The sources are independent round trips to the same host, so running
+      # them together turns four waits into one. Results come back in
+      # configuration order, and so does the first error, which leaves nothing
+      # downstream able to tell the difference except in how long it took.
+      per_source = Concurrent.map(fetches, fetches.size, &.call)
+      per_source.flatten
     end
 
     private def default_repo(section : String, configured : String?) : String

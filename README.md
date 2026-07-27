@@ -35,6 +35,7 @@ SVG art and commits it to your repository.
 - [Styles](#styles) — [grid](#grid) · [honeycomb](#honeycomb) · [mosaic](#mosaic) · [spiral](#spiral) · [orbit](#orbit) · [voronoi](#voronoi) · [stencil](#stencil)
 - [Theme](#theme)
 - [Sections and roles](#sections-and-roles)
+- [Emphasising a person](#emphasising-a-person)
 - [Sources](#sources)
 - [Multiple outputs and PNG](#multiple-outputs-and-png)
 - [Action inputs and outputs](#action-inputs-and-outputs)
@@ -395,6 +396,36 @@ grid:
 A user with no `group` renders in the untitled leading section — even if an API source
 put that person in one. Placement is always yours.
 
+## Emphasising a person
+
+`weight` says where someone stands in the list. `scale` says how large to draw them — a
+multiplier between 1 and 2, applied to whatever size the style's own ranking arrived at:
+
+```yaml
+style: spiral
+contributors:
+
+users:
+  - login: hahwul
+    role: Creator
+    scale: 1.6
+```
+
+Ranking alone cannot do this. A weight is relative to everyone else, so the size it buys
+moves whenever the list does: one new contributor re-cuts every `mosaic` tier boundary,
+and a huge commit count still only means "first". `scale` names the person instead.
+
+| Style | What `scale` does |
+| ----- | ----------------- |
+| `mosaic` | multiplies the tier span and rounds, ties up — `1.5` turns a 1-cell tier into a 2×2 cell, without moving a boundary everyone in that tier shares |
+| `spiral` | multiplies the avatar size; the bloom re-packs so the larger avatar keeps a full `gap` from its neighbours |
+| `orbit` | multiplies the avatar size; its ring holds fewer people and sits further out to make room |
+| `grid`, `honeycomb`, `stencil` | ignored — in a fixed lattice a larger avatar either overlaps its neighbours or leaves a hole |
+| `voronoi` | ignored — cells are cut out of the block rather than placed, so there is no per-user size to multiply |
+
+A `scale` the chosen style cannot honour is reported as a workflow warning rather than
+quietly dropped.
+
 ## Sources
 
 Write a block to enable it. Everything merges into one list, then `exclude`, `sort`, and
@@ -405,6 +436,7 @@ users:                      # your curated list — always wins on conflicts
   - login: hahwul
     name: HAHWUL            # optional display name (default: login)
     weight: 10              # optional, drives mosaic/voronoi sizing and weight sort
+    scale: 1.6              # optional 1–2 size multiplier (mosaic, spiral, orbit)
     role: Creator           # optional label under the name
     group: Contributors     # optional section
     link: https://hahwul.com          # optional (default: the GitHub profile)
@@ -580,6 +612,8 @@ users:                      # your curated list
   - login: hahwul           # required — GitHub login
     name: HAHWUL            # optional display name (default: login)
     weight: 10              # optional, drives mosaic sizing + weight sort
+    scale: 1.6              # optional 1–2 size multiplier for this person alone;
+                            # honoured by mosaic, spiral, and orbit
     role: Creator           # optional label under the name (grid) / in tooltips
     group: Contributors     # optional section this user renders in
     link: https://hahwul.com          # optional (default: the GitHub profile)

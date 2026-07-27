@@ -99,6 +99,7 @@ module ContributorMural
             weight: Math.max(existing.weight, user.weight),
             role: existing.role || user.role,
             group: existing.group || user.group,
+            scale: Math.max(existing.scale, user.scale),
           )
         else
           order << key
@@ -121,6 +122,7 @@ module ContributorMural
         weight: entry.weight || base.try(&.weight) || 1,
         role: entry.role || base.try(&.role),
         group: entry.group,
+        scale: entry.scale || 1.0,
       )
     end
 

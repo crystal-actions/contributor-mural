@@ -4,6 +4,7 @@ users:
   - login: hahwul
     name: HAHWUL
     weight: 10
+    scale: 1.5
     link: https://www.hahwul.com
   - login: octocat
     avatar_url: https://example.com/a.png

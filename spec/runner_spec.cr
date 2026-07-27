@@ -160,6 +160,45 @@ describe ContributorMural::Runner do
     end
   end
 
+  # Silently dropping the option reads as "scale is broken" rather than "this
+  # style has no room for it", and nothing in the SVG can say which happened.
+  it "warns when a style cannot honour a per-user scale" do
+    yaml = <<-YAML
+      outputs:
+        - path: wall.svg
+          style: grid
+        - path: bloom.svg
+          style: spiral
+      users:
+        - login: alpha
+          scale: 1.6
+        - login: bravo
+      YAML
+
+    run_in_tmp(yaml) do |exit_code, _outputs, _workspace|
+      exit_code.should eq(0)
+      # Named per style, and only the one that dropped it: the spiral output
+      # in the same config renders the emphasis fine.
+      ContributorMural::Annotations.io.to_s
+        .should contain("::warning::per-user `scale` is ignored by grid —")
+    end
+  end
+
+  it "stays quiet about scale when every style honours it" do
+    yaml = <<-YAML
+      style: mosaic
+      users:
+        - login: alpha
+          scale: 1.6
+        - login: bravo
+      YAML
+
+    run_in_tmp(yaml) do |exit_code, _outputs, _workspace|
+      exit_code.should eq(0)
+      ContributorMural::Annotations.io.to_s.should_not contain("scale")
+    end
+  end
+
   it "merges contributors from the API source" do
     yaml = <<-YAML
       contributors:

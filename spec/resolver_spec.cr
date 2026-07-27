@@ -128,6 +128,20 @@ describe ContributorMural::Resolver do
     users[1].weight.should eq(3)
   end
 
+  it "carries a per-user scale through, defaulting everyone else to 1.0" do
+    config = config_from(<<-YAML)
+      sort: none
+      users:
+        - login: hahwul
+          scale: 1.6
+        - login: octocat
+      YAML
+
+    users = ContributorMural::Resolver.resolve(config, [api_user("hahwul", weight: 42)])
+    users[0].scale.should eq(1.6) # survives the merge with API data
+    users[1].scale.should eq(1.0)
+  end
+
   it "keeps both the curated list and API users" do
     config = config_from(<<-YAML)
       sort: none

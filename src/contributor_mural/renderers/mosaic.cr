@@ -14,7 +14,11 @@ module ContributorMural::Renderers
       ranked = users.sort_by { |user| {-user.weight, user.login.downcase} }
       ranked.each_with_index do |user, index|
         tier_index = index * tiers.size // ranked.size
-        @spans[user.login] = tiers[tier_index]
+        # Tiers are cut by list fraction, so they cannot single anyone out:
+        # `scale` multiplies the span this user landed on and rounds (ties
+        # up), which targets exactly the person asking for it and does not
+        # re-cut when a new contributor arrives.
+        @spans[user.login] = Math.max((tiers[tier_index] * user.scale).round_away.to_i, 1)
       end
     end
 

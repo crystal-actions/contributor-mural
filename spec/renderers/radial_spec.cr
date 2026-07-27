@@ -13,14 +13,27 @@ private def render_radial(yaml : String) : String
   renderer.render(ContributorMural::Resolver.grouped(embedded, config))
 end
 
-# Ranked users so the size taper and centre pick are predictable.
-private def ranked_users(count : Int32) : String
+# Ranked users so the size taper and centre pick are predictable. `scales`
+# emphasises users by rank index, which is also their drawing order.
+private def ranked_users(count : Int32, scales = {} of Int32 => Float64) : String
   String.build do |io|
     io << "users:\n"
     count.times do |index|
       io << "  - login: user#{index.to_s.rjust(2, '0')}\n"
       io << "    weight: #{count - index}\n"
+      if scale = scales[index]?
+        io << "    scale: #{scale}\n"
+      end
     end
+  end
+end
+
+# Every pair of avatars stays at least as far apart as their two radii, i.e.
+# nothing overlaps. The half-pixel slack is the SVG's two-decimal rounding.
+private def assert_no_overlap(placed : Array({Float64, Float64, Float64})) : Nil
+  placed.each_combination(2, reuse: true) do |(a, b)|
+    distance = Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
+    distance.should be >= (a[2] + b[2]) / 2 - 0.5
   end
 end
 
@@ -52,13 +65,37 @@ describe ContributorMural::Renderers::Spiral do
   end
 
   it "keeps avatars from overlapping" do
-    svg = render_radial("style: spiral\n#{ranked_users(30)}")
-    placed = circles(svg)
+    assert_no_overlap(circles(render_radial("style: spiral\n#{ranked_users(30)}")))
+  end
 
-    placed.each_combination(2, reuse: true) do |(a, b)|
-      distance = Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
-      distance.should be >= (a[2] + b[2]) / 2 - 0.5
+  it "draws an emphasised contributor larger, without crowding the bloom" do
+    plain = circles(render_radial("style: spiral\n#{ranked_users(30)}"))
+    scaled = circles(render_radial("style: spiral\n#{ranked_users(30, {5 => 1.6})}"))
+
+    # Sizes come back off the SVG, so the slack is its two-decimal rounding.
+    scaled[5][2].should be_close(plain[5][2] * 1.6, 0.02)
+    # The taper still owns everyone else's size; only the placement moves.
+    scaled[6][2].should be_close(plain[6][2], 0.02)
+    assert_no_overlap(scaled)
+
+    # The area estimate the plain spiral packs by cannot see a neighbour that
+    # is half again as wide as its rank says, so the emphasised avatar is
+    # cleared outright: a full `gap` from everyone, not merely not touching.
+    emphasised = scaled[5]
+    scaled.each_with_index do |spot, index|
+      next if index == 5
+      distance = Math.sqrt((spot[0] - emphasised[0]) ** 2 + (spot[1] - emphasised[1]) ** 2)
+      distance.should be >= (spot[2] + emphasised[2]) / 2 + 6 - 0.5 # spiral.gap
     end
+  end
+
+  it "fetches an emphasised avatar at its rendered size" do
+    config = ContributorMural::Config.parse("style: spiral\n#{ranked_users(4, {0 => 1.5})}")
+    users = ContributorMural::Resolver.resolve(config)
+    renderer = ContributorMural::Renderer.for(ContributorMural::Style::Spiral, config)
+    renderer.prepare(users)
+
+    renderer.fetch_size(users.first).should eq(216) # 72 * 1.5 * 2
   end
 
   it "sizes fetches for the biggest rendering of each avatar" do
@@ -112,5 +149,27 @@ describe ContributorMural::Renderers::Orbit do
   it "renders a single user as just the centre" do
     svg = render_radial("style: orbit\n#{ranked_users(1)}")
     circles(svg).size.should eq(1)
+  end
+
+  it "draws an emphasised orbiter larger and widens its ring to fit" do
+    plain = circles(render_radial("style: orbit\n#{ranked_users(14)}"))
+    scaled = circles(render_radial("style: orbit\n#{ranked_users(14, {3 => 2.0})}"))
+
+    scaled[3][2].should eq(112.0) # orbit.avatar_size 56, doubled
+    scaled[4][2].should eq(56.0)  # ring-mates keep their own size
+    assert_no_overlap(scaled)
+
+    # The extra width is paid for by the ring, not by the people on it: the
+    # first ring holds fewer avatars and sits further out than it would have.
+    radius_of = ->(spot : {Float64, Float64, Float64}, all : Array({Float64, Float64, Float64})) do
+      Math.sqrt((spot[0] - all[0][0]) ** 2 + (spot[1] - all[0][1]) ** 2)
+    end
+    radius_of.call(scaled[3], scaled).should be > radius_of.call(plain[3], plain)
+  end
+
+  it "keeps an emphasised centre clear of the first ring" do
+    placed = circles(render_radial("style: orbit\n#{ranked_users(14, {0 => 2.0})}"))
+    placed.first[2].should eq(208.0) # orbit.center_size 104, doubled
+    assert_no_overlap(placed)
   end
 end

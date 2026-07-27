@@ -8,6 +8,16 @@ generated files.
 
 ## [Unreleased]
 
+### Added
+
+- `users:` entries take a `scale`, a 1–2 size multiplier for one person,
+  applied after each style's own ranking. `mosaic` multiplies the tier span
+  (so emphasis is exact rather than a fraction of the list, and a new
+  contributor no longer re-cuts it), `spiral` and `orbit` multiply the avatar
+  size and re-pack around it. `grid`, `honeycomb`, `stencil`, and `voronoi`
+  have no per-user size to multiply and ignore it — a run that asks for one
+  anyway says so as a workflow warning.
+
 ## [1.1.1]
 
 ### Added

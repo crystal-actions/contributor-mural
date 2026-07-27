@@ -8,9 +8,12 @@ module ContributorMural
     getter weight : Int32
     getter role : String?
     getter group : String?
+    # Per-user size multiplier; 1.0 unless the config asked for emphasis.
+    getter scale : Float64
 
     def initialize(@login, @name = login, @link = "https://github.com/#{login}",
-                   @avatar_url = nil, @weight = 1, @role = nil, @group = nil)
+                   @avatar_url = nil, @weight = 1, @role = nil, @group = nil,
+                   @scale = 1.0)
     end
   end
 
@@ -19,7 +22,7 @@ module ContributorMural
     getter user : ResolvedUser
     getter data_uri : String
 
-    delegate login, name, link, weight, role, group, to: @user
+    delegate login, name, link, weight, role, group, scale, to: @user
 
     def initialize(@user, @data_uri)
     end

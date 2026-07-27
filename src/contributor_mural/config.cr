@@ -195,16 +195,26 @@ module ContributorMural
         if weight = user.weight
           errors << "user #{user.login}: `weight` must be >= 1" if weight < 1
         end
-        if (avatar = user.avatar_url) && !avatar.matches?(%r{\Ahttps?://}i)
-          if avatar.starts_with?('/') || Path[avatar].parts.includes?("..")
-            errors << "user #{user.login}: local `avatar_url` must be relative to the repository: #{avatar}"
-          end
+        # Emphasis, not free rein: past 2x one avatar starts deciding the
+        # layout for everyone else, and every style here has to keep the
+        # people around it in the same picture.
+        if scale = user.scale
+          errors << "user #{user.login}: `scale` must be between 1 and 2" unless (1.0..2.0).includes?(scale)
         end
-        # The link lands in an <a href> inside a committed file; keep it to
-        # schemes that cannot execute.
-        if (link = user.link) && !link.matches?(%r{\A(https?://|mailto:|/|\#)}i)
-          errors << "user #{user.login}: `link` must be http(s), mailto, or a repository-relative path: #{link}"
+        validate_user_urls(errors, user)
+      end
+    end
+
+    private def validate_user_urls(errors : Array(String), user : UserEntry) : Nil
+      if (avatar = user.avatar_url) && !avatar.matches?(%r{\Ahttps?://}i)
+        if avatar.starts_with?('/') || Path[avatar].parts.includes?("..")
+          errors << "user #{user.login}: local `avatar_url` must be relative to the repository: #{avatar}"
         end
+      end
+      # The link lands in an <a href> inside a committed file; keep it to
+      # schemes that cannot execute.
+      if (link = user.link) && !link.matches?(%r{\A(https?://|mailto:|/|\#)}i)
+        errors << "user #{user.login}: `link` must be http(s), mailto, or a repository-relative path: #{link}"
       end
     end
 
@@ -333,6 +343,13 @@ module ContributorMural
     property link : String? = nil
     property avatar_url : String? = nil
     property weight : Int32? = nil
+    # Size multiplier for one person, applied after the ranking every style
+    # does for itself. `weight` says where someone stands in the list, which
+    # is not the same question as how large to draw them: a rank is relative
+    # to everyone else and moves whenever the list does. Honoured by the
+    # styles that derive a size per user (mosaic, spiral, orbit).
+    @[YAML::Field(converter: ContributorMural::NumberConverter)]
+    property scale : Float64? = nil
     property role : String? = nil
     property group : String? = nil
   end

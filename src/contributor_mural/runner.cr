@@ -14,6 +14,7 @@ module ContributorMural
     def run : Int32
       targets = @config.render_targets
       require_rasterizer! if targets.any? { |path, _style, _mode| png?(path) }
+      warn_unhonored_scale(targets)
 
       users = Resolver.resolve(@config, fetch_api_users)
       if users.empty?
@@ -118,6 +119,20 @@ module ContributorMural
 
     private def png?(path : String) : Bool
       path.ends_with?(".png")
+    end
+
+    # A `scale` the style cannot express is a silent no-op, which reads as
+    # "the option does not work" rather than "this style has no room for it".
+    # Name the styles that dropped it, once, before anything is written.
+    private def warn_unhonored_scale(targets : Array({String, Style, ThemeMode?})) : Nil
+      return unless @config.users.any?(&.scale)
+
+      ignored = targets.map { |_path, style, _mode| style }.uniq!
+        .reject! { |style| Renderer.honors_scale?(style) }
+      return if ignored.empty?
+
+      Annotations.warning("per-user `scale` is ignored by #{ignored.map(&.to_s.downcase).join(", ")} — " \
+                          "mosaic, spiral, and orbit are the styles that size each avatar")
     end
 
     # Checked up front so a missing rasterizer fails before any file is

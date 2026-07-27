@@ -56,6 +56,21 @@ describe ContributorMural::Renderers::Mosaic do
     renderer.fetch_size(users.last).should eq(80)   # span 1 * 40 * 2
   end
 
+  it "multiplies the tier span for an emphasised user" do
+    # echo sits in the bottom tercile (span 1); 1.5x rounds up to a 2x2 cell,
+    # which no `tiers` list could give one person without moving a boundary
+    # everyone in that tercile shares.
+    config = ContributorMural::Config.parse(MOSAIC_CONFIG.sub("  - login: echo\n    weight: 2\n",
+      "  - login: echo\n    weight: 2\n    scale: 1.5\n"))
+    users = ContributorMural::Resolver.resolve(config)
+    renderer, svg = render_mosaic(config)
+
+    echo = users.find! { |user| user.login == "echo" }
+    renderer.fetch_size(echo).should eq(160) # span 2 * 40 * 2
+    # charlie and delta hold the middle tier; echo now renders at their size.
+    svg.scan(/width="82"/).size.should eq(3)
+  end
+
   it "defaults to span 1 for unknown users" do
     config = ContributorMural::Config.parse(MOSAIC_CONFIG)
     renderer = ContributorMural::Renderer.for(ContributorMural::Style::Mosaic, config)

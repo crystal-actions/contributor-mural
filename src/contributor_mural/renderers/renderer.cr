@@ -84,6 +84,16 @@ module ContributorMural
       end
     end
 
+    # Styles that can honour a per-user `scale`: the ones that already derive
+    # a size per user, where an override is exact. The fixed lattices (grid,
+    # honeycomb, stencil) have nowhere to put an avatar larger than its cell
+    # without overlapping a neighbour or leaving a hole, and voronoi sizes
+    # cells by cutting the block up rather than by placing a shape — those
+    # ignore `scale` rather than approximate it.
+    def self.honors_scale?(style : Style) : Bool
+      style.mosaic? || style.spiral? || style.orbit?
+    end
+
     # Style-wide <defs>, emitted once per document.
     protected def defs(io : String::Builder) : Nil
     end

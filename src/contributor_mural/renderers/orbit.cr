@@ -8,7 +8,7 @@ module ContributorMural::Renderers
 
     def fetch_size(user : ResolvedUser) : Int32
       orbit = @config.orbit
-      Math.max(orbit.center_size, orbit.avatar_size) * 2
+      (Math.max(orbit.center_size, orbit.avatar_size) * user.scale * 2).ceil.to_i
     end
 
     protected def style_rules(palette : Palette) : String
@@ -63,17 +63,36 @@ module ContributorMural::Renderers
       return [] of Spot if ranked.empty?
 
       spots = [] of Spot
-      spots << {user: ranked.first, size: orbit.center_size.to_f, radius: 0.0, angle: 0.0}
+      center_size = orbit.center_size * ranked.first.scale
+      spots << {user: ranked.first, size: center_size, radius: 0.0, angle: 0.0}
 
       remaining = ranked[1..]
       ring = 1
       radius = orbit.center_size / 2.0 + orbit.ring_gap + orbit.avatar_size / 2.0
+      # How far the emphasised avatars placed so far have pushed everything
+      # outward. Carrying the surplus separately keeps the plain layout at the
+      # radii it has always had: with no `scale` this stays zero throughout.
+      bulge = (center_size - orbit.center_size) / 2
 
       until remaining.empty?
         # Avatars shrink a little each ring out, never past `min_size`.
         size = Math.max(orbit.avatar_size - (ring - 1) * 6.0, orbit.min_size.to_f)
-        capacity = Math.max((2 * Math::PI * radius / (size + orbit.gap)).floor.to_i, 1)
-        members = remaining.first(Math.min(capacity, remaining.size))
+        # The widest avatar sets the pitch and the clearance for its whole
+        # ring, but which people land on the ring depends on that pitch — so
+        # settle the two against each other before placing anything. Only
+        # growth is fed back, which is what makes this terminate.
+        widest = size
+        members = remaining
+        loop do
+          ring_radius = radius + bulge + (widest - size) / 2
+          capacity = Math.max((2 * Math::PI * ring_radius / (widest + orbit.gap)).floor.to_i, 1)
+          members = remaining.first(Math.min(capacity, remaining.size))
+          grown = members.max_of { |user| size * user.scale }
+          break if grown <= widest
+          widest = grown
+        end
+
+        ring_radius = radius + bulge + (widest - size) / 2
         remaining = remaining[members.size..]
 
         # Half-step rotation per ring keeps avatars off the previous ring's
@@ -81,9 +100,11 @@ module ContributorMural::Renderers
         offset = -Math::PI / 2 + (ring.odd? ? Math::PI / members.size : 0.0)
         members.each_with_index do |user, index|
           angle = offset + index * (2 * Math::PI / members.size)
-          spots << {user: user, size: size, radius: radius, angle: angle}
+          spots << {user: user, size: size * user.scale, radius: ring_radius, angle: angle}
         end
 
+        # Half the surplus sits inside the ring and half outside it.
+        bulge += widest - size
         ring += 1
         radius += size / 2 + orbit.ring_gap + Math.max(orbit.avatar_size - ring * 6.0, orbit.min_size.to_f) / 2
       end

@@ -36,6 +36,7 @@ describe ContributorMural::Config do
       config.fail_on_missing?.should be_true
       config.users.first.name.should eq("HAHWUL")
       config.users.first.weight.should eq(10)
+      config.users.first.scale.should eq(1.5)
       config.users[1].avatar_url.should eq("https://example.com/a.png")
       config.grid.shape.should eq(ContributorMural::Shape::Rounded)
       config.grid.show_names?.should be_false
@@ -148,6 +149,37 @@ describe ContributorMural::Config do
       message.should contain("`weight` must be >= 1")
       message.should contain("`limit` must be >= 1")
       message.should contain("grid `columns` must be between 1 and 100")
+    end
+
+    it "accepts a per-user scale written as an integer or a decimal" do
+      config = ContributorMural::Config.parse(<<-YAML)
+        users:
+          - login: hahwul
+            scale: 1.6
+          - login: ksg97031
+            scale: 2
+          - login: octocat
+        YAML
+
+      config.validate!
+      config.users[0].scale.should eq(1.6)
+      config.users[1].scale.should eq(2.0)
+      config.users[2].scale.should be_nil
+    end
+
+    it "rejects a scale outside the emphasis range" do
+      config = ContributorMural::Config.parse(<<-YAML)
+        users:
+          - login: hahwul
+            scale: 0.5
+          - login: ksg97031
+            scale: 4
+        YAML
+
+      error = expect_raises(ContributorMural::ConfigError) { config.validate! }
+      message = error.message || ""
+      message.should contain("user hahwul: `scale` must be between 1 and 2")
+      message.should contain("user ksg97031: `scale` must be between 1 and 2")
     end
 
     it "rejects a source weight below 1" do

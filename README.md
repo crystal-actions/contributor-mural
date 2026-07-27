@@ -13,6 +13,11 @@
   <img alt="a stencil mural spelling THANKS out of contributor avatars" src="https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/stencil-crowd.svg">
 </p>
 
+<p align="center">
+  <em>Want your face up there? Add your login to a config under <a href="examples/variants/"><code>examples/variants/</code></a> and open a PR —<br>
+  casting is open, no audition required.</em>
+</p>
+
 A GitHub Action that renders your users, your contributors, or both into embeddable
 SVG art and commits it to your repository.
 

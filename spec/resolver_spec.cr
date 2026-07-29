@@ -169,6 +169,29 @@ describe ContributorMural::Resolver do
     users[0].avatar_url.should eq("https://a/x") # gaps filled from the later entry
   end
 
+  # `name` has no nil to fall through: a source that reports none leaves the
+  # login standing in for it. The contributors API never reports one, so
+  # first-wins alone would drop the display name a sponsor entry did carry.
+  it "fills a placeholder display name from a later API source" do
+    config = config_from("contributors: {}\nsort: none")
+    api = [
+      ContributorMural::ResolvedUser.new("dup", weight: 9),
+      ContributorMural::ResolvedUser.new("dup", name: "Real Name", weight: 3),
+    ]
+
+    ContributorMural::Resolver.resolve(config, api).first.name.should eq("Real Name")
+  end
+
+  it "keeps the first real display name when both sources report one" do
+    config = config_from("contributors: {}\nsort: none")
+    api = [
+      ContributorMural::ResolvedUser.new("dup", name: "First"),
+      ContributorMural::ResolvedUser.new("dup", name: "Second"),
+    ]
+
+    ContributorMural::Resolver.resolve(config, api).first.name.should eq("First")
+  end
+
   it "keeps config entries out of API groups unless they ask for one" do
     config = config_from(<<-YAML)
       sort: none

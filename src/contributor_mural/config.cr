@@ -277,7 +277,12 @@ module ContributorMural
 
       paths = render_targets.map(&.first)
       paths.each { |path| validate_output_path(path, errors) }
-      errors << "duplicate output paths" if paths.uniq.size != paths.size
+      # Compared as the files they name rather than as the strings they were
+      # written as: `./wall.svg` and `wall.svg` are one output, and the run
+      # would otherwise render both, overwrite the first with the second, and
+      # report two paths for the one file it left behind.
+      written = paths.map { |path| Path[path].normalize.to_s }
+      errors << "duplicate output paths" if written.uniq!.size != paths.size
       errors << "png `scale` must be positive" if png.scale <= 0
       errors << "png `scale` must be <= 8" if png.scale > 8
     end

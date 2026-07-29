@@ -5,6 +5,29 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) — f
 an action, the "public API" is the config schema, the action inputs and outputs,
 and the generated files.
 
+## Unreleased
+
+### Fixed
+
+- The `svg_path` output is emitted again. It is declared in `action.yml` and
+  documented as the alias kept for workflows written before `outputs` existed,
+  but nothing ever wrote it — those workflows have been reading the empty
+  string. It carries the same value as `paths`.
+- A user returned by more than one API source keeps a real display name instead
+  of a login. The contributors API reports no name, so the login stood in for
+  one, and first-wins then shadowed the name a `sponsors` entry did carry.
+- Two outputs naming the same file through different spellings (`./wall.svg`
+  and `wall.svg`) are rejected as duplicates. The run used to render both, leave
+  only the second on disk, and still report two paths for it.
+
+### Changed
+
+- Pagination stops fanning out past what `max` can use. A window is requested
+  before any of it is read, so a `max` that ended two pages in used to buy four
+  and discard two — up to three wasted requests per source, against a quota of
+  sixty an hour without a token. Results are unchanged: a page whose contents
+  are filtered away still sends the walk round again.
+
 ## v1.1.2
 
 ### Added

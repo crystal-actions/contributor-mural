@@ -54,7 +54,7 @@ module ContributorMural
 
       users = [] of ResolvedUser
       each_page("/repos/#{repo}/contributors#{options.include_anonymous? ? "?anon=1" : ""}",
-        "repository #{repo}", ContributorDTO) do |dto|
+        "repository #{repo}", ContributorDTO, wanted: -> { options.max - users.size }) do |dto|
         next unless user = contributor_to_user(dto, repo, options)
         users << user
         return users if users.size >= options.max
@@ -67,7 +67,8 @@ module ContributorMural
       return [] of ResolvedUser unless options
 
       users = [] of ResolvedUser
-      each_page("/orgs/#{org}/members", "organization #{org}", AccountDTO) do |dto|
+      each_page("/orgs/#{org}/members", "organization #{org}", AccountDTO,
+        wanted: -> { options.max - users.size }) do |dto|
         users << account_to_user(dto, options.group, options.weight)
         return users if users.size >= options.max
       end
@@ -80,7 +81,8 @@ module ContributorMural
       validate_repo(repo, "stargazers")
 
       users = [] of ResolvedUser
-      each_page("/repos/#{repo}/stargazers", "repository #{repo}", AccountDTO) do |dto|
+      each_page("/repos/#{repo}/stargazers", "repository #{repo}", AccountDTO,
+        wanted: -> { options.max - users.size }) do |dto|
         users << account_to_user(dto, options.group, options.weight)
         return users if users.size >= options.max
       end
@@ -191,11 +193,19 @@ module ContributorMural
     # Page 1 comes back with a `Link` header naming the last page, which turns
     # the rest of the walk from "request, wait, decide, repeat" into a few
     # bounded fan-outs — a thousand stargazers used to be ten round trips in
-    # series. The caller still stops the walk by returning out of the block once
-    # it has enough people, so a repository with far more pages than the config
-    # asks for costs no more requests than it did before. Without a `Link`
-    # header there is nothing to plan from, so that path stays sequential.
-    private def each_page(path : String, context : String, dto : T.class, & : T ->) : Nil forall T
+    # series. Without a `Link` header there is nothing to plan from, so that
+    # path stays sequential.
+    #
+    # `wanted` reports how many more items the caller can still use, and is what
+    # keeps the fan-out from outrunning the config. Fetching a window is a bet
+    # placed before any of it is read, so a `max` two pages past the last one
+    # already in hand used to cost four requests and throw two away — against a
+    # quota of 60 an hour without a token, that is the difference between a run
+    # that finishes and one that does not. The estimate is deliberately an upper
+    # bound: a filtered-out bot means a page yields fewer items than it holds,
+    # and a window that comes up short simply goes round again.
+    private def each_page(path : String, context : String, dto : T.class,
+                          wanted : Proc(Int32)? = nil, & : T ->) : Nil forall T
       separator = path.includes?('?') ? '&' : '?'
       page_url = ->(page : Int32) do
         "#{@api_base}#{path}#{separator}per_page=#{PER_PAGE}&page=#{page}"
@@ -210,7 +220,8 @@ module ContributorMural
       last = last_page(response)
       page = 2
       while last.nil? || page <= last
-        window = last ? Math.min(PAGE_WINDOW, last - page + 1) : 1
+        window = last ? Math.min(window_size(wanted), last - page + 1) : 1
+        return if window < 1
         bodies = Concurrent.map((page...page + window).to_a, PAGE_WINDOW) do |number|
           get_response(page_url.call(number), context).body
         end
@@ -222,6 +233,15 @@ module ContributorMural
         end
         page += window
       end
+    end
+
+    # Pages to request together: the full window unless the caller has said it
+    # needs fewer items than that many pages could hold.
+    private def window_size(wanted : Proc(Int32)?) : Int32
+      return PAGE_WINDOW unless wanted
+      still = wanted.call
+      return 0 if still <= 0
+      Math.min(PAGE_WINDOW, (still + PER_PAGE - 1) // PER_PAGE)
     end
 
     # `nil` means the collection is over: an empty body (a 204, say) is not a

@@ -95,7 +95,7 @@ module ContributorMural
         if existing = by_login[key]?
           by_login[key] = ResolvedUser.new(
             login: existing.login,
-            name: existing.name,
+            name: display_name(existing, user),
             link: existing.link,
             avatar_url: existing.avatar_url || user.avatar_url,
             weight: Math.max(existing.weight, user.weight),
@@ -109,6 +109,16 @@ module ContributorMural
         end
       end
       order.map { |key| by_login[key] }
+    end
+
+    # `name` has no nil to fall back through: a source that does not report one
+    # leaves the login standing in for it. So first-wins alone would let the
+    # contributors API — which never returns a name — shadow the display name
+    # a sponsor entry did carry. A login repeated as a name is the gap, and is
+    # filled like the other gaps around it.
+    private def self.display_name(existing : ResolvedUser, other : ResolvedUser) : String
+      return existing.name unless existing.name == existing.login
+      other.name == other.login ? existing.name : other.name
     end
 
     # Config entries win over API data field by field; API fills the gaps

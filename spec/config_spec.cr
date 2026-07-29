@@ -151,6 +151,21 @@ describe ContributorMural::Config do
       message.should contain("grid `columns` must be between 1 and 100")
     end
 
+    # Two spellings of one file: the run would render both, leave only the
+    # second on disk, and still report two paths for it.
+    it "rejects two outputs that name the same file" do
+      config = ContributorMural::Config.parse(<<-YAML)
+        users:
+          - login: hahwul
+        outputs:
+          - path: ./docs/wall.svg
+          - path: docs/wall.svg
+        YAML
+
+      error = expect_raises(ContributorMural::ConfigError) { config.validate! }
+      (error.message || "").should contain("duplicate output paths")
+    end
+
     it "accepts a per-user scale written as an integer or a decimal" do
       config = ContributorMural::Config.parse(<<-YAML)
         users:

@@ -46,6 +46,24 @@ describe ContributorMural::Runner do
     end
   end
 
+  # action.yml declares `svg_path` and the README calls it the alias kept for
+  # workflows written before `outputs` existed. It was never emitted, so those
+  # workflows read the empty string — an alias failing at the one job it has.
+  it "still emits the deprecated svg_path alias" do
+    yaml = <<-YAML
+      outputs:
+        - path: one.svg
+        - path: two.svg
+      users:
+        - login: alpha
+      YAML
+
+    run_in_tmp(yaml) do |exit_code, outputs, _workspace|
+      exit_code.should eq(0)
+      outputs.should contain("svg_path=one.svg,two.svg")
+    end
+  end
+
   # A voronoi block can land on a fractional width, and an <img> width
   # attribute has to be a whole number, so the output is the SVG's own size
   # rounded up — never down, which would crop it.

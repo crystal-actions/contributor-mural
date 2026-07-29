@@ -304,6 +304,21 @@ describe "ContributorMural::GitHubApi pagination" do
     end
   end
 
+  it "does not fan out past the pages `max` can still use" do
+    # A window is requested before any of it is read, so the size of that bet
+    # has to come from what the caller still wants. Twenty pages exist and a
+    # hundred and fifty people are asked for: page two finishes the job, and
+    # the three pages beside it would be bought and thrown away — the cheapest
+    # requests to save on a quota of sixty an hour.
+    with_paginated_server(20) do |server|
+      options = config_with("contributors:\n  max: 150")
+      users = ContributorMural::GitHubApi.new(config: options, api_base: server.address).contributors("o/r")
+
+      users.size.should eq(150)
+      server.pages_seen.sort.should eq([1, 2])
+    end
+  end
+
   it "keeps walking when filtering eats whole pages" do
     # `max` cannot bound the page count by itself: bots are dropped after the
     # fetch, so a page can yield nobody at all. Planning off the `Link` header

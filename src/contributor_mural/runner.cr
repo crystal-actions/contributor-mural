@@ -63,10 +63,17 @@ module ContributorMural
         written_paths << path
       end
 
-      Annotations.output("paths", written_paths.join(","))
+      paths = written_paths.join(",")
+      Annotations.output("paths", paths)
+      # `svg_path` is declared in action.yml and documented as the deprecated
+      # alias kept for workflows written before `outputs` existed. It was never
+      # actually emitted, so those workflows have been reading the empty string
+      # — the one failure an alias exists to prevent.
+      Annotations.output("svg_path", paths)
       Annotations.output("user_count", user_count.to_s)
-      # Reported for the first target only — it is what `svg_path` names and
-      # what a single-output config (the common case) means by "the mural".
+      # Reported for the first target only — it is what a single-output config
+      # (the common case) means by "the mural", and the only entry of `paths`
+      # a caller can write into an <img> without parsing the list.
       if first = rendered.first?
         Annotations.output("width", first[2][0].to_s)
         Annotations.output("height", first[2][1].to_s)

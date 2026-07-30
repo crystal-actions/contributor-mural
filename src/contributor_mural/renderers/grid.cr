@@ -6,12 +6,26 @@ module ContributorMural::Renderers
     ROLE_HEIGHT  = 14
     CLIP_ID      = "avatar-clip"
 
+    # Anyone whose label reaches the document, whether or not their avatar has
+    # been fetched yet. Both carry the two fields a label is made of.
+    private alias Labelled = ResolvedUser | EmbeddedUser
+
+    # Half of how far the widest label in the whole document sticks out past
+    # its cell, measured once over everyone.
+    @gutter = 0.0
+
+    def prepare(users : Array(ResolvedUser)) : Nil
+      @gutter = overhang(users)
+    end
+
     def fetch_size(user : ResolvedUser) : Int32
       @config.grid.avatar_size * 2
     end
 
+    # The title sits at the margin, which is where the widest label's own left
+    # edge lands — the gutter is exactly the room that label needs.
     protected def title_inset : Float64
-      @config.grid.margin + gutter_for(nil)
+      @config.grid.margin.to_f
     end
 
     protected def defs(io : String::Builder) : Nil
@@ -59,22 +73,38 @@ module ContributorMural::Renderers
       end
     end
 
-    private def name_label(user : EmbeddedUser) : String
+    private def name_label(user : Labelled) : String
       truncate(user.name, @config.grid.truncate)
     end
 
     # Roles get a little more room than names; `truncate: 0` disables both.
-    private def role_label(user : EmbeddedUser) : String?
+    private def role_label(user : Labelled) : String?
       role = user.role
       return unless role
       limit = @config.grid.truncate
       truncate(role, limit <= 0 ? 0 : limit + 4)
     end
 
-    # Half of how far the widest label sticks out past its cell.
-    private def gutter_for(users : Array(EmbeddedUser)?) : Float64
+    # The gutter this section is drawn with.
+    #
+    # Labels are centred on their cell and can be wider than it, so a block
+    # takes an inset on both sides for the overhang. Measured per section, the
+    # inset differed between sections, and a group of short names started its
+    # avatars tens of pixels left of the group above it — one wall, with its
+    # columns visibly out of true wherever one group had longer names than
+    # another. `prepare` measures the overhang across the whole document, and
+    # every section is drawn with that.
+    #
+    # A section can never need more than the document does, so the section's own
+    # figure only matters to a caller that renders without `prepare` — where it
+    # keeps labels inside the canvas rather than letting them run off it.
+    private def gutter_for(users : Array(EmbeddedUser)) : Float64
+      Math.max(@gutter, overhang(users))
+    end
+
+    private def overhang(users : Array(Labelled)) : Float64
       grid = @config.grid
-      return 0.0 unless users && grid.show_names?
+      return 0.0 unless grid.show_names?
 
       widest = users.max_of? do |user|
         name_width = text_width(name_label(user), 11.0)

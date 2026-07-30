@@ -5,6 +5,10 @@ require "../support/golden"
 private def render(config : ContributorMural::Config) : String
   users = ContributorMural::Resolver.resolve(config)
   renderer = ContributorMural::Renderer.for(config.style, config)
+  # As the runner does. The grid reads the whole list here to size its label
+  # gutter, so skipping it measures each section on its own and lets the
+  # sections drift apart.
+  renderer.prepare(users)
   embedded, _ = ContributorMural::Embedder.new(FakeAvatarSource.new)
     .embed(users, renderer, fail_on_missing: false)
   renderer.render(ContributorMural::Resolver.grouped(embedded, config))
@@ -134,5 +138,41 @@ describe ContributorMural::Renderers::Grid do
     svg.scan(/font-weight="600"/).size.should eq(2)
     svg.scan(/<defs>/).size.should eq(1)
     Golden.assert("grid_groups.svg", svg)
+  end
+
+  # Labels are centred on their cell and can be wider than it, so a block takes
+  # an inset on both sides to make room. Measured per section, the inset came
+  # out different for each, and a group of short names started its avatars tens
+  # of pixels left of the group above it — one wall with its columns out of
+  # true, purely because one group had longer names.
+  it "starts every section's avatars in the same column" do
+    config = ContributorMural::Config.parse(<<-YAML)
+      sort: none
+      groups: [Maintainers, Thanks]
+      grid:
+        columns: 3
+        avatar_size: 48
+        truncate: 0
+      users:
+        - login: a
+          name: AVeryLongDisplayNameIndeed
+          group: Maintainers
+        - login: b
+          name: AlsoQuiteLongHere
+          group: Maintainers
+        - login: c
+          name: xy
+          group: Thanks
+        - login: d
+          name: zw
+          group: Thanks
+      YAML
+
+    columns = render(config).scan(/<image [^>]*x="([0-9.]+)"/).map(&.[1].to_f)
+    columns.size.should eq(4)
+    # Two per section, two sections: the two column positions repeat exactly.
+    columns[0..1].should eq(columns[2..3])
+    # And the labels still have their room: nothing starts at the bare margin.
+    columns.first.should be > 8.0
   end
 end

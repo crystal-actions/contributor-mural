@@ -83,13 +83,23 @@ module ContributorMural::Renderers
 
     # First-fit packing on a growing occupancy grid: for each item, scan
     # top-to-bottom, left-to-right for the first free span x span area.
+    #
+    # The scan starts at the first row that still has a free cell rather than at
+    # the top. A row with no free cell can hold nothing, whatever the span, so
+    # this places every item exactly where the full scan did — it just stops
+    # re-reading the rows already filled, which is otherwise the whole cost of
+    # packing a long list.
     private def pack(spans : Array(Int32), columns : Int32) : Array({Int32, Int32})
       occupied = [] of Array(Bool)
+      first_open = 0
       spans.map do |span|
-        row = 0
+        row = first_open
         loop do
           if col = fit_at(occupied, row, columns, span)
             mark(occupied, row, col, span, columns)
+            while (cells = occupied[first_open]?) && cells.all?
+              first_open += 1
+            end
             break {row, col}
           end
           row += 1

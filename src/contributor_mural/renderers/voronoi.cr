@@ -27,6 +27,12 @@ module ContributorMural::Renderers
     # way toward either of them.
     BISECTOR_REACH = 0.4
 
+    # The closest a boundary can come to its own seed, as a fraction of the
+    # distance to the other one — the near end of the interval `BISECTOR_REACH`
+    # pins down. This is what lets a cell rule a distant seed out without
+    # clipping against it.
+    MIN_REACH = (1.0 - BISECTOR_REACH) / 2.0
+
     private alias Point = {Float64, Float64}
 
     private record Seed, x : Float64, y : Float64, power : Float64
@@ -85,8 +91,13 @@ module ContributorMural::Renderers
       seeds = place(users, width, height, rows)
       return if seeds.empty?
 
+      # Two buffers the clipper alternates between. Building a cell is a run of
+      # half-plane cuts, each of which used to allocate the polygon afresh —
+      # thousands of throwaway arrays per cell, and the bulk of the render for
+      # a wall of any size.
+      scratch = {Array(Point).new(8), Array(Point).new(8)}
       cells = seeds.each_index.map do |index|
-        polygon = cell(seeds, index, width, height)
+        polygon = cell(seeds, index, width, height, scratch)
         polygon.size >= 3 ? polygon : fallback(seeds[index])
       end.to_a
       first = @next_cell
@@ -195,10 +206,18 @@ module ContributorMural::Renderers
       closest == Float64::MAX ? 0.0 : closest
     end
 
-    private def cell(seeds : Array(Seed), index : Int32, width : Float64, height : Float64) : Array(Point)
+    private def cell(seeds : Array(Seed), index : Int32, width : Float64, height : Float64,
+                     scratch : {Array(Point), Array(Point)}) : Array(Point)
       inset = @config.voronoi.gap / 2.0
       me = seeds[index]
-      polygon = [{0.0, 0.0}, {width, 0.0}, {width, height}, {0.0, height}] of Point
+      polygon, spare = scratch
+      polygon.clear
+      polygon << {0.0, 0.0} << {width, 0.0} << {width, height} << {0.0, height}
+      # Once the near neighbours have been cut away, most of the wall is too
+      # far off to reach what is left of this cell, and clipping against it
+      # would copy the polygon out unchanged. Every seed used to be clipped
+      # against every other one.
+      limit = reach_limit(polygon, me, inset)
 
       seeds.each_with_index do |other, position|
         next if position == index
@@ -206,36 +225,69 @@ module ContributorMural::Renderers
         ny = other.y - me.y
         squared = nx * nx + ny * ny
         next if squared < 1e-12
+        next if squared > limit
 
         # Radical axis of the two power circles. Clamping the weight term is
         # what keeps the boundary inside [0.3, 0.7] of the way across, so the
         # cell can never be cut away entirely.
         delta = (me.power - other.power).clamp(-BISECTOR_REACH * squared, BISECTOR_REACH * squared)
         offset = nx * me.x + ny * me.y + (squared + delta) / 2
-        polygon = clip(polygon, nx, ny, offset - inset * Math.sqrt(squared))
+        clip(polygon, spare, nx, ny, offset - inset * Math.sqrt(squared))
+        polygon, spare = spare, polygon
         break if polygon.size < 3
+        limit = reach_limit(polygon, me, inset)
       end
-      polygon
+      # The buffers belong to the caller's whole run of cells, so the one cell
+      # that is kept has to be a copy.
+      polygon.dup
+    end
+
+    # How far a seed may sit and still cut `polygon`, squared.
+    #
+    # The clamp in `cell` keeps a boundary at least `MIN_REACH * distance` away
+    # from its own seed, and the lead pulls it back by `inset` on top of that.
+    # So a seed whose boundary would land beyond the polygon's own farthest
+    # vertex leaves every vertex on the keep side — an exact no-op, not an
+    # approximation, which is why skipping it draws the same picture. The
+    # margin keeps a borderline seed on the clipping side of the decision,
+    # where a wasted copy costs nothing and a wrong skip would show.
+    private def reach_limit(polygon : Array(Point), me : Seed, inset : Float64) : Float64
+      farthest = polygon.max_of do |(x, y)|
+        dx = x - me.x
+        dy = y - me.y
+        dx * dx + dy * dy
+      end
+      bound = (Math.sqrt(farthest) + inset) / MIN_REACH
+      bound * bound * (1.0 + 1e-9)
     end
 
     # Sutherland-Hodgman: keeps the `a * x + b * y <= c` side. Convex in,
-    # convex out, which is why a run of these builds the cell exactly.
-    private def clip(polygon : Array(Point), a : Float64, b : Float64, c : Float64) : Array(Point)
-      return polygon if polygon.size < 3
+    # convex out, which is why a run of these builds the cell exactly. Writes
+    # into `target` rather than returning a fresh array, so a cell cut a
+    # thousand times still works out of two buffers.
+    private def clip(source : Array(Point), target : Array(Point),
+                     a : Float64, b : Float64, c : Float64) : Nil
+      target.clear
+      if source.size < 3
+        target.concat(source)
+        return
+      end
 
-      result = Array(Point).new(polygon.size + 1)
-      polygon.each_with_index do |current, index|
-        previous = polygon[(index + polygon.size - 1) % polygon.size]
-        before = a * previous[0] + b * previous[1] - c
+      # Each vertex's side is the next vertex's `before`, so it is carried
+      # rather than recomputed — the same value either way.
+      previous = source.last
+      before = a * previous[0] + b * previous[1] - c
+      source.each do |current|
         now = a * current[0] + b * current[1] - c
         if now <= 0
-          result << cut(previous, current, before, now) if before > 0
-          result << current
+          target << cut(previous, current, before, now) if before > 0
+          target << current
         elsif before <= 0
-          result << cut(previous, current, before, now)
+          target << cut(previous, current, before, now)
         end
+        previous = current
+        before = now
       end
-      result
     end
 
     # Only reached when the two distances straddle the line, so the

@@ -27,6 +27,17 @@ and the generated files.
   and discard two — up to three wasted requests per source, against a quota of
   sixty an hour without a token. Results are unchanged: a page whose contents
   are filtered away still sends the walk round again.
+- `voronoi` no longer clips every cell against every other seed. A seed too far
+  off to reach what is left of a cell is ruled out by a bound the weight clamp
+  already guarantees, and the clipper works out of two buffers instead of
+  allocating the polygon afresh for each of those cuts. A wall of 4000 faces
+  renders in half the time, one of 600 in a third.
+- `mosaic` packing starts at the first row that still has a free cell instead of
+  rescanning the filled rows from the top for every avatar. A wall of 4000 faces
+  packs in an eighth of the time.
+
+Both are exact: the same seeds cut the same cells and every avatar lands in the
+same square, so a regenerated mural is byte for byte the file it was before.
 
 ## v1.1.2
 

@@ -47,6 +47,30 @@ private def circles(svg : String) : Array({Float64, Float64, Float64})
   end
 end
 
+# `sort` is a whole-config setting, but it is the renderer that decides whether
+# it survives: spiral and orbit each re-sorted the list by weight on their way
+# to placing it, so `sort: login` and `sort: none` — which the reference page
+# documents as keeping list order, and recommends for keeping the API's own —
+# came out weight-ordered anyway. Every style is checked, since the promise is
+# made once and kept in seven places.
+describe "list order across styles" do
+  it "places users in the order `sort` asked for" do
+    # Listed against their weights, so any style that re-ranks shows it.
+    users = "users:\n  - login: zoe\n    weight: 1\n  - login: yan\n    weight: 2\n  - login: xu\n    weight: 3\n"
+    %w[grid honeycomb mosaic voronoi stencil spiral orbit].each do |style|
+      {
+        "none"   => ["zoe", "yan", "xu"],
+        "login"  => ["xu", "yan", "zoe"],
+        "weight" => ["xu", "yan", "zoe"],
+      }.each do |sort, expected|
+        svg = render_radial("style: #{style}\nsort: #{sort}\n#{users}")
+        drawn = svg.scan(%r{<title>([a-z]+)</title>}).map(&.[1])
+        drawn.should eq(expected), "#{style} with sort: #{sort} drew #{drawn}"
+      end
+    end
+  end
+end
+
 describe ContributorMural::Renderers::Spiral do
   it "renders the spiral golden file" do
     svg = render_radial("style: spiral\n#{ranked_users(12)}")

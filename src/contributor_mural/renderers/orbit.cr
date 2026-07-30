@@ -57,16 +57,21 @@ module ContributorMural::Renderers
 
     private alias Spot = NamedTuple(user: EmbeddedUser, size: Float64, radius: Float64, angle: Float64)
 
+    # The list arrives in the order `sort` asked for, and is placed in it: the
+    # first person listed takes the centre and the rest fill the rings outward.
+    # Under the default `sort: weight` that is the weight order this used to
+    # impose for itself — the same comparator, so a plain wall is unchanged —
+    # but `sort: login` and `sort: none` now reach the orbit too, where they
+    # were silently dropped.
     private def place(users : Array(EmbeddedUser)) : Array(Spot)
       orbit = @config.orbit
-      ranked = users.sort_by { |user| {-user.weight, user.login.downcase} }
-      return [] of Spot if ranked.empty?
+      return [] of Spot if users.empty?
 
       spots = [] of Spot
-      center_size = orbit.center_size * ranked.first.scale
-      spots << {user: ranked.first, size: center_size, radius: 0.0, angle: 0.0}
+      center_size = orbit.center_size * users.first.scale
+      spots << {user: users.first, size: center_size, radius: 0.0, angle: 0.0}
 
-      remaining = ranked[1..]
+      remaining = users[1..]
       ring = 1
       radius = orbit.center_size / 2.0 + orbit.ring_gap + ring_size(1) / 2
       # How far the emphasised avatars placed so far have pushed everything

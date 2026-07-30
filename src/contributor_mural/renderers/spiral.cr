@@ -89,15 +89,21 @@ module ContributorMural::Renderers
     # sizes it costs a pixel or so, and with `max_size` near `min_size` it
     # overlapped by twenty. So every radius the estimate proposes is checked
     # against what is already on the wall before it is used.
+    # The list arrives in the order `sort` asked for, and is placed in it: the
+    # first person listed takes the centre and the rest bloom outward. Under
+    # the default `sort: weight` that is the weight order this used to impose
+    # for itself — the same comparator, so a plain wall is unchanged — but
+    # `sort: login` and `sort: none` now reach the spiral too, where they were
+    # silently dropped. Size still comes from `prepare`, which ranks by weight
+    # whatever the list order is, so the taper does not move.
     private def place(users : Array(EmbeddedUser)) : Array(Spot)
       spiral = @config.spiral
-      ranked = users.sort_by { |user| {-user.weight, user.login.downcase} }
 
       covered = 0.0
-      center_size = ranked.empty? ? 0.0 : size_for(ranked.first.login)
-      spots = Array(Spot).new(ranked.size)
+      center_size = users.empty? ? 0.0 : size_for(users.first.login)
+      spots = Array(Spot).new(users.size)
 
-      ranked.each_with_index do |user, index|
+      users.each_with_index do |user, index|
         size = size_for(user.login)
         angle = index * GOLDEN_ANGLE
         radius = Math.sqrt(covered / (Math::PI * DENSITY))

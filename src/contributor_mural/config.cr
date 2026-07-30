@@ -105,6 +105,7 @@ module ContributorMural
     private DEFAULTABLE_BLOCKS = %w[contributors stargazers sponsors]
 
     def self.parse(yaml : String) : Config
+      reject_discarded_content(yaml)
       begin
         config = from_yaml(yaml)
       rescue ex : YAML::ParseException
@@ -112,6 +113,43 @@ module ContributorMural
       end
       config.enable_bare_blocks(yaml)
       config
+    end
+
+    # Config the parser reads past without complaining about, and which
+    # therefore never reaches the mural.
+    #
+    # Both of these are legal YAML and both are silent — the run succeeds, and
+    # whatever was written below the discarded point simply is not in the
+    # picture. That is the worst way for a config mistake to behave, because
+    # the only symptom is a wall missing people, which reads as a bug in the
+    # sources rather than as something to go and fix in the file.
+    private def self.reject_discarded_content(yaml : String) : Nil
+      documents =
+        begin
+          YAML::Nodes.parse_all(yaml)
+        rescue YAML::ParseException
+          # Malformed input; `from_yaml` reports it with a line number.
+          return
+        end
+
+      if second = documents[1]?
+        raise ConfigError.new(
+          "`---` starts a second YAML document and everything after it is ignored — " \
+          "this file must be one document",
+          second.start_line)
+      end
+
+      mapping = documents.first?.try(&.nodes.first?)
+      return unless mapping.is_a?(YAML::Nodes::Mapping)
+      seen = Set(String).new
+      mapping.each do |key, _value|
+        name = key.as?(YAML::Nodes::Scalar).try(&.value)
+        next if name.nil? || seen.add?(name)
+        raise ConfigError.new(
+          "`#{name}` is set twice — YAML keeps only the last one, so everything " \
+          "written under the first is ignored",
+          key.start_line)
+      end
     end
 
     # `contributors:` with nothing under it reads as YAML null, which would

@@ -114,6 +114,29 @@ describe ContributorMural::Config do
       end
     end
 
+    # Both of these are legal YAML that quietly throws half the file away. The
+    # only symptom used to be a wall missing people, which reads as a problem
+    # with the sources rather than with the config.
+    it "refuses a second YAML document instead of ignoring it" do
+      error = expect_raises(ContributorMural::ConfigError, /second YAML document/) do
+        ContributorMural::Config.parse("style: honeycomb\nusers:\n  - login: a\n---\nusers:\n  - login: b\n")
+      end
+      error.line.should eq(4)
+    end
+
+    it "still accepts a single document that opens with the marker" do
+      config = ContributorMural::Config.parse("---\nstyle: mosaic\nusers:\n  - login: a\n")
+      config.style.should eq(ContributorMural::Style::Mosaic)
+      config.users.map(&.login).should eq(["a"])
+    end
+
+    it "refuses a key set twice instead of keeping only the last" do
+      error = expect_raises(ContributorMural::ConfigError, /`users` is set twice/) do
+        ContributorMural::Config.parse("style: grid\nusers:\n  - login: a\nusers:\n  - login: b\n")
+      end
+      error.line.should eq(4)
+    end
+
     it "asks for an org when `members` is written bare" do
       expect_raises(ContributorMural::ConfigError, /`members` needs an `org`/) do
         ContributorMural::Config.parse("members:")

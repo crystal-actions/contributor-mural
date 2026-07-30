@@ -43,7 +43,16 @@ module ContributorMural
                    @api_base : String = "https://api.github.com",
                    @backoff_base : Time::Span = 1.second,
                    pool : HTTPPool? = nil)
+      # A pool handed in belongs to the caller and outlives this client; one
+      # built here does not, and has to be given back — see `#close`.
+      @owns_pool = pool.nil?
       @pool = pool || HTTPPool.new
+    end
+
+    # Hands back the connections this client opened. A no-op when the pool was
+    # handed in, since closing it would hang up on its other users.
+    def close : Nil
+      @pool.close if @owns_pool
     end
 
     def contributors(repo : String) : Array(ResolvedUser)

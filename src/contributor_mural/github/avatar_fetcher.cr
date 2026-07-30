@@ -68,6 +68,9 @@ module ContributorMural
                    @allow_local_redirects : Bool = false, pool : HTTPPool? = nil,
                    allow_local_targets : Bool? = nil)
       @allow_local_targets = allow_local_targets.nil? ? @allow_local_redirects : allow_local_targets
+      # A pool handed in belongs to the caller and outlives this source; one
+      # built here does not, and has to be given back — see `#close`.
+      @owns_pool = pool.nil?
       @pool = pool || HTTPPool.new
       # Answered once per host: a mural of a few thousand faces asks about the
       # same two or three, and the answer involves the resolver.
@@ -75,6 +78,21 @@ module ContributorMural
       # Only the UA: an `Accept` narrower than the wild card would let an
       # avatar host we have never heard of answer 406 where it used to work.
       @headers = HTTP::Headers{"User-Agent" => USER_AGENT}
+    end
+
+    # Hands back the connections this source opened.
+    #
+    # Keep-alive means a source holds a socket open to every host it spoke to
+    # until something says otherwise, and a source that built its own pool had
+    # no way to say it. The connection then sat there until the garbage
+    # collector happened to reach it — invisible to the action, which owns one
+    # pool for the whole run and closes it, and unbounded for anything that
+    # builds a source per repository in a loop.
+    #
+    # A no-op when the pool was handed in: closing someone else's pool hangs up
+    # on whoever else is still using it.
+    def close : Nil
+      @pool.close if @owns_pool
     end
 
     def self.local_path?(avatar_url : String) : Bool

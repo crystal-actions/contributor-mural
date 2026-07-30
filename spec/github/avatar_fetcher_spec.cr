@@ -58,6 +58,22 @@ private def with_test_server(&)
   end
 end
 
+# A source built without a pool builds its own, and holds a keep-alive socket
+# to every host it spoke to until that pool is closed. Collected and handed
+# back at the end of each example rather than left open for the whole run.
+private OPENED_SOURCES = [] of ContributorMural::HTTPAvatarSource
+
+Spec.after_each do
+  OPENED_SOURCES.each(&.close)
+  OPENED_SOURCES.clear
+end
+
+private def avatar_source(*args, **options) : ContributorMural::HTTPAvatarSource
+  source = ContributorMural::HTTPAvatarSource.new(*args, **options)
+  OPENED_SOURCES << source
+  source
+end
+
 private def user_with(avatar_url : String) : ContributorMural::ResolvedUser
   ContributorMural::ResolvedUser.new("tester", avatar_url: avatar_url)
 end
@@ -112,7 +128,7 @@ end
 describe ContributorMural::HTTPAvatarSource do
   describe "#url_for" do
     it "appends the size to explicit avatar URLs" do
-      source = ContributorMural::HTTPAvatarSource.new
+      source = avatar_source
       source.url_for(user_with("https://example.com/a.png"), 128)
         .should eq("https://example.com/a.png?s=128")
       source.url_for(user_with("https://example.com/a.png?v=4"), 128)
@@ -120,7 +136,7 @@ describe ContributorMural::HTTPAvatarSource do
     end
 
     it "derives the GitHub avatar URL from the login" do
-      source = ContributorMural::HTTPAvatarSource.new
+      source = avatar_source
       user = ContributorMural::ResolvedUser.new("hahwul")
       source.url_for(user, 128).should eq("https://github.com/hahwul.png?size=128")
     end
@@ -132,7 +148,7 @@ describe ContributorMural::HTTPAvatarSource do
       Dir.mkdir_p(File.join(workspace, "assets"))
       File.write(File.join(workspace, "assets/logo.webp"), "WEBPDATA")
       begin
-        source = ContributorMural::HTTPAvatarSource.new(workspace)
+        source = avatar_source(workspace)
         user = user_with("assets/logo.webp")
         source.url_for(user, 64).should eq("file:assets/logo.webp")
         bytes, content_type = source.fetch(user, 64)
@@ -144,7 +160,7 @@ describe ContributorMural::HTTPAvatarSource do
     end
 
     it "fails like a 404 when the file is missing" do
-      source = ContributorMural::HTTPAvatarSource.new(File.tempname("mural_nowhere"))
+      source = avatar_source(File.tempname("mural_nowhere"))
       error = expect_raises(ContributorMural::AvatarError, /not found/) do
         source.fetch(user_with("assets/gone.png"), 64)
       end
@@ -153,7 +169,7 @@ describe ContributorMural::HTTPAvatarSource do
 
     it "rejects unsupported extensions" do
       expect_raises(ContributorMural::AvatarError, /unsupported local avatar type/) do
-        ContributorMural::HTTPAvatarSource.new.fetch(user_with("assets/logo.bmp"), 64)
+        avatar_source.fetch(user_with("assets/logo.bmp"), 64)
       end
     end
 
@@ -165,7 +181,7 @@ describe ContributorMural::HTTPAvatarSource do
       File.symlink(outside, File.join(workspace, "assets/logo.png"))
       begin
         expect_raises(ContributorMural::AvatarError, /escapes the repository/) do
-          ContributorMural::HTTPAvatarSource.new(workspace).fetch(user_with("assets/logo.png"), 64)
+          avatar_source(workspace).fetch(user_with("assets/logo.png"), 64)
         end
       ensure
         FileUtils.rm_rf(workspace)
@@ -181,7 +197,7 @@ describe ContributorMural::HTTPAvatarSource do
       File.chmod(path, 0o000)
       begin
         expect_raises(ContributorMural::AvatarError, /could not be read/) do
-          ContributorMural::HTTPAvatarSource.new(workspace).fetch(user_with("assets/logo.png"), 64)
+          avatar_source(workspace).fetch(user_with("assets/logo.png"), 64)
         end
       ensure
         File.chmod(path, 0o644) rescue nil
@@ -193,7 +209,7 @@ describe ContributorMural::HTTPAvatarSource do
   describe "#fetch" do
     it "returns bytes and content type" do
       with_test_server do |base, _requests|
-        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_targets: true)
+        source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
         bytes, content_type = source.fetch(user_with("#{base}/ok.png"), 64)
         String.new(bytes).should eq("JPEGDATA")
         content_type.should eq("image/jpeg")
@@ -202,7 +218,7 @@ describe ContributorMural::HTTPAvatarSource do
 
     it "follows absolute and relative redirects" do
       with_test_server do |base, _requests|
-        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_redirects: true)
+        source = avatar_source(backoff_base: 0.seconds, allow_local_redirects: true)
         bytes, _ = source.fetch(user_with("#{base}/redirect"), 64)
         String.new(bytes).should eq("JPEGDATA")
 
@@ -213,7 +229,7 @@ describe ContributorMural::HTTPAvatarSource do
 
     it "gives up on redirect loops" do
       with_test_server do |base, _requests|
-        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_redirects: true)
+        source = avatar_source(backoff_base: 0.seconds, allow_local_redirects: true)
         expect_raises(ContributorMural::AvatarError, /too many redirects/) do
           source.fetch(user_with("#{base}/loop"), 64)
         end
@@ -222,7 +238,7 @@ describe ContributorMural::HTTPAvatarSource do
 
     it "does not retry a 404" do
       with_test_server do |base, requests|
-        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_targets: true)
+        source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
         error = expect_raises(ContributorMural::AvatarError, /404/) do
           source.fetch(user_with("#{base}/missing"), 64)
         end
@@ -233,7 +249,7 @@ describe ContributorMural::HTTPAvatarSource do
 
     it "falls back to image/png for malformed or non-image content types" do
       with_test_server do |base, _requests|
-        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_targets: true)
+        source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
         # `@@@` makes MIME parsing raise; `text/html` is simply not an image.
         _, content_type = source.fetch(user_with("#{base}/bad-mime"), 64)
         content_type.should eq("image/png")
@@ -244,7 +260,7 @@ describe ContributorMural::HTTPAvatarSource do
 
     it "refuses redirects that leave https or target internal addresses" do
       with_test_server do |base, _requests|
-        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_targets: true)
+        source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
         expect_raises(ContributorMural::AvatarError, /non-https avatar redirect/) do
           source.fetch(user_with("#{base}/redirect"), 64)
         end
@@ -256,7 +272,7 @@ describe ContributorMural::HTTPAvatarSource do
 
     it "retries server errors and succeeds" do
       with_test_server do |base, requests|
-        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_targets: true)
+        source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
         bytes, _ = source.fetch(user_with("#{base}/flaky"), 64)
         String.new(bytes).should eq("RECOVERED")
         requests.count("/flaky").should eq(3)
@@ -268,7 +284,7 @@ describe ContributorMural::HTTPAvatarSource do
       # the status is under 500, so the fetch failed for good and that person
       # quietly went missing from the mural.
       with_scripted_server([429, 429, 200], retry_after: "0") do |url, attempts|
-        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_targets: true)
+        source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
         bytes, _ = source.fetch(user_with(url), 64)
         String.new(bytes).should eq("SCRIPTED")
         attempts.call.should eq(3)
@@ -277,7 +293,7 @@ describe ContributorMural::HTTPAvatarSource do
 
     it "gives up on sustained throttling with the status intact" do
       with_scripted_server([429], retry_after: "0") do |url, attempts|
-        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_targets: true)
+        source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
         error = expect_raises(ContributorMural::AvatarError, /429/) do
           source.fetch(user_with(url), 64)
         end
@@ -288,7 +304,7 @@ describe ContributorMural::HTTPAvatarSource do
 
     it "does not retry a status that will not heal" do
       with_scripted_server([418]) do |url, attempts|
-        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_targets: true)
+        source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
         expect_raises(ContributorMural::AvatarError, /418/) do
           source.fetch(user_with(url), 64)
         end
@@ -304,7 +320,7 @@ describe ContributorMural::HTTPAvatarSource do
   describe "how much it will accept" do
     it "stops reading an oversized body instead of buffering it" do
       with_endless_server(2048) do |url, written|
-        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_targets: true)
+        source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
         expect_raises(ContributorMural::AvatarError, /too large/) do
           source.fetch(user_with(url), 64)
         end
@@ -317,7 +333,7 @@ describe ContributorMural::HTTPAvatarSource do
 
     it "accepts a body that fits" do
       with_endless_server(1) do |url, _written|
-        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_targets: true)
+        source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
         bytes, content_type = source.fetch(user_with(url), 64)
         bytes.size.should eq(64 * 1024)
         content_type.should eq("image/png")
@@ -331,7 +347,7 @@ describe ContributorMural::HTTPAvatarSource do
   # a mural from a pull request that address is the contributor's to choose.
   describe "where it will fetch from" do
     it "refuses an internal address given as the avatar_url itself" do
-      source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds)
+      source = avatar_source(backoff_base: 0.seconds)
       {"127.0.0.1", "169.254.169.254", "10.0.0.1", "192.168.1.1", "[::1]", "0.0.0.0"}.each do |host|
         error = expect_raises(ContributorMural::AvatarError, /runner's own network/) do
           source.fetch(user_with("http://#{host}/secret.png"), 64)
@@ -343,7 +359,7 @@ describe ContributorMural::HTTPAvatarSource do
     end
 
     it "refuses localhost by name" do
-      source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds)
+      source = avatar_source(backoff_base: 0.seconds)
       expect_raises(ContributorMural::AvatarError, /runner's own network/) do
         source.fetch(user_with("https://localhost/secret.png"), 64)
       end
@@ -360,7 +376,7 @@ describe ContributorMural::HTTPAvatarSource do
       end
 
       if decimal
-        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds)
+        source = avatar_source(backoff_base: 0.seconds)
         expect_raises(ContributorMural::AvatarError, /runner's own network/) do
           source.fetch(user_with("http://2130706433/secret.png"), 64)
         end
@@ -373,7 +389,7 @@ describe ContributorMural::HTTPAvatarSource do
 
     it "still refuses a redirect that lands on an internal address" do
       with_test_server do |base, _requests|
-        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_targets: true)
+        source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
         {"/redirect-internal", "/redirect-internal-v6"}.each do |path|
           expect_raises(ContributorMural::AvatarError, /internal address/) do
             source.fetch(user_with("#{base}#{path}"), 64)
@@ -385,7 +401,7 @@ describe ContributorMural::HTTPAvatarSource do
     it "leaves a public host alone" do
       # Resolves, is not internal, and the fetch fails on the request rather
       # than on the policy — which is what a real avatar host has to do.
-      source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds)
+      source = avatar_source(backoff_base: 0.seconds)
       error = expect_raises(ContributorMural::AvatarError) do
         source.fetch(user_with("https://example.invalid/avatar.png"), 64)
       end

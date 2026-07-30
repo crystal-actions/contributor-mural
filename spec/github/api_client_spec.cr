@@ -43,6 +43,21 @@ private def with_api_server(pages : Hash(Int32, String), status : Int32 = 200,
   end
 end
 
+# Same as the avatar source: a client that built its own pool holds a
+# connection open until it is handed back.
+private OPENED_CLIENTS = [] of ContributorMural::GitHubApi
+
+Spec.after_each do
+  OPENED_CLIENTS.each(&.close)
+  OPENED_CLIENTS.clear
+end
+
+private def github_api(*args, **options) : ContributorMural::GitHubApi
+  client = ContributorMural::GitHubApi.new(*args, **options)
+  OPENED_CLIENTS << client
+  client
+end
+
 private def options_from(yaml : String) : ContributorMural::Config
   ContributorMural::Config.parse(yaml)
 end
@@ -51,7 +66,7 @@ describe ContributorMural::GitHubApi do
   it "maps contributors to users with contribution weights" do
     pages = {1 => "[#{contributor_json("alice", 42)},#{contributor_json("bob", 3)}]"}
     with_api_server(pages) do |base, _seen|
-      api = ContributorMural::GitHubApi.new(api_base: base)
+      api = github_api(api_base: base)
       users = api.contributors("owner/repo")
       users.map(&.login).should eq(["alice", "bob"])
       users[0].weight.should eq(42)
@@ -63,11 +78,11 @@ describe ContributorMural::GitHubApi do
   it "filters bots by default and keeps them when asked" do
     pages = {1 => "[#{contributor_json("human", 5)},#{contributor_json("dependabot[bot]", 9, "Bot")}]"}
     with_api_server(pages) do |base, _seen|
-      ContributorMural::GitHubApi.new(api_base: base)
+      github_api(api_base: base)
         .contributors("o/r").map(&.login).should eq(["human"])
 
       options = options_from("contributors:\n  include_bots: true")
-      ContributorMural::GitHubApi.new(config: options, api_base: base)
+      github_api(config: options, api_base: base)
         .contributors("o/r").map(&.login).should eq(["human", "dependabot[bot]"])
     end
   end
@@ -77,7 +92,7 @@ describe ContributorMural::GitHubApi do
     pages = {1 => "[#{first_page}]", 2 => "[#{contributor_json("last", 1)}]"}
     with_api_server(pages) do |base, seen|
       options = options_from("contributors:\n  max: 500")
-      users = ContributorMural::GitHubApi.new(config: options, api_base: base).contributors("o/r")
+      users = github_api(config: options, api_base: base).contributors("o/r")
       users.size.should eq(101)
       seen.size.should eq(2)
     end
@@ -88,7 +103,7 @@ describe ContributorMural::GitHubApi do
     pages = {1 => "[#{first_page}]", 2 => "[#{contributor_json("ignored", 1)}]"}
     with_api_server(pages) do |base, seen|
       options = options_from("contributors:\n  max: 10")
-      users = ContributorMural::GitHubApi.new(config: options, api_base: base).contributors("o/r")
+      users = github_api(config: options, api_base: base).contributors("o/r")
       users.size.should eq(10)
       seen.size.should eq(1)
     end
@@ -97,10 +112,10 @@ describe ContributorMural::GitHubApi do
   it "maps anonymous contributors to identicons when enabled" do
     pages = {1 => "[#{ANON_JSON}]"}
     with_api_server(pages) do |base, seen|
-      ContributorMural::GitHubApi.new(api_base: base).contributors("o/r").should be_empty
+      github_api(api_base: base).contributors("o/r").should be_empty
 
       options = options_from("contributors:\n  include_anonymous: true")
-      users = ContributorMural::GitHubApi.new(config: options, api_base: base).contributors("o/r")
+      users = github_api(config: options, api_base: base).contributors("o/r")
       users.size.should eq(1)
       users[0].login.should eq("Ghost Writer")
       users[0].avatar_url.should eq("https://github.com/identicons/Ghost%20Writer.png")
@@ -114,7 +129,7 @@ describe ContributorMural::GitHubApi do
     pages = {1 => "[#{contributor_json("alice", 3)}]"}
     with_api_server(pages) do |base, _seen|
       options = options_from("contributors:\n  group: Contributors")
-      users = ContributorMural::GitHubApi.new(config: options, api_base: base).contributors("o/r")
+      users = github_api(config: options, api_base: base).contributors("o/r")
       users[0].group.should eq("Contributors")
     end
   end
@@ -123,7 +138,7 @@ describe ContributorMural::GitHubApi do
     pages = {1 => "[#{contributor_json("alice", 3540)},#{contributor_json("bob", 2)}]"}
     with_api_server(pages) do |base, _seen|
       options = options_from("contributors:\n  weight: 1")
-      users = ContributorMural::GitHubApi.new(config: options, api_base: base).contributors("o/r")
+      users = github_api(config: options, api_base: base).contributors("o/r")
       users.map(&.weight).should eq([1, 1])
     end
   end
@@ -132,7 +147,7 @@ describe ContributorMural::GitHubApi do
     pages = {1 => "[#{ANON_JSON}]"}
     with_api_server(pages) do |base, _seen|
       options = options_from("contributors:\n  include_anonymous: true\n  weight: 4")
-      users = ContributorMural::GitHubApi.new(config: options, api_base: base).contributors("o/r")
+      users = github_api(config: options, api_base: base).contributors("o/r")
       users.map(&.weight).should eq([4])
     end
   end
@@ -140,10 +155,10 @@ describe ContributorMural::GitHubApi do
   it "sends the token as a bearer authorization" do
     pages = {1 => "[]"}
     with_api_server(pages) do |base, seen|
-      ContributorMural::GitHubApi.new(token: "sekrit", api_base: base).contributors("o/r")
+      github_api(token: "sekrit", api_base: base).contributors("o/r")
       seen.last[1].should eq("Bearer sekrit")
 
-      ContributorMural::GitHubApi.new(api_base: base).contributors("o/r")
+      github_api(api_base: base).contributors("o/r")
       seen.last[1].should be_nil
     end
   end
@@ -151,7 +166,7 @@ describe ContributorMural::GitHubApi do
   it "raises a friendly error for missing repositories" do
     with_api_server({} of Int32 => String, status: 404) do |base, _seen|
       expect_raises(ContributorMural::ApiError, /not found or not accessible/) do
-        ContributorMural::GitHubApi.new(api_base: base).contributors("o/r")
+        github_api(api_base: base).contributors("o/r")
       end
     end
   end
@@ -160,7 +175,7 @@ describe ContributorMural::GitHubApi do
     headers = HTTP::Headers{"x-ratelimit-remaining" => "0", "x-ratelimit-reset" => "1753400000"}
     with_api_server({} of Int32 => String, status: 403, headers: headers) do |base, _seen|
       error = expect_raises(ContributorMural::ApiError, /rate limit exceeded/) do
-        ContributorMural::GitHubApi.new(api_base: base).contributors("o/r")
+        github_api(api_base: base).contributors("o/r")
       end
       message = error.message || ""
       message.should match(/resets at 20\d\d-/)
@@ -170,7 +185,7 @@ describe ContributorMural::GitHubApi do
 
   it "rejects malformed repo values" do
     expect_raises(ContributorMural::ApiError, /owner\/name/) do
-      ContributorMural::GitHubApi.new.contributors("not-a-repo")
+      github_api.contributors("not-a-repo")
     end
   end
 end
@@ -252,7 +267,7 @@ describe "ContributorMural::GitHubApi throttling" do
     address = server.bind_unused_port "127.0.0.1"
     spawn { server.listen }
     begin
-      api = ContributorMural::GitHubApi.new(api_base: "http://#{address}", backoff_base: 0.seconds)
+      api = github_api(api_base: "http://#{address}", backoff_base: 0.seconds)
       api.contributors("o/r").map(&.login).should eq(["late"])
       calls.should eq(3)
     ensure
@@ -268,7 +283,7 @@ describe "ContributorMural::GitHubApi throttling" do
     }
     with_api_server({} of Int32 => String, status: 429, headers: headers) do |base, seen|
       expect_raises(ContributorMural::ApiError, /rate limit exceeded/) do
-        ContributorMural::GitHubApi.new(api_base: base, backoff_base: 0.seconds).contributors("o/r")
+        github_api(api_base: base, backoff_base: 0.seconds).contributors("o/r")
       end
       # The quota resets on the hour, so waiting the named moment would only
       # spend attempts on the same answer.
@@ -281,7 +296,7 @@ describe "ContributorMural::GitHubApi pagination" do
   it "fetches the pages after the first together, in order" do
     with_paginated_server(4) do |server|
       options = config_with("contributors:\n  max: 1000")
-      users = ContributorMural::GitHubApi.new(config: options, api_base: server.address).contributors("o/r")
+      users = github_api(config: options, api_base: server.address).contributors("o/r")
 
       users.size.should eq(340) # three full pages plus a last page of forty
       users.first.login.should eq("p1u1")
@@ -296,7 +311,7 @@ describe "ContributorMural::GitHubApi pagination" do
   it "still stops as soon as the caller has enough people" do
     with_paginated_server(20) do |server|
       options = config_with("contributors:\n  max: 50")
-      users = ContributorMural::GitHubApi.new(config: options, api_base: server.address).contributors("o/r")
+      users = github_api(config: options, api_base: server.address).contributors("o/r")
 
       users.size.should eq(50)
       # Twenty pages exist; wanting fifty people still costs one request.
@@ -312,7 +327,7 @@ describe "ContributorMural::GitHubApi pagination" do
     # requests to save on a quota of sixty an hour.
     with_paginated_server(20) do |server|
       options = config_with("contributors:\n  max: 150")
-      users = ContributorMural::GitHubApi.new(config: options, api_base: server.address).contributors("o/r")
+      users = github_api(config: options, api_base: server.address).contributors("o/r")
 
       users.size.should eq(150)
       server.pages_seen.sort.should eq([1, 2])
@@ -325,7 +340,7 @@ describe "ContributorMural::GitHubApi pagination" do
     # rather than off `max` is what keeps the real people from going missing.
     with_paginated_server(3, bot_pages: [1, 2]) do |server|
       options = config_with("contributors:\n  max: 40")
-      users = ContributorMural::GitHubApi.new(config: options, api_base: server.address).contributors("o/r")
+      users = github_api(config: options, api_base: server.address).contributors("o/r")
 
       users.size.should eq(40)
       users.first.login.should eq("p3u1")
@@ -391,7 +406,7 @@ describe "ContributorMural::GitHubApi name checks" do
   # and reached a different endpoint; `#` truncated the path; `..` walked up
   # out of it. Every one of them came back as an error about GitHub.
   it "refuses a repo that would change which path is requested" do
-    api = ContributorMural::GitHubApi.new(api_base: "http://127.0.0.1:1")
+    api = github_api(api_base: "http://127.0.0.1:1")
     [
       "owner/repo?per_page=1", "owner/repo#frag", "owner/..", "../owner/repo",
       "owner//repo", "owner", "owner/", "/repo", "owner/re po", "owner/repo%2f..",
@@ -404,7 +419,7 @@ describe "ContributorMural::GitHubApi name checks" do
 
   it "refuses an org that would change which path is requested" do
     config = config_with("members:\n  org: crystal-actions")
-    api = ContributorMural::GitHubApi.new(config: config, api_base: "http://127.0.0.1:1")
+    api = github_api(config: config, api_base: "http://127.0.0.1:1")
     ["my-org?x=1", "my-org#z", "..", "my org", "my-org%2fadmin", ""].each do |org|
       expect_raises(ContributorMural::ApiError, /plain organization name/) do
         api.members(org)
@@ -415,7 +430,7 @@ describe "ContributorMural::GitHubApi name checks" do
   it "accepts the punctuation GitHub actually allows in a repository name" do
     pages = {1 => "[#{contributor_json("alice", 1)}]"}
     with_api_server(pages) do |base, seen|
-      ContributorMural::GitHubApi.new(api_base: base).contributors("my-org/some.repo_name")
+      github_api(api_base: base).contributors("my-org/some.repo_name")
       seen.first[0].should start_with("/repos/my-org/some.repo_name/contributors?")
     end
   end
@@ -425,7 +440,7 @@ describe "ContributorMural::GitHubApi extra sources" do
   it "fetches organization members with their group" do
     with_sources_server do |base, _seen|
       config = config_with("members:\n  org: crystal-actions\n  group: Team")
-      users = ContributorMural::GitHubApi.new(config: config, api_base: base).members("crystal-actions")
+      users = github_api(config: config, api_base: base).members("crystal-actions")
       users.map(&.login).should eq(["member1"])
       users[0].group.should eq("Team")
       users[0].weight.should eq(1)
@@ -436,7 +451,7 @@ describe "ContributorMural::GitHubApi extra sources" do
   it "fetches stargazers" do
     with_sources_server do |base, _seen|
       config = config_with("stargazers:\n  repo: o/r")
-      users = ContributorMural::GitHubApi.new(config: config, api_base: base).stargazers("o/r")
+      users = github_api(config: config, api_base: base).stargazers("o/r")
       users.map(&.login).should eq(["fan1", "fan2"])
       users[1].link.should eq("https://github.com/fan2")
     end
@@ -445,7 +460,7 @@ describe "ContributorMural::GitHubApi extra sources" do
   it "fetches sponsors with tier amounts as weights" do
     with_sources_server([SPONSOR_PAGE]) do |base, seen|
       config = config_with("sponsors:\n  login: hahwul\n  group: Sponsors")
-      users = ContributorMural::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("hahwul")
+      users = github_api(token: "tok", config: config, api_base: base).sponsors("hahwul")
       users.map(&.login).should eq(["bigfan", "smallfan"])
       users[0].weight.should eq(25)
       users[0].name.should eq("Big Fan")
@@ -459,7 +474,7 @@ describe "ContributorMural::GitHubApi extra sources" do
   it "ignores tier amounts when the sponsors block sets a weight" do
     with_sources_server([SPONSOR_PAGE]) do |base, _seen|
       config = config_with("sponsors:\n  login: hahwul\n  weight: 5")
-      users = ContributorMural::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("hahwul")
+      users = github_api(token: "tok", config: config, api_base: base).sponsors("hahwul")
       users.map(&.weight).should eq([5, 5])
     end
   end
@@ -467,7 +482,7 @@ describe "ContributorMural::GitHubApi extra sources" do
   it "lifts members onto the configured source weight" do
     with_sources_server do |base, _seen|
       config = config_with("members:\n  org: crystal-actions\n  weight: 3")
-      users = ContributorMural::GitHubApi.new(config: config, api_base: base).members("crystal-actions")
+      users = github_api(config: config, api_base: base).members("crystal-actions")
       users.map(&.weight).should eq([3])
     end
   end
@@ -481,7 +496,7 @@ describe "ContributorMural::GitHubApi extra sources" do
     }.to_json
     with_sources_server([hidden]) do |base, _seen|
       config = config_with("sponsors:\n  login: hahwul")
-      users = ContributorMural::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("hahwul")
+      users = github_api(token: "tok", config: config, api_base: base).sponsors("hahwul")
       users.map(&.login).should eq(["visible"])
     end
   end
@@ -495,7 +510,7 @@ describe "ContributorMural::GitHubApi extra sources" do
     }.to_json
     with_sources_server([stuck, stuck, stuck]) do |base, seen|
       config = config_with("sponsors:\n  login: hahwul\n  max: 50")
-      users = ContributorMural::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("hahwul")
+      users = github_api(token: "tok", config: config, api_base: base).sponsors("hahwul")
       users.map(&.login).should eq(["a"])
       seen.count(&.starts_with?("POST /graphql")).should eq(1)
     end
@@ -504,7 +519,7 @@ describe "ContributorMural::GitHubApi extra sources" do
   it "requires a token for sponsors" do
     config = config_with("sponsors:\n  login: hahwul")
     expect_raises(ContributorMural::ApiError, /requires a `token`/) do
-      ContributorMural::GitHubApi.new(config: config).sponsors("hahwul")
+      github_api(config: config).sponsors("hahwul")
     end
   end
 
@@ -513,7 +528,7 @@ describe "ContributorMural::GitHubApi extra sources" do
     with_sources_server([error_page]) do |base, _seen|
       config = config_with("sponsors:\n  login: hahwul")
       expect_raises(ContributorMural::ApiError, /Something went wrong/) do
-        ContributorMural::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("hahwul")
+        github_api(token: "tok", config: config, api_base: base).sponsors("hahwul")
       end
     end
   end
@@ -523,7 +538,7 @@ describe "ContributorMural::GitHubApi extra sources" do
     with_sources_server([missing]) do |base, _seen|
       config = config_with("sponsors:\n  login: nobody")
       expect_raises(ContributorMural::ApiError, /no user or organization/) do
-        ContributorMural::GitHubApi.new(token: "tok", config: config, api_base: base).sponsors("nobody")
+        github_api(token: "tok", config: config, api_base: base).sponsors("nobody")
       end
     end
   end

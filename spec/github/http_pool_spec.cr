@@ -134,6 +134,40 @@ describe ContributorMural::HTTPPool do
     end
   end
 
+  # Keep-alive means a source holds a socket open to every host it spoke to
+  # until something closes the pool. A source handed a pool leaves that to its
+  # owner; one that built its own used to have no way of saying so, and the
+  # connection sat there until the garbage collector happened to reach it.
+  it "lets a source hand back the connections it opened" do
+    with_server do |server|
+      source = ContributorMural::HTTPAvatarSource.new(allow_local_targets: true)
+      user = ContributorMural::ResolvedUser.new("tester", avatar_url: "#{server.address}/a.png")
+      2.times { source.fetch(user, 64) }
+      server.accepted.should eq(1)
+
+      source.close
+      # A closed pool has nothing to hand out, so the next fetch has to dial.
+      source.fetch(user, 64)
+      server.accepted.should eq(2)
+      source.close
+    end
+  end
+
+  it "leaves a pool it was handed for its owner to close" do
+    with_server do |server|
+      pool = ContributorMural::HTTPPool.new
+      source = ContributorMural::HTTPAvatarSource.new(allow_local_targets: true, pool: pool)
+      user = ContributorMural::ResolvedUser.new("tester", avatar_url: "#{server.address}/a.png")
+      source.fetch(user, 64)
+      source.close
+
+      # Still pooled: closing it would have hung up on the pool's other users.
+      pool.get("#{server.address}/b")
+      server.accepted.should eq(1)
+      pool.close
+    end
+  end
+
   it "does not hand a failed connection to the next caller" do
     with_server(mute: true) do |server|
       pool = ContributorMural::HTTPPool.new(read_timeout: 150.milliseconds)

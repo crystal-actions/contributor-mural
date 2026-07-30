@@ -68,15 +68,14 @@ module ContributorMural::Renderers
 
       remaining = ranked[1..]
       ring = 1
-      radius = orbit.center_size / 2.0 + orbit.ring_gap + orbit.avatar_size / 2.0
+      radius = orbit.center_size / 2.0 + orbit.ring_gap + ring_size(1) / 2
       # How far the emphasised avatars placed so far have pushed everything
       # outward. Carrying the surplus separately keeps the plain layout at the
       # radii it has always had: with no `scale` this stays zero throughout.
       bulge = (center_size - orbit.center_size) / 2
 
       until remaining.empty?
-        # Avatars shrink a little each ring out, never past `min_size`.
-        size = Math.max(orbit.avatar_size - (ring - 1) * 6.0, orbit.min_size.to_f)
+        size = ring_size(ring)
         # The widest avatar sets the pitch and the clearance for its whole
         # ring, but which people land on the ring depends on that pitch — so
         # settle the two against each other before placing anything. Only
@@ -85,7 +84,7 @@ module ContributorMural::Renderers
         members = remaining
         loop do
           ring_radius = radius + bulge + (widest - size) / 2
-          capacity = Math.max((2 * Math::PI * ring_radius / (widest + orbit.gap)).floor.to_i, 1)
+          capacity = ring_capacity(ring_radius, widest + orbit.gap)
           members = remaining.first(Math.min(capacity, remaining.size))
           grown = members.max_of { |user| size * user.scale }
           break if grown <= widest
@@ -106,9 +105,35 @@ module ContributorMural::Renderers
         # Half the surplus sits inside the ring and half outside it.
         bulge += widest - size
         ring += 1
-        radius += size / 2 + orbit.ring_gap + Math.max(orbit.avatar_size - ring * 6.0, orbit.min_size.to_f) / 2
+        # This ring's own half, the gap, and the next ring's half — which is
+        # the next ring's size, not the one after it.
+        radius += size / 2 + orbit.ring_gap + ring_size(ring) / 2
       end
       spots
+    end
+
+    # Avatars shrink a little each ring out, never past `min_size`.
+    private def ring_size(ring : Int32) : Float64
+      orbit = @config.orbit
+      Math.max(orbit.avatar_size - (ring - 1) * 6.0, orbit.min_size.to_f)
+    end
+
+    # How many avatars of the given pitch fit on a ring.
+    #
+    # What has to clear between two neighbours is the straight line between
+    # them, not the arc the ring was measured along. The two agree to within a
+    # percent once a ring holds a dozen and not at all when it holds two, where
+    # an arc of half the circumference is a chord of the diameter — 36%
+    # shorter. Counting arcs let a ring take on one avatar more than fits, and
+    # a ring holding two or three of them overlapped outright.
+    private def ring_capacity(ring_radius : Float64, pitch : Float64) : Int32
+      return 1 unless ring_radius > 0 && pitch > 0
+      # `count` avatars sit `2r * sin(pi / count)` apart, so the largest count
+      # whose chord still clears the pitch is `pi / asin(pitch / 2r)`. Past a
+      # ratio of 1 not even two of them fit facing each other.
+      ratio = pitch / (2 * ring_radius)
+      return 1 if ratio >= 1.0
+      Math.max((Math::PI / Math.asin(ratio)).floor.to_i, 1)
     end
 
     private def ring_paint : String

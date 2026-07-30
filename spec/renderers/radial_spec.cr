@@ -171,6 +171,42 @@ describe ContributorMural::Renderers::Orbit do
     circles(svg).size.should eq(1)
   end
 
+  # A ring used to be filled by arc length, which is longer than the straight
+  # line between two neighbours — badly so when a ring holds only two or three,
+  # where half a circumference of arc is one diameter of chord. Ring-mates
+  # overlapped; a wide `center_size` puts the first ring exactly there.
+  it "keeps ring-mates apart when a ring holds only a few" do
+    {
+      {"center_size: 233\n  avatar_size: 211\n  min_size: 149\n  ring_gap: 19\n  gap: 0", 20},
+      {"center_size: 261\n  avatar_size: 213\n  min_size: 136\n  ring_gap: 4\n  gap: 3", 13},
+      {"center_size: 56\n  avatar_size: 118\n  min_size: 85\n  ring_gap: 30\n  gap: 1", 39},
+    }.each do |orbit, count|
+      assert_no_overlap(circles(render_radial("style: orbit\norbit:\n  #{orbit}\n#{ranked_users(count)}")))
+    end
+  end
+
+  # Stepping out to the next ring reserved half of the ring *after* it, which
+  # the taper makes smaller — three pixels short every ring, so anything with a
+  # `ring_gap` under that had its rings sitting on each other.
+  it "keeps rings apart when the gap between them is small" do
+    {
+      {"center_size: 150\n  avatar_size: 123\n  min_size: 42\n  ring_gap: 2\n  gap: 31", 37},
+      {"center_size: 184\n  avatar_size: 64\n  min_size: 30\n  ring_gap: 2\n  gap: 20", 20},
+      {"center_size: 126\n  avatar_size: 247\n  min_size: 133\n  ring_gap: 1\n  gap: 34", 25},
+    }.each do |orbit, count|
+      assert_no_overlap(circles(render_radial("style: orbit\norbit:\n  #{orbit}\n#{ranked_users(count)}")))
+    end
+  end
+
+  it "honours `gap` as the clearance it is documented to be" do
+    svg = render_radial("style: orbit\norbit:\n  gap: 20\n#{ranked_users(14)}")
+    placed = circles(svg)
+    placed.each_combination(2, reuse: true) do |(a, b)|
+      distance = Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
+      distance.should be >= (a[2] + b[2]) / 2 + 20 - 0.02
+    end
+  end
+
   it "draws an emphasised orbiter larger and widens its ring to fit" do
     plain = circles(render_radial("style: orbit\n#{ranked_users(14)}"))
     scaled = circles(render_radial("style: orbit\n#{ranked_users(14, {3 => 2.0})}"))

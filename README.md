@@ -625,7 +625,8 @@ users:                      # your curated list
     avatar_url: https://…/custom.png  # optional override; also accepts a
                                       # repo-relative file (assets/logo.png)
 
-groups: [Contributors, Special Thanks]  # optional: section order (and typo guard)
+groups: [Contributors, Team, Stargazers, Sponsors]  # optional: section order, and a
+                            # typo guard — every `group` below has to be listed here
 
 contributors:               # this repository's contributors (all fields optional)
   repo: owner/name          # default: the current repository

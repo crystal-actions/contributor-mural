@@ -19,6 +19,13 @@ and the generated files.
 - Two outputs naming the same file through different spellings (`./wall.svg`
   and `wall.svg`) are rejected as duplicates. The run used to render both, leave
   only the second on disk, and still report two paths for it.
+- The config reference in the README is a config the parser accepts. Its
+  `groups` list named two sections while the source blocks below it asked for
+  three others, so the typo guard `groups` exists to be rejected the page
+  outright — anyone pasting "every key on one page" got three errors and no
+  mural. The specs now parse and validate every config the README shows, render
+  every committed example config, and check that a run emits exactly the
+  outputs `action.yml` declares.
 
 ### Changed
 

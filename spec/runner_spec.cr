@@ -64,6 +64,32 @@ describe ContributorMural::Runner do
     end
   end
 
+  # The specs above each pin one output by name, which is what let `svg_path` be
+  # declared for three releases without anyone writing it. This closes the set:
+  # what a run emits and what `action.yml` promises have to be the same list, so
+  # a new output cannot be advertised and left unwired (or emitted and left
+  # undocumented).
+  it "emits exactly the outputs action.yml declares" do
+    yaml = <<-YAML
+      outputs:
+        - path: wall.svg
+        - path: wall.png
+      users:
+        - login: alpha
+        - login: bravo
+      YAML
+
+    run_in_tmp(yaml, rasterizer: FakeRasterizer.new({40, 30})) do |exit_code, outputs, _workspace|
+      exit_code.should eq(0)
+      emitted = outputs.each_line.compact_map(&.split('=', 2).first.presence).to_a.sort!.uniq!
+
+      action = YAML.parse(File.read((Path[__DIR__].parent / "action.yml").to_s))
+      declared = action["outputs"].as_h.keys.map(&.as_s).sort!
+
+      emitted.should eq(declared)
+    end
+  end
+
   # A voronoi block can land on a fractional width, and an <img> width
   # attribute has to be a whole number, so the output is the SVG's own size
   # rounded up — never down, which would crop it.

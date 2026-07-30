@@ -21,11 +21,18 @@ and the generated files.
   only the second on disk, and still report two paths for it.
 - The config reference in the README is a config the parser accepts. Its
   `groups` list named two sections while the source blocks below it asked for
-  three others, so the typo guard `groups` exists to be rejected the page
+  three others, so `groups` did the job it exists to do and rejected the page
   outright — anyone pasting "every key on one page" got three errors and no
   mural. The specs now parse and validate every config the README shows, render
   every committed example config, and check that a run emits exactly the
   outputs `action.yml` declares.
+- A control character in a name, role or section title no longer costs the whole
+  file. XML carries three of them and no parser will read a document holding any
+  of the others, but `HTML.escape` leaves them alone because in HTML they are
+  legal — so one stray byte in a display name did not garble a label, it made the
+  mural unreadable, with the run still exiting 0 and still committing. They are
+  dropped now, in the one place every name, role and title passes through, which
+  also covers the API-sourced names that never reach config validation.
 
 ### Changed
 

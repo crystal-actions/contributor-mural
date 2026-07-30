@@ -54,6 +54,22 @@ describe ContributorMural::Config do
       end
     end
 
+    # `exists?` is not `readable?`. A `config` input pointing at a directory —
+    # or at a file the container user cannot open — used to reach the top of
+    # the program as an unhandled exception, printing a Crystal stack trace
+    # into the workflow log and no annotation at all.
+    it "fails with a config error when the file cannot be read" do
+      directory = File.tempname("mural_cfg_dir")
+      Dir.mkdir_p(directory)
+      begin
+        expect_raises(ContributorMural::ConfigError, /could not be read/) do
+          ContributorMural::Config.load(directory)
+        end
+      ensure
+        Dir.delete(directory)
+      end
+    end
+
     it "fails on unknown keys (typo protection)" do
       expect_raises(ContributorMural::ConfigError, /avatarsize/) do
         ContributorMural::Config.load(SpecHelper.fixture("configs", "invalid_unknown_key.yml"))

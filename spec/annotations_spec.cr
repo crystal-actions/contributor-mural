@@ -46,4 +46,16 @@ describe ContributorMural::Annotations do
     ENV.delete("GITHUB_OUTPUT")
     ContributorMural::Annotations.output("k", "v")
   end
+
+  # The outputs are written after the mural already is, so an unwritable
+  # GITHUB_OUTPUT used to throw away finished work with a stack trace.
+  it "warns rather than raises when GITHUB_OUTPUT cannot be written" do
+    ENV["GITHUB_OUTPUT"] = File.join(File.tempname("missing_dir"), "out.txt")
+    begin
+      ContributorMural::Annotations.output("paths", "wall.svg")
+      ContributorMural::Annotations.io.to_s.should contain("::warning::could not write the `paths` step output")
+    ensure
+      ENV.delete("GITHUB_OUTPUT")
+    end
+  end
 end

@@ -1,4 +1,8 @@
 module ContributorMural
+  # A generated file could not be written where the config asked for it.
+  class OutputError < Exception
+  end
+
   # Orchestrates the pipeline: resolve users, embed avatars, render styles,
   # write files. Returns a process exit code.
   class Runner
@@ -54,12 +58,7 @@ module ContributorMural
 
       rendered = convert(drawn)
       rendered.each do |path, content, _dimensions|
-        full_path = File.join(@workspace, path)
-        Dir.mkdir_p(File.dirname(full_path))
-        case content
-        in Bytes  then File.write(full_path, content)
-        in String then File.write(full_path, content)
-        end
+        write(path, content)
         written_paths << path
       end
 
@@ -86,9 +85,25 @@ module ContributorMural
       end
       Annotations.output("changed", changed.to_s)
       0
-    rescue ex : ConfigError | AvatarError | ApiError | CommitError | RasterError
+    rescue ex : ConfigError | AvatarError | ApiError | CommitError | RasterError | OutputError
       Annotations.error(ex.message || ex.class.name)
       1
+    end
+
+    # An output path is checked for shape at config load, but nothing there can
+    # know what is already on disk: a directory sitting where a file goes, a
+    # file sitting where a directory goes, a read-only mount. Each of those
+    # reached the top of the program as an unhandled exception, which in a
+    # workflow log means a Crystal stack trace and no annotation at all.
+    private def write(path : String, content : Bytes | String) : Nil
+      full_path = File.join(@workspace, path)
+      Dir.mkdir_p(File.dirname(full_path))
+      case content
+      in Bytes  then File.write(full_path, content)
+      in String then File.write(full_path, content)
+      end
+    rescue ex : IO::Error
+      raise OutputError.new("could not write #{path}: #{ex.message}")
     end
 
     private def target_mode(path : String, mode_override : ThemeMode?) : ThemeMode

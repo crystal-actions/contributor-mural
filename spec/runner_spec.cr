@@ -7,9 +7,11 @@ require "./support/fake_rasterizer"
 private def run_in_tmp(config_yaml : String, source = FakeAvatarSource.new,
                        github_source : ContributorMural::GitHubSource? = nil,
                        rasterizer : ContributorMural::Rasterizer? = nil,
+                       before : Proc(String, Nil)? = nil,
                        & : Int32, String, String ->)
   workspace = File.tempname("mural_ws")
   Dir.mkdir_p(workspace)
+  before.try(&.call(workspace))
   output_file = File.tempname("gh_output")
   annotations = IO::Memory.new
   ContributorMural::Annotations.io = annotations
@@ -465,6 +467,40 @@ describe ContributorMural::Runner do
     run_in_tmp(yaml, FakeAvatarSource.new(missing: ["gone"])) do |exit_code, _outputs, _workspace|
       exit_code.should eq(1)
       ContributorMural::Annotations.io.to_s.should contain("::error::gone")
+    end
+  end
+
+  # An output path is checked for shape at config load, but nothing there can
+  # know what is already on disk. A directory sitting where the file goes used
+  # to reach the top of the program as an unhandled exception: a Crystal stack
+  # trace in the workflow log, and no annotation at all.
+  it "reports a path it cannot write as an error rather than a stack trace" do
+    yaml = <<-YAML
+      output: art/wall.svg
+      users:
+        - login: alpha
+      YAML
+
+    run_in_tmp(yaml, before: ->(workspace : String) {
+      Dir.mkdir_p(File.join(workspace, "art/wall.svg"))
+    }) do |exit_code, _outputs, _workspace|
+      exit_code.should eq(1)
+      ContributorMural::Annotations.io.to_s.should contain("::error::could not write art/wall.svg")
+    end
+  end
+
+  it "reports a directory it cannot create as an error rather than a stack trace" do
+    yaml = <<-YAML
+      output: art/wall.svg
+      users:
+        - login: alpha
+      YAML
+
+    run_in_tmp(yaml, before: ->(workspace : String) {
+      File.write(File.join(workspace, "art"), "in the way")
+    }) do |exit_code, _outputs, _workspace|
+      exit_code.should eq(1)
+      ContributorMural::Annotations.io.to_s.should contain("::error::could not write art/wall.svg")
     end
   end
 end

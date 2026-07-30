@@ -17,9 +17,16 @@ module ContributorMural
     end
 
     # Appends a step output to GITHUB_OUTPUT. No-op outside of GitHub Actions.
+    #
+    # Reported rather than raised: the outputs are written after the mural
+    # already is, so failing here would throw away work that is finished and
+    # correct over a downstream step's convenience. The warning is what tells
+    # anyone reading the log why `steps.*.outputs` came back empty.
     def self.output(key : String, value : String) : Nil
       return unless path = ENV["GITHUB_OUTPUT"]?
       File.open(path, "a", &.puts("#{key}=#{value}"))
+    rescue ex : IO::Error
+      warning("could not write the `#{key}` step output to #{path}: #{ex.message}")
     end
 
     private def self.command(kind : String, message : String, file : String?, line : Int32?) : Nil

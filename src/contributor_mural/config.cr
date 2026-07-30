@@ -85,7 +85,17 @@ module ContributorMural
 
     def self.load(path : String) : Config
       raise ConfigError.new("config file not found: #{path}") unless File.exists?(path)
-      config = parse(File.read(path))
+      # `exists?` is not `readable?`: the path can be a directory, or a file the
+      # container user cannot open. Both are ordinary mistakes — a `config`
+      # input pointing at the wrong thing — and both reached the top of the
+      # program as an unhandled exception, which in a workflow log means a
+      # Crystal stack trace and no annotation at all.
+      config =
+        begin
+          parse(File.read(path))
+        rescue ex : IO::Error
+          raise ConfigError.new("config file could not be read: #{path} (#{ex.message})")
+        end
       config.validate!
       config
     end

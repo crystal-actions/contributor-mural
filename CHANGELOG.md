@@ -26,6 +26,21 @@ and the generated files.
   mural. The specs now parse and validate every config the README shows, render
   every committed example config, and check that a run emits exactly the
   outputs `action.yml` declares.
+- An `avatar_url` pointing at the runner's own network is refused instead of
+  fetched. Redirects were already held to that rule, but the first request was
+  never checked, so an address written straight into the config — a cloud
+  metadata endpoint, a service on the host — was fetched, labelled `image/png`
+  whatever came back, and base64-embedded into a file the run then commits. On a
+  workflow that builds a mural from a pull request, that address is the
+  contributor's to choose. The check now also judges a host by the addresses it
+  resolves to rather than by how it is spelled, which is what a name pointed at
+  an internal address, or the decimal form of one, used to walk past — and
+  `[::1]` no longer slips through the redirect rule either, where the brackets
+  were being read as part of a hostname.
+- A skipped avatar says why. Every failure — a 404, a timeout, a refused address
+  — was reported as "avatar could not be fetched", which does not tell anyone
+  whether to fix a typo, a permission, or a URL. The fetcher already worked out
+  the reason; now it survives as far as the log.
 - A control character in a name, role or section title no longer costs the whole
   file. XML carries three of them and no parser will read a document holding any
   of the others, but `HTML.escape` leaves them alone because in HTML they are

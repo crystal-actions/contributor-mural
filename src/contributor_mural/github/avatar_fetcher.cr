@@ -59,11 +59,19 @@ module ContributorMural
 
     ALLOWED_CONTENT_TYPES = CONTENT_TYPES.values.to_set
 
-    # `allow_local_redirects` exists for specs, which redirect between
-    # 127.0.0.1 ports; production keeps redirects on public https only.
+    # Both flags exist for specs, which fetch from and redirect between
+    # 127.0.0.1 ports; production keeps redirects on public https only and
+    # refuses to fetch from the runner's own network at all.
+    # `allow_local_redirects` implies `allow_local_targets`, since a spec that
+    # follows a local redirect had to reach the local server first.
     def initialize(@workspace : String = Dir.current, @backoff_base : Time::Span = 1.second,
-                   @allow_local_redirects : Bool = false, pool : HTTPPool? = nil)
+                   @allow_local_redirects : Bool = false, pool : HTTPPool? = nil,
+                   allow_local_targets : Bool? = nil)
+      @allow_local_targets = allow_local_targets.nil? ? @allow_local_redirects : allow_local_targets
       @pool = pool || HTTPPool.new
+      # Answered once per host: a mural of a few thousand faces asks about the
+      # same two or three, and the answer involves the resolver.
+      @internal_hosts = {} of String => Bool
       # Only the UA: an `Accept` narrower than the wild card would let an
       # avatar host we have never heard of answer 406 where it used to work.
       @headers = HTTP::Headers{"User-Agent" => USER_AGENT}
@@ -148,6 +156,7 @@ module ContributorMural
     end
 
     private def get_following_redirects(url : String) : {Bytes, String}
+      refuse_internal_target(url)
       MAX_REDIRECTS.times do
         response = @pool.get(url, @headers)
         case response.status_code
@@ -188,7 +197,7 @@ module ContributorMural
       unless target.scheme == "https"
         raise AvatarError.new("refusing non-https avatar redirect to #{target}", 400)
       end
-      host = target.host
+      host = target.hostname
       raise AvatarError.new("avatar redirect without a host: #{target}", 400) unless host
       if internal_host?(host)
         raise AvatarError.new("refusing avatar redirect to internal address #{host}", 400)
@@ -198,10 +207,62 @@ module ContributorMural
       raise AvatarError.new("invalid avatar redirect target: #{ex.message}", 400)
     end
 
+    # The first URL is the one nobody was vetting. `safe_redirect` only ever saw
+    # the second request onward, so an `avatar_url` written straight at the
+    # runner's own network — a cloud metadata endpoint, a service on the host —
+    # was fetched, labelled `image/png` whatever came back, and base64-embedded
+    # into a file the run then commits. On a workflow that builds a mural from a
+    # pull request, the address is the contributor's to choose.
+    private def refuse_internal_target(url : String) : Nil
+      return if @allow_local_targets
+      # `hostname`, not `host`: the latter keeps the brackets around an IPv6
+      # literal, and `[::1]` is not an address any of this recognises.
+      host = URI.parse(url).hostname
+      # No host means nothing to reach: a workspace-relative avatar never gets
+      # here, it is read off disk.
+      return unless host
+      return unless internal_host?(host)
+      raise AvatarError.new("refusing to fetch an avatar from #{host} — " \
+                            "it is an address on the runner's own network", 400)
+    rescue ex : URI::Error
+      raise AvatarError.new("invalid avatar URL #{url.inspect}: #{ex.message}", 400)
+    end
+
     private def internal_host?(host : String) : Bool
+      cached = @internal_hosts[host]?
+      return cached unless cached.nil?
+      verdict = resolves_internal?(host)
+      @internal_hosts[host] = verdict
+      verdict
+    end
+
+    # Judged on the addresses the name actually answers with, not on how it is
+    # spelled. Testing the literal alone let a hostname pointed at an internal
+    # address walk past — as did the decimal form of one, since `2130706433` is
+    # not a literal to `Socket::IPAddress` but is 127.0.0.1 to the resolver.
+    #
+    # This raises the bar rather than sealing it: the connection resolves the
+    # name again for itself, so a name that answers differently each time can
+    # still get through. Closing that means connecting to an address already
+    # vetted and carrying the `Host` header along by hand.
+    private def resolves_internal?(host : String) : Bool
       return true if host.compare("localhost", case_insensitive: true).zero?
-      address = Socket::IPAddress.new(host, 0) rescue nil
-      return false unless address
+      if literal = (Socket::IPAddress.new(host, 0) rescue nil)
+        return internal_address?(literal)
+      end
+
+      addresses =
+        begin
+          Socket::Addrinfo.resolve(host, 80, type: Socket::Type::STREAM)
+        rescue Socket::Error
+          # A name that does not resolve is not a verdict to make here; let the
+          # request fail where the error can say what actually happened.
+          return false
+        end
+      addresses.any? { |info| internal_address?(info.ip_address) }
+    end
+
+    private def internal_address?(address : Socket::IPAddress) : Bool
       address.loopback? || address.private? || address.link_local? || address.unspecified?
     end
   end

@@ -101,8 +101,8 @@ module ContributorMural
     private def draw(path : String, renderer : Renderer, users : Array(ResolvedUser),
                      embedder : Embedder, warned : Set(String)) : {String, Int32}
       embedded, skipped = embedder.embed(users, renderer, @config.fail_on_missing?)
-      skipped.each do |login|
-        Annotations.warning("skipped #{login}: avatar could not be fetched") if warned.add?(login)
+      skipped.each do |skip|
+        Annotations.warning("skipped #{skip.login}: #{skip.reason}") if warned.add?(skip.login)
       end
       if embedded.empty?
         raise AvatarError.new("no avatars could be fetched — refusing to write an empty #{path}")

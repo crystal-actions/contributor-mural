@@ -74,7 +74,11 @@ describe ContributorMural::Embedder do
     embedded, skipped = embedder.embed(users, grid_renderer, fail_on_missing: false)
 
     embedded.map(&.login).should eq(["alpha"])
-    skipped.should eq(["bravo"])
+    skipped.map(&.login).should eq(["bravo"])
+    # The reason travels with the login. Reported as "could not be fetched" on
+    # its own, a refused address, a 404 and a timeout all read the same, and none
+    # of them tells the reader which one they are looking at.
+    skipped.first.reason.should contain("404")
   end
 
   it "raises on failure when fail_on_missing is set" do

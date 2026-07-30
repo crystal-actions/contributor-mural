@@ -799,7 +799,11 @@ bin/contributor-mural -c my.yml --commit               # opt in to commit/push l
 
 `--config` is resolved against the current directory, while output paths and local
 `avatar_url` files are resolved against `--workspace` (the current directory by default;
-`GITHUB_WORKSPACE` inside the action). Committing happens automatically when
+`GITHUB_WORKSPACE` inside the action). A local `avatar_url` has to stay inside the
+workspace, and a remote one has to be a public address: whatever comes back is embedded
+in a file the run commits, so an `avatar_url` pointing at the runner's own network —
+loopback, a private range, or a metadata endpoint — is refused rather than published.
+Committing happens automatically when
 `GITHUB_ACTIONS=true` — including on runners that emulate it, such as act or Forgejo —
 and otherwise only with `--commit`.
 

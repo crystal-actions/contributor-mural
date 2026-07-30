@@ -27,23 +27,29 @@ module ContributorMural
       fetch_missing(jobs.uniq!(&.url))
     end
 
-    # Returns users with embedded avatars (input order preserved) and the
-    # logins skipped due to fetch failures. Raises the first failure instead
-    # when `fail_on_missing` is set.
+    # One person left out of the mural, and why. The reason travels with the
+    # login because the caller is what reports it, and "could not be fetched"
+    # on its own does not tell anyone whether to fix a typo, a permission, or
+    # an address — the fetcher already worked that out.
+    record Skipped, login : String, reason : String
+
+    # Returns users with embedded avatars (input order preserved) and the people
+    # skipped due to fetch failures. Raises the first failure instead when
+    # `fail_on_missing` is set.
     def embed(users : Array(ResolvedUser), renderer : Renderer,
-              fail_on_missing : Bool) : {Array(EmbeddedUser), Array(String)}
+              fail_on_missing : Bool) : {Array(EmbeddedUser), Array(Skipped)}
       jobs = jobs_for(users, renderer)
       fetch_missing(jobs.uniq(&.url))
 
       embedded = [] of EmbeddedUser
-      skipped = [] of String
+      skipped = [] of Skipped
       jobs.each do |job|
         case result = @cache[job.url]
         in String
           embedded << EmbeddedUser.new(job.user, result)
         in AvatarError
           raise AvatarError.new("#{job.user.login}: #{result.message}", result.status) if fail_on_missing
-          skipped << job.user.login
+          skipped << Skipped.new(job.user.login, result.message || "avatar could not be fetched")
         end
       end
       {embedded, skipped}

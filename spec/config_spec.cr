@@ -104,6 +104,26 @@ describe ContributorMural::Config do
       end
     end
 
+    # Caught here rather than at the first request, so the error names the file
+    # and the line instead of arriving as a puzzling report about GitHub.
+    it "rejects a source name that is not a plain GitHub name" do
+      {
+        "members:\n  org: my-org?x=1"        => /members `org` must be a plain organization name/,
+        "members:\n  org: my org"            => /members `org` must be a plain organization name/,
+        "contributors:\n  repo: owner/repo?" => /contributors `repo` must look like owner\/name/,
+        "contributors:\n  repo: owner"       => /contributors `repo` must look like owner\/name/,
+        "stargazers:\n  repo: owner/.."      => /stargazers `repo` must look like owner\/name/,
+      }.each do |yaml, message|
+        expect_raises(ContributorMural::ConfigError, message) do
+          ContributorMural::Config.parse(yaml).validate!
+        end
+      end
+    end
+
+    it "accepts the punctuation GitHub allows in a repository name" do
+      ContributorMural::Config.parse("contributors:\n  repo: my-org/some.repo_name").validate!
+    end
+
     it "names the accepted values for a misspelled enum" do
       error = expect_raises(ContributorMural::ConfigError) do
         ContributorMural::Config.load(SpecHelper.fixture("configs", "invalid_style.yml"))

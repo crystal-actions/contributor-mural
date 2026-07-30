@@ -385,6 +385,42 @@ private SPONSOR_PAGE = {
   },
 }.to_json
 
+describe "ContributorMural::GitHubApi name checks" do
+  # These all used to be pasted straight into the request path. `?` folded the
+  # rest of the route — and this client's own pagination — into a query string
+  # and reached a different endpoint; `#` truncated the path; `..` walked up
+  # out of it. Every one of them came back as an error about GitHub.
+  it "refuses a repo that would change which path is requested" do
+    api = ContributorMural::GitHubApi.new(api_base: "http://127.0.0.1:1")
+    [
+      "owner/repo?per_page=1", "owner/repo#frag", "owner/..", "../owner/repo",
+      "owner//repo", "owner", "owner/", "/repo", "owner/re po", "owner/repo%2f..",
+    ].each do |repo|
+      expect_raises(ContributorMural::ApiError, /must look like owner\/name/) do
+        api.contributors(repo)
+      end
+    end
+  end
+
+  it "refuses an org that would change which path is requested" do
+    config = config_with("members:\n  org: crystal-actions")
+    api = ContributorMural::GitHubApi.new(config: config, api_base: "http://127.0.0.1:1")
+    ["my-org?x=1", "my-org#z", "..", "my org", "my-org%2fadmin", ""].each do |org|
+      expect_raises(ContributorMural::ApiError, /plain organization name/) do
+        api.members(org)
+      end
+    end
+  end
+
+  it "accepts the punctuation GitHub actually allows in a repository name" do
+    pages = {1 => "[#{contributor_json("alice", 1)}]"}
+    with_api_server(pages) do |base, seen|
+      ContributorMural::GitHubApi.new(api_base: base).contributors("my-org/some.repo_name")
+      seen.first[0].should start_with("/repos/my-org/some.repo_name/contributors?")
+    end
+  end
+end
+
 describe "ContributorMural::GitHubApi extra sources" do
   it "fetches organization members with their group" do
     with_sources_server do |base, _seen|

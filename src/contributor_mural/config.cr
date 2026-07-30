@@ -9,6 +9,18 @@ module ContributorMural
     end
   end
 
+  # Whether a name may stand as one segment of an API path.
+  #
+  # GitHub logins are letters, digits and hyphens; repository names add dots
+  # and underscores. Anything outside that set either has no business in a name
+  # or changes what the path means once it is pasted into one: `?` turns the
+  # rest of the route into a query string, `#` truncates it, and `..` walks up
+  # out of it — all of which reach a real endpoint and come back as a puzzling
+  # error about GitHub rather than about the config that caused it.
+  def self.path_segment?(value : String) : Bool
+    value.matches?(/\A[A-Za-z0-9._-]+\z/) && value != "." && value != ".."
+  end
+
   enum Style
     Grid
     Honeycomb
@@ -221,22 +233,38 @@ module ContributorMural
     private def validate_api_sources(errors : Array(String)) : Nil
       if block = contributors
         errors << "contributors `max` must be >= 1" if block.max < 1
+        validate_repo(errors, "contributors", block.repo)
         validate_source_weight(errors, "contributors", block.weight)
       end
       if block = members
-        errors << "members `org` must not be empty" if block.org.strip.empty?
-        errors << "members `org` must be a plain organization name: #{block.org.inspect}" if block.org.includes?('/')
+        if block.org.strip.empty?
+          errors << "members `org` must not be empty"
+        elsif !ContributorMural.path_segment?(block.org)
+          errors << "members `org` must be a plain organization name: #{block.org.inspect}"
+        end
         errors << "members `max` must be >= 1" if block.max < 1
         validate_source_weight(errors, "members", block.weight)
       end
       if block = stargazers
         errors << "stargazers `max` must be >= 1" if block.max < 1
+        validate_repo(errors, "stargazers", block.repo)
         validate_source_weight(errors, "stargazers", block.weight)
       end
       if block = sponsors
         errors << "sponsors `max` must be >= 1" if block.max < 1
         validate_source_weight(errors, "sponsors", block.weight)
       end
+    end
+
+    # `repo` is optional — left out, it comes from GITHUB_REPOSITORY at run
+    # time and the API client checks it there. Written down, it can be checked
+    # here, where the error names the file and the line.
+    private def validate_repo(errors : Array(String), section : String, repo : String?) : Nil
+      return unless repo
+      owner, slash, name = repo.partition('/')
+      return if !slash.empty? && ContributorMural.path_segment?(owner) &&
+                ContributorMural.path_segment?(name)
+      errors << "#{section} `repo` must look like owner/name: #{repo.inspect}"
     end
 
     private def validate_source_weight(errors : Array(String), section : String, weight : Int32?) : Nil

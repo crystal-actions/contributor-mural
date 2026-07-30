@@ -39,8 +39,6 @@ module ContributorMural
     # better spent failing with a message someone can act on.
     MAX_RETRY_AFTER = 30.seconds
 
-    REPO_PATTERN = %r{\A[^/\s]+/[^/\s]+\z}
-
     def initialize(@token : String? = nil, @config : Config = Config.empty,
                    @api_base : String = "https://api.github.com",
                    @backoff_base : Time::Span = 1.second,
@@ -50,10 +48,10 @@ module ContributorMural
 
     def contributors(repo : String) : Array(ResolvedUser)
       options = @config.contributors || ContributorsConfig.new
-      validate_repo(repo, "contributors")
+      path = repo_path(repo, "contributors")
 
       users = [] of ResolvedUser
-      each_page("/repos/#{repo}/contributors#{options.include_anonymous? ? "?anon=1" : ""}",
+      each_page("/repos/#{path}/contributors#{options.include_anonymous? ? "?anon=1" : ""}",
         "repository #{repo}", ContributorDTO, wanted: -> { options.max - users.size }) do |dto|
         next unless user = contributor_to_user(dto, repo, options)
         users << user
@@ -67,7 +65,7 @@ module ContributorMural
       return [] of ResolvedUser unless options
 
       users = [] of ResolvedUser
-      each_page("/orgs/#{org}/members", "organization #{org}", AccountDTO,
+      each_page("/orgs/#{org_path(org)}/members", "organization #{org}", AccountDTO,
         wanted: -> { options.max - users.size }) do |dto|
         users << account_to_user(dto, options.group, options.weight)
         return users if users.size >= options.max
@@ -78,10 +76,10 @@ module ContributorMural
     def stargazers(repo : String) : Array(ResolvedUser)
       options = @config.stargazers
       return [] of ResolvedUser unless options
-      validate_repo(repo, "stargazers")
+      path = repo_path(repo, "stargazers")
 
       users = [] of ResolvedUser
-      each_page("/repos/#{repo}/stargazers", "repository #{repo}", AccountDTO,
+      each_page("/repos/#{path}/stargazers", "repository #{repo}", AccountDTO,
         wanted: -> { options.max - users.size }) do |dto|
         users << account_to_user(dto, options.group, options.weight)
         return users if users.size >= options.max
@@ -183,9 +181,29 @@ module ContributorMural
       getter html_url : String? = nil
     end
 
-    private def validate_repo(repo : String, section : String) : Nil
-      return if repo.matches?(REPO_PATTERN)
-      raise ApiError.new("#{section} `repo` must look like owner/name, got: #{repo.inspect}")
+    # The owner/name pair as it may be pasted into a request path.
+    #
+    # A `repo` reaches here either from the config or from GITHUB_REPOSITORY,
+    # so it is checked here rather than only at config load. It has to be
+    # checked before it is pasted, not after: `owner/repo?per_page=1` sent the
+    # request to `/repos/owner/repo` with everything after it — including this
+    # client's own pagination — folded into a query string, and the array
+    # walker then met a JSON object and blamed GitHub for an unexpected
+    # response. `owner/..` reached whatever `/repos/` resolves to.
+    private def repo_path(repo : String, section : String) : String
+      owner, slash, name = repo.partition('/')
+      if slash.empty? || !ContributorMural.path_segment?(owner) ||
+         !ContributorMural.path_segment?(name)
+        raise ApiError.new("#{section} `repo` must look like owner/name, got: #{repo.inspect}")
+      end
+      "#{URI.encode_path_segment(owner)}/#{URI.encode_path_segment(name)}"
+    end
+
+    private def org_path(org : String) : String
+      unless ContributorMural.path_segment?(org)
+        raise ApiError.new("members `org` must be a plain organization name, got: #{org.inspect}")
+      end
+      URI.encode_path_segment(org)
     end
 
     # Walks a paginated collection, yielding every item in order.

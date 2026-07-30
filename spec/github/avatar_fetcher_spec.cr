@@ -62,6 +62,29 @@ private def user_with(avatar_url : String) : ContributorMural::ResolvedUser
   ContributorMural::ResolvedUser.new("tester", avatar_url: avatar_url)
 end
 
+# Streams `chunks` of 64 KiB with no Content-Length, and reports how much it
+# managed to push before the client stopped reading.
+private def with_endless_server(chunks : Int32, &)
+  written = 0_i64
+  server = HTTP::Server.new do |context|
+    context.response.content_type = "image/png"
+    chunk = Bytes.new(64 * 1024, 0_u8)
+    chunks.times do
+      context.response.write(chunk)
+      written += chunk.size
+    end
+  rescue
+    # The client hung up mid-body; that is the point of the test.
+  end
+  address = server.bind_unused_port "127.0.0.1"
+  spawn { server.listen }
+  begin
+    yield "http://#{address}/huge.png", -> { written }
+  ensure
+    server.close
+  end
+end
+
 # Answers with each status in `script` in turn, repeating the last one forever,
 # so a retry policy can be exercised without another branch in the server above.
 private def with_scripted_server(script : Array(Int32), retry_after : String? = nil, &)
@@ -270,6 +293,34 @@ describe ContributorMural::HTTPAvatarSource do
           source.fetch(user_with(url), 64)
         end
         attempts.call.should eq(1)
+      end
+    end
+  end
+
+  # The size limit used to be checked against a body already in memory, which
+  # means it only ever rejected the bodies small enough to have fit. This one
+  # answers with 128 MiB and never sends a Content-Length, so nothing but the
+  # reading itself can stop it.
+  describe "how much it will accept" do
+    it "stops reading an oversized body instead of buffering it" do
+      with_endless_server(2048) do |url, written|
+        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_targets: true)
+        expect_raises(ContributorMural::AvatarError, /too large/) do
+          source.fetch(user_with(url), 64)
+        end
+        limit = ContributorMural::HTTPAvatarSource::MAX_BYTES
+        # Whatever the server had already pushed into the socket buffer counts,
+        # so this is not exact — but it is a long way short of 128 MiB.
+        written.call.should be < limit * 2
+      end
+    end
+
+    it "accepts a body that fits" do
+      with_endless_server(1) do |url, _written|
+        source = ContributorMural::HTTPAvatarSource.new(backoff_base: 0.seconds, allow_local_targets: true)
+        bytes, content_type = source.fetch(user_with(url), 64)
+        bytes.size.should eq(64 * 1024)
+        content_type.should eq("image/png")
       end
     end
   end

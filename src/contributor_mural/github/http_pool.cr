@@ -46,6 +46,30 @@ module ContributorMural
       exec("GET", url, headers, nil)
     end
 
+    # Hands the response over with its body still on the socket, so a caller
+    # that cannot say in advance how much it is willing to accept can decide
+    # while it reads instead of after the whole thing is in memory. The
+    # response is only valid inside the block.
+    #
+    # The block must read the body to the end or raise. Anything left unread is
+    # still queued on the connection and would be handed to whoever picks it up
+    # next as the head of their own response — so raising is the way out, and
+    # the connection it happened on is dropped rather than pooled.
+    def get(url : String, headers : HTTP::Headers? = nil, & : HTTP::Client::Response -> T) : T forall T
+      uri = URI.parse(url)
+      key = origin(uri)
+      client = checkout(key, uri)
+      result =
+        begin
+          client.exec("GET", uri.request_target, headers: headers) { |response| yield response }
+        rescue ex : Exception
+          client.close
+          raise ex
+        end
+      checkin(key, client)
+      result
+    end
+
     def post(url : String, headers : HTTP::Headers? = nil, body : String? = nil) : HTTP::Client::Response
       exec("POST", url, headers, body)
     end

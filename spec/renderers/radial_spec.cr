@@ -29,11 +29,14 @@ private def ranked_users(count : Int32, scales = {} of Int32 => Float64) : Strin
 end
 
 # Every pair of avatars stays at least as far apart as their two radii, i.e.
-# nothing overlaps. The half-pixel slack is the SVG's two-decimal rounding.
+# nothing overlaps. The slack is the SVG's two-decimal rounding and nothing
+# else: a full half pixel of it used to hide a real overlap in the default
+# spiral, so it is set to what the rounding can actually account for — the two
+# coordinates and the two sizes, at half an ulp of the last decimal each.
 private def assert_no_overlap(placed : Array({Float64, Float64, Float64})) : Nil
   placed.each_combination(2, reuse: true) do |(a, b)|
     distance = Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
-    distance.should be >= (a[2] + b[2]) / 2 - 0.5
+    distance.should be >= (a[2] + b[2]) / 2 - 0.02
   end
 end
 
@@ -66,6 +69,23 @@ describe ContributorMural::Renderers::Spiral do
 
   it "keeps avatars from overlapping" do
     assert_no_overlap(circles(render_radial("style: spiral\n#{ranked_users(30)}")))
+  end
+
+  # The area estimate the radii start from is tuned against the default taper.
+  # A flat taper, a wide one, or simply a longer list all walk out of what it
+  # can account for, and each of these overlapped before the radii were checked
+  # against the wall rather than trusted to the estimate.
+  it "keeps avatars from overlapping whatever the sizes are" do
+    {
+      {"max_size: 72\n  min_size: 32", 90},   # the defaults, past where they held
+      {"max_size: 216\n  min_size: 210", 30}, # a taper flat enough to be no taper
+      {"max_size: 282\n  min_size: 226", 30}, # large avatars, shallow taper
+      {"max_size: 100\n  min_size: 20", 40},  # a steep one
+      {"max_size: 40\n  min_size: 8", 40},    # small avatars
+    }.each do |sizes, count|
+      svg = render_radial("style: spiral\nspiral:\n  #{sizes}\n#{ranked_users(count)}")
+      assert_no_overlap(circles(svg))
+    end
   end
 
   it "draws an emphasised contributor larger, without crowding the bloom" do

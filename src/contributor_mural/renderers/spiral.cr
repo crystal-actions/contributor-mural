@@ -69,16 +69,26 @@ module ContributorMural::Renderers
 
     private alias Spot = NamedTuple(user: EmbeddedUser, size: Float64, radius: Float64, angle: Float64)
 
-    # Share of the disc the avatars may cover. A phyllotaxis packs tightly
-    # but its nearest neighbours are several indices apart, so the usable
-    # figure sits well below the theoretical circle-packing limit; this is the
-    # densest value that keeps avatars from touching (see the overlap spec).
+    # Share of the disc the avatars may cover. A phyllotaxis packs tightly but
+    # its nearest neighbours are several indices apart, so the usable figure
+    # sits well below the theoretical circle-packing limit. This is the opening
+    # guess only — `clear_of` is what decides the radius actually used.
     DENSITY = 0.62
 
     # Vogel's model for the angle, but the radius grows with the area already
     # placed rather than plain sqrt(i). That keeps the spacing tight while the
     # avatars are shrinking: big ones push their neighbours out, small ones
     # tuck in close.
+    #
+    # The area total is an estimate, and an estimate is all it can be: it
+    # assumes the avatars placed so far are spread at a uniform density, which
+    # nothing enforces. The centre avatar alone breaks it — everyone on the
+    # first turn is pushed out past where the area says they go, leaving a hole
+    # the estimate keeps counting as filled, and the ring after that lands on
+    # top of the ring before it. The gap widens with the avatars: at the default
+    # sizes it costs a pixel or so, and with `max_size` near `min_size` it
+    # overlapped by twenty. So every radius the estimate proposes is checked
+    # against what is already on the wall before it is used.
     private def place(users : Array(EmbeddedUser)) : Array(Spot)
       spiral = @config.spiral
       ranked = users.sort_by { |user| {-user.weight, user.login.downcase} }
@@ -86,11 +96,6 @@ module ContributorMural::Renderers
       covered = 0.0
       center_size = ranked.empty? ? 0.0 : size_for(ranked.first.login)
       spots = Array(Spot).new(ranked.size)
-      # Set by the first emphasised avatar. Everyone placed after it has its
-      # radius checked outright instead of trusted to the area estimate — and
-      # with no `scale` anywhere this never flips, so a plain wall keeps the
-      # packing it has always had.
-      disturbed = false
 
       ranked.each_with_index do |user, index|
         size = size_for(user.login)
@@ -100,11 +105,7 @@ module ContributorMural::Renderers
         # first few against a much larger centre avatar.
         if index.positive?
           radius = Math.max(radius, (center_size + size) / 2 + spiral.gap)
-        end
-        if disturbed || user.scale > 1.0
-          cleared = clear_of(spots, size, angle, radius)
-          disturbed ||= user.scale > 1.0 || cleared > radius
-          radius = cleared
+          radius = clear_of(spots, size, angle, radius)
         end
         covered += Math::PI * ((size + spiral.gap) / 2) ** 2
         spots << {user: user, size: size, radius: radius, angle: angle}
@@ -112,10 +113,10 @@ module ContributorMural::Renderers
       spots
     end
 
-    # Uniform density is the assumption an emphasised avatar breaks: it takes
-    # the room of several neighbours that are several indices away, and a
-    # running area total cannot see where those landed. Slide the avatar out
-    # along its own ray until it clears every avatar already placed.
+    # Slides the avatar out along its own ray until it clears every avatar
+    # already placed — a full `gap` from each, not merely not touching. This is
+    # what makes the layout exact rather than estimated, so the guarantee holds
+    # for any `max_size`/`min_size`/`gap` a config can name and for any `scale`.
     #
     # On a fixed ray the clearance around one neighbour is a quadratic in the
     # radius, so the interval it rules out is closed form. Stepping to the far

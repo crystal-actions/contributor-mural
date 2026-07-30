@@ -66,6 +66,36 @@ describe ContributorMural::Committer do
     end
   end
 
+  # Inside the runner the workspace is owned by a different uid than the
+  # container user, so git will not touch it until it is marked safe. A docker
+  # action's HOME is a directory the runner keeps, so `--add` on every run
+  # appended another identical line to it, forever — invisible on a hosted
+  # runner, unbounded on a self-hosted one.
+  it "marks the workspace safe once, however many times it runs" do
+    with_git_repo do |clone, _remote|
+      home = File.tempname("mural_home")
+      Dir.mkdir_p(home)
+      previous_home = ENV["HOME"]?
+      previous_actions = ENV["GITHUB_ACTIONS"]?
+      begin
+        ENV["HOME"] = home
+        ENV["GITHUB_ACTIONS"] = "true"
+        committer = ContributorMural::Committer.new(clone, "msg")
+        3.times do |run|
+          File.write(File.join(clone, "wall.svg"), "<svg id=\"#{run}\"/>")
+          committer.commit(["wall.svg"])
+        end
+
+        entries = git_output("config", "--global", "--get-all", "safe.directory").lines.map(&.strip)
+        entries.count(clone).should eq(1)
+      ensure
+        previous_home ? (ENV["HOME"] = previous_home) : ENV.delete("HOME")
+        previous_actions ? (ENV["GITHUB_ACTIONS"] = previous_actions) : ENV.delete("GITHUB_ACTIONS")
+        FileUtils.rm_rf(home)
+      end
+    end
+  end
+
   it "raises a CommitError when the push is impossible" do
     with_git_repo do |clone, remote|
       FileUtils.rm_rf(remote)

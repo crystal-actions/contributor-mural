@@ -24,6 +24,7 @@ module ContributorMural
       targets = @config.render_targets
       require_rasterizer! if targets.any? { |path, _style, _mode| png?(path) }
       warn_unhonored_scale(targets)
+      warn_inert_weave(targets)
 
       users = Resolver.resolve(@config, fetch_api_users)
       if users.empty?
@@ -176,6 +177,19 @@ module ContributorMural
 
       Annotations.warning("per-user `scale` is ignored by #{ignored.map(&.to_s.downcase).join(", ")} — " \
                           "mosaic, spiral, orbit, constellation, and skyline are the styles that honour it")
+    end
+
+    # `weave` interleaves a section's lines, so without `role_lines` there is
+    # only ever one line to interleave and the option draws exactly what it
+    # would have drawn anyway. The validator still holds it to the `gap` rule,
+    # which makes the silence read as "it is on and working".
+    private def warn_inert_weave(targets : Array({String, Style, ThemeMode?})) : Nil
+      return unless @config.metro.weave?
+      return if @config.metro.role_lines?
+      return unless targets.any? { |_path, style, _mode| style.metro? }
+
+      Annotations.warning("metro `weave` needs `role_lines` — it interleaves the lines a section " \
+                          "is split into, and without roles a section is a single line")
     end
 
     # Checked up front so a missing rasterizer fails before any file is

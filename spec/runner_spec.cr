@@ -245,6 +245,44 @@ describe ContributorMural::Runner do
     end
   end
 
+  it "warns when a weave has no role lines to interleave" do
+    yaml = <<-YAML
+      style: metro
+      metro:
+        weave: true
+      users:
+        - login: alpha
+        - login: bravo
+      YAML
+
+    run_in_tmp(yaml) do |exit_code, _outputs, _workspace|
+      exit_code.should eq(0)
+      # The validator still holds an inert `weave` to its `gap` rule, so
+      # without this the option passes every check and draws nothing.
+      ContributorMural::Annotations.io.to_s
+        .should contain("::warning::metro `weave` needs `role_lines`")
+    end
+  end
+
+  it "stays quiet about a weave that has roles to work with" do
+    yaml = <<-YAML
+      style: metro
+      metro:
+        weave: true
+        role_lines: true
+      users:
+        - login: alpha
+          role: Core
+        - login: bravo
+          role: Docs
+      YAML
+
+    run_in_tmp(yaml) do |exit_code, _outputs, _workspace|
+      exit_code.should eq(0)
+      ContributorMural::Annotations.io.to_s.should_not contain("weave")
+    end
+  end
+
   it "merges contributors from the API source" do
     yaml = <<-YAML
       contributors:

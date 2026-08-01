@@ -393,7 +393,7 @@ metro:
 | `line_width` | `8` | 2–64, at most half of `station_size` |
 | `gap` | `24` | 0–200 (clearance between station rings) |
 | `role_lines` | `false` | one line per role, named after it; the unroled ride an unnamed line |
-| `weave` | `false` | interleave the role lines so their routes cross; needs `gap` ≥ 2.5 × `line_width` |
+| `weave` | `false` | interleave the role lines so their routes cross; needs `role_lines`, and `gap` ≥ 2.5 × `line_width` |
 | `show_names` | `true` | draws the name under each station |
 | `truncate` | `10` | max name length; `0` disables truncation |
 

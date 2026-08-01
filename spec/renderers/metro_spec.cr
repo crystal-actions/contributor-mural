@@ -23,6 +23,27 @@ private def metro_users(count : Int32) : String
   end
 end
 
+# Every vertical rail a route draws, as {colour, x, top y, bottom y}. A rail
+# is the straight run between two turn arcs, so walking the path commands and
+# keeping the current point is enough to pick them out.
+private def rails(svg : String) : Array({String, Float64, Float64, Float64})
+  found = [] of {String, Float64, Float64, Float64}
+  svg.scan(/<path d="([^"]*)" fill="none" stroke="(#[0-9a-f]+)"/) do |match|
+    x = y = 0.0
+    match[1].scan(/([MLA])([^MLA]*)/) do |step|
+      nums = step[2].scan(/-?[0-9.]+/).map(&.[](0).to_f)
+      case step[1]
+      when "M" then x, y = nums[0], nums[1]
+      when "A" then x, y = nums[-2], nums[-1]
+      when "L"
+        found << {match[2], x, Math.min(y, nums[1]), Math.max(y, nums[1])} if nums[0] == x && nums[1] != y
+        x, y = nums[0], nums[1]
+      end
+    end
+  end
+  found
+end
+
 # {center x, center y} per station, in drawing order.
 private def stations(svg : String) : Array({Float64, Float64})
   svg.scan(/<image [^>]*x="([-0-9.]+)" y="([-0-9.]+)" width="([0-9.]+)"/).map do |match|
@@ -205,8 +226,9 @@ describe ContributorMural::Renderers::Metro do
     placed[0...6].map(&.[](1)).uniq!.sort!.should eq([rows[0], rows[2]])
     placed[6...10].map(&.[](1)).uniq!.sort!.should eq([rows[1], rows[3]])
 
-    # The second line is right-aligned and one column narrower, and its
-    # first row runs right to left.
+    # The second line steps one column right of the first — the step that
+    # keeps their rails off one another — and its first row runs right to
+    # left, so it sets off towards the interior.
     placed[6...8].map(&.[](0)).should eq(placed[6...8].map(&.[](0)).sort!.reverse!)
 
     # Woven corners are half a station pitch — the radius that lands every
@@ -226,6 +248,34 @@ describe ContributorMural::Renderers::Metro do
     legend_rows.size.should eq(2)
     ys = svg.scan(/<text [^>]*y="([0-9.]+)"[^>]*font-weight="600"/).map(&.[](1))
     ys.uniq.size.should eq(1)
+  end
+
+  it "never lays one line's rail on top of another's" do
+    # A line's two rails ride just outside the ends of its span, and the rows
+    # interleave — so two lines that share a rail column share it over rows
+    # that overlap, and the one drawn first vanishes under the one drawn
+    # after it. Four lines used to be handed the same span outright; five
+    # lines on a short row used to land one line's left rail on another's
+    # right, a left rail sitting one column below its span and a right rail
+    # one above. Both shapes are covered here.
+    {3, 5}.each do |columns|
+      people = String.build do |io|
+        io << "sort: none\nusers:\n"
+        5.times do |line|
+          9.times { |index| io << "  - {login: r#{line}u#{index}, role: Role#{line}}\n" }
+        end
+      end
+      svg = render_metro("style: metro\nmetro:\n  columns: #{columns}\n  role_lines: true\n  weave: true\n#{people}")
+
+      drawn = rails(svg)
+      drawn.size.should be > 4
+      drawn.each_combination(2, reuse: false) do |pair|
+        first, second = pair[0], pair[1]
+        next if first[0] == second[0] || first[1] != second[1]
+        overlap = Math.min(first[3], second[3]) - Math.max(first[2], second[2])
+        fail "#{first[0]} and #{second[0]} share the rail at x=#{first[1]} over #{overlap}px" if overlap > 0
+      end
+    end
   end
 
   it "refuses a weave whose gap cannot clear the rings" do

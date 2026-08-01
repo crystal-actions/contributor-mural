@@ -159,10 +159,9 @@ module ContributorMural::Renderers
     end
 
     private def weave_size(lines : Array(Line), m : Metrics) : {Float64, Float64}
-      cols = lattice_columns(lines)
-      slots = weave_slots(lines)
-      height = (legend?(lines) ? LINE_TITLE : 0.0) + m.top + (slots.size - 1) * m.pitch_y + m.bottom
-      width = 2 * m.margin + (cols - 1) * m.pitch_x
+      w = woven(lines)
+      height = (legend?(lines) ? LINE_TITLE : 0.0) + m.top + (w.slots.size - 1) * m.pitch_y + m.bottom
+      width = 2 * m.margin + (w.lattice - 1) * m.pitch_x
       # The legend runs left to right in one band; the document has to reach
       # its last entry.
       if legend?(lines)
@@ -173,66 +172,76 @@ module ContributorMural::Renderers
       {width, height}
     end
 
-    private def lattice_columns(lines : Array(Line)) : Int32
-      lines.max_of { |(_role, members)| Math.min(@config.metro.columns, members.size) }
-    end
+    # Everything the shared lattice is made of, worked out in one pass: the
+    # stations a row carries, where each line's span starts, how many rows
+    # each line runs to, and the order those rows are dealt out in.
+    private record Woven,
+      span : Int32,
+      starts : Array(Int32),
+      rows : Array(Int32),
+      slots : Array({Int32, Int32}),
+      lattice : Int32
 
-    # How many lattice columns line `index` may ride. Every line past the
-    # first gives up one column — a full-width line's turns swing outside the
-    # map where there is nothing to cross, and the ceded column is what puts
-    # the narrower lines' rails *inside* the others' rows. Each round of the
-    # three-way stagger cedes one more, so line 3 does not land its rails on
-    # line 0's exact x and read as one route changing colour.
-    private def weave_cols(lines : Array(Line), index : Int32) : Int32
-      lattice = lattice_columns(lines)
-      wanted = Math.min(@config.metro.columns, lines[index][1].size)
-      shrink = (index % 3 == 0 ? 0 : 1) + index // 3
-      Math.max(Math.min(wanted, lattice - shrink), 1)
-    end
-
-    # Where line `index`'s span starts on the lattice: first line left, the
-    # next right, the next centred, and around again — staggered ends are
-    # what the crossings are made of.
-    private def weave_start(lines : Array(Line), index : Int32) : Int32
-      lattice = lattice_columns(lines)
-      cols = weave_cols(lines, index)
-      case index % 3
-      when 1 then lattice - cols
-      when 2 then (lattice - cols) // 2
-      else        0
+    # Every line rides the same number of stations per row, so their rows sit
+    # on one column pitch and a crossing always lands between two stations.
+    #
+    # The spans step one column right per line, because a line's two rails
+    # ride just outside the ends of its own span: two lines sharing a span
+    # share both rails, and since the rows interleave, those rails overlap in
+    # y and the line drawn first vanishes under the one drawn after it. The
+    # step is what gives every rail a column of its own. A line short enough
+    # to fit in a single row never turns, so it draws no rail and costs no
+    # step — a wall of small role lines does not widen the map for nothing.
+    #
+    # The rows themselves are dealt out in rounds: every line places its row
+    # 0, then every line still running places its row 1, and so on.
+    # Interleaving is the whole trick — a line reaching its next row has to
+    # travel down past the rows the other lines put in between, and that is
+    # where it crosses them.
+    private def woven(lines : Array(Line)) : Woven
+      span = lines.max_of { |(_role, members)| Math.min(@config.metro.columns, members.size) }
+      starts = [] of Int32
+      rows = [] of Int32
+      turning = 0
+      lines.each do |(_role, members)|
+        # Steps run 0, 1, 2 … up to a span's worth, then skip a whole span
+        # before starting over. Without the skip the `span`th line's left
+        # rail lands on the first line's right rail — a left rail sits one
+        # column below its span and a right rail one above, so two steps a
+        # full span apart meet. Reading the column as (block, offset), the
+        # skip puts every left rail in an even block and every right rail in
+        # an odd one, which no pair can cross. Below a span's worth of
+        # turning lines the skip never fires and the steps stay tight.
+        starts << (turning // span) * 2 * span + turning % span
+        count = (members.size + span - 1) // span
+        rows << count
+        turning += 1 if count > 1
       end
-    end
 
-    # Right-aligned lines travel their first row right-to-left, so their
-    # first turn drops on the interior side.
-    private def mirrored?(index : Int32) : Bool
-      index % 3 == 1
-    end
-
-    # The lines' rows dealt out in rounds — every line places its row 0, then
-    # every line still running places its row 1, and so on. Interleaving is
-    # the whole trick: a line reaching its next row has to travel down past
-    # the rows the other lines put in between, and that is where it crosses
-    # them.
-    private def weave_slots(lines : Array(Line)) : Array({Int32, Int32})
       slots = [] of {Int32, Int32}
       row = 0
       loop do
         placed = slots.size
-        lines.each_with_index do |(_role, members), index|
-          cols = weave_cols(lines, index)
-          slots << {index, row} if row < (members.size + cols - 1) // cols
-        end
+        rows.each_with_index { |count, index| slots << {index, row} if row < count }
         break if slots.size == placed
         row += 1
       end
-      slots
+
+      Woven.new(span: span, starts: starts, rows: rows, slots: slots,
+        lattice: span + (starts.last? || 0))
+    end
+
+    # Lines alternate the side they set off towards, so consecutive routes
+    # lean into one another rather than running the same way down the map.
+    private def mirrored?(index : Int32) : Bool
+      index.odd?
     end
 
     private def draw_weave(io : String::Builder, lines : Array(Line), m : Metrics, y_offset : Float64) : Nil
       metro = @config.metro
+      w = woven(lines)
       slot_of = {} of {Int32, Int32} => Int32
-      weave_slots(lines).each_with_index { |slot, index| slot_of[slot] = index }
+      w.slots.each_with_index { |slot, index| slot_of[slot] = index }
 
       y = y_offset
       if legend?(lines)
@@ -253,9 +262,9 @@ module ContributorMural::Renderers
       line_width = metro.line_width.to_f
 
       lines.each_with_index do |(_role, members), index|
-        cols = weave_cols(lines, index)
-        rows = (members.size + cols - 1) // cols
-        start = weave_start(lines, index)
+        cols = w.span
+        rows = w.rows[index]
+        start = w.starts[index]
         mirror = mirrored?(index)
         color = weave_color(index)
         row_y = ->(row : Int32) { y + m.top + slot_of[{index, row}] * m.pitch_y }

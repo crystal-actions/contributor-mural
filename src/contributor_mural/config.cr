@@ -29,6 +29,9 @@ module ContributorMural
     Orbit
     Voronoi
     Stencil
+    Constellation
+    Skyline
+    Metro
   end
 
   enum Shape
@@ -71,6 +74,9 @@ module ContributorMural
     property orbit : OrbitConfig = OrbitConfig.new
     property voronoi : VoronoiConfig = VoronoiConfig.new
     property stencil : StencilConfig = StencilConfig.new
+    property constellation : ConstellationConfig = ConstellationConfig.new
+    property skyline : SkylineConfig = SkylineConfig.new
+    property metro : MetroConfig = MetroConfig.new
     property theme : ThemeConfig = ThemeConfig.new
     property png : PngConfig = PngConfig.new
 
@@ -242,6 +248,9 @@ module ContributorMural
       errors.concat(orbit.validate)
       errors.concat(voronoi.validate)
       errors.concat(stencil.validate)
+      errors.concat(constellation.validate)
+      errors.concat(skyline.validate)
+      errors.concat(metro.validate)
       errors.concat(theme.validate)
 
       raise ConfigError.new(errors.join("; ")) unless errors.empty?
@@ -428,7 +437,8 @@ module ContributorMural
     # does for itself. `weight` says where someone stands in the list, which
     # is not the same question as how large to draw them: a rank is relative
     # to everyone else and moves whenever the list does. Honoured by the
-    # styles that derive a size per user (mosaic, spiral, orbit).
+    # styles that derive a size per user (mosaic, spiral, orbit,
+    # constellation, and skyline — the latter in height).
     @[YAML::Field(converter: ContributorMural::NumberConverter)]
     property scale : Float64? = nil
     property role : String? = nil
@@ -715,6 +725,113 @@ module ContributorMural
       errors << "stencil `gap` must be between 0 and 200" unless (0..200).includes?(gap)
       errors << "stencil `letter_spacing` must be between 0 and 8" unless (0..8).includes?(letter_spacing)
       errors << "stencil `line_gap` must be between 0 and 8" unless (0..8).includes?(line_gap)
+      errors
+    end
+  end
+
+  class ConstellationConfig
+    include YAML::Serializable
+    include YAML::Serializable::Strict
+
+    property width : Int32 = 720
+    property max_size : Int32 = 64
+    property min_size : Int32 = 20
+    property gap : Int32 = 12
+    @[YAML::Field(converter: ContributorMural::NumberConverter)]
+    property jitter : Float64 = 0.8
+    property? lines : Bool = true
+    property dust : Int32 = 4
+
+    def initialize
+    end
+
+    def validate : Array(String)
+      errors = [] of String
+      errors << "constellation `width` must be between 64 and 8000" unless (64..8000).includes?(width)
+      errors << "constellation `max_size` must be between 8 and 512" unless (8..512).includes?(max_size)
+      errors << "constellation `min_size` must be between 8 and 512" unless (8..512).includes?(min_size)
+      errors << "constellation `min_size` must not exceed `max_size`" if min_size > max_size
+      errors << "constellation `width` must be >= `max_size` plus `gap`" if width < max_size + gap
+      errors << "constellation `gap` must be between 0 and 200" unless (0..200).includes?(gap)
+      errors << "constellation `jitter` must be between 0 and 1" unless (0.0..1.0).includes?(jitter)
+      errors << "constellation `dust` must be between 0 and 32" unless (0..32).includes?(dust)
+      errors
+    end
+  end
+
+  class SkylineConfig
+    include YAML::Serializable
+    include YAML::Serializable::Strict
+
+    # Room a building needs above its avatar: the roof band plus the inset that
+    # keeps the picture off the parapet.
+    HEADROOM = 20
+
+    property width : Int32 = 800
+    property avatar_size : Int32 = 48
+    property min_height : Int32 = 96
+    property max_height : Int32 = 220
+    property gap : Int32 = 6
+    property shape : Shape = Shape::Rounded
+    property? windows : Bool = true
+    property? show_names : Bool = false
+    property truncate : Int32 = 10
+
+    def initialize
+    end
+
+    def validate : Array(String)
+      errors = [] of String
+      errors << "skyline `width` must be between 64 and 8000" unless (64..8000).includes?(width)
+      errors << "skyline `avatar_size` must be between 8 and 512" unless (8..512).includes?(avatar_size)
+      errors << "skyline `min_height` must be between 28 and 1024" unless (28..1024).includes?(min_height)
+      errors << "skyline `max_height` must be between 28 and 1024" unless (28..1024).includes?(max_height)
+      errors << "skyline `min_height` must not exceed `max_height`" if min_height > max_height
+      # The shortest tower still has to hold its avatar under the roof band.
+      if min_height < avatar_size + HEADROOM
+        errors << "skyline `min_height` must be at least `avatar_size` plus #{HEADROOM}"
+      end
+      errors << "skyline `gap` must be between 0 and 200" unless (0..200).includes?(gap)
+      errors << "skyline `truncate` must be >= 0" if truncate < 0
+      errors
+    end
+  end
+
+  class MetroConfig
+    include YAML::Serializable
+    include YAML::Serializable::Strict
+
+    property columns : Int32 = 6
+    property station_size : Int32 = 56
+    property line_width : Int32 = 8
+    property gap : Int32 = 24
+    # Split each section into one line per role, named after it — the people
+    # who carry no role ride together on an unnamed line.
+    property? role_lines : Bool = false
+    # Interleave a section's lines so their routes cross one another, the way
+    # a real network does. Only does anything where `role_lines` yields more
+    # than one line.
+    property? weave : Bool = false
+    property? show_names : Bool = true
+    property truncate : Int32 = 10
+
+    def initialize
+    end
+
+    def validate : Array(String)
+      errors = [] of String
+      errors << "metro `columns` must be between 1 and 100" unless (1..100).includes?(columns)
+      errors << "metro `station_size` must be between 8 and 512" unless (8..512).includes?(station_size)
+      errors << "metro `line_width` must be between 2 and 64" unless (2..64).includes?(line_width)
+      # A ring thicker than the avatar's radius swallows the face it frames.
+      errors << "metro `line_width` must not exceed half of `station_size`" if line_width > station_size // 2
+      errors << "metro `gap` must be between 0 and 200" unless (0..200).includes?(gap)
+      # A woven rail passes midway between two station columns; the midpoint
+      # clears the rings only when the gap funds it.
+      if weave? && gap * 2 < line_width * 5
+        errors << "metro `gap` must be at least 2.5 × `line_width` when `weave` is on"
+      end
+      errors << "metro `truncate` must be >= 0" if truncate < 0
       errors
     end
   end

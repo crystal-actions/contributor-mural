@@ -21,9 +21,10 @@
 A GitHub Action that renders your users, your contributors, or both into embeddable
 SVG art and commits it to your repository.
 
-- **Seven styles** — a classic grid, honeycomb hexagons, a weight-tiered mosaic, a
+- **Ten styles** — a classic grid, honeycomb hexagons, a weight-tiered mosaic, a
   golden-angle spiral, an orbit with your lead contributor at its centre, a
-  stained-glass voronoi, and a stencil that spells a word out of faces.
+  stained-glass voronoi, a stencil that spells a word out of faces, a night-sky
+  constellation, a city skyline, and a transit-map metro.
 - **Many sources, one mural** — your curated `users` list, repository contributors,
   org members, stargazers, and GitHub Sponsors (tier amounts become weights). Write a
   source to enable it; everything merges, and your YAML entries always win.
@@ -37,7 +38,7 @@ SVG art and commits it to your repository.
 ## Contents
 
 - [Quick start](#quick-start)
-- [Styles](#styles) — [grid](#grid) · [honeycomb](#honeycomb) · [mosaic](#mosaic) · [spiral](#spiral) · [orbit](#orbit) · [voronoi](#voronoi) · [stencil](#stencil)
+- [Styles](#styles) — [grid](#grid) · [honeycomb](#honeycomb) · [mosaic](#mosaic) · [spiral](#spiral) · [orbit](#orbit) · [voronoi](#voronoi) · [stencil](#stencil) · [constellation](#constellation) · [skyline](#skyline) · [metro](#metro)
 - [Theme](#theme)
 - [Sections and roles](#sections-and-roles)
 - [Emphasising a person](#emphasising-a-person)
@@ -314,6 +315,88 @@ only what your crowd covers.
 Size the word to your crowd: the block is the same size whether one person or six
 hundred show up, so a long word with few contributors is mostly ghosts.
 
+### Constellation
+
+A night sky: every contributor is a star whose size and glow follow their rank, near
+neighbours join up into constellations, and tiny dust stars fill the dark between them.
+Best over a dark background — try `preset: midnight`.
+
+```yaml
+style: constellation
+constellation:
+  width: 480
+  max_size: 72
+  min_size: 28
+```
+
+![constellation](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/constellation.svg)
+
+| Option | Default | Accepts |
+| ------ | ------- | ------- |
+| `width` | `720` | 64–8000, and at least `max_size` + `gap` |
+| `max_size` | `64` | 8–512 (the brightest star) |
+| `min_size` | `20` | 8–512, must be ≤ `max_size` (the faintest) |
+| `gap` | `12` | 0–200 — the least clearance between any two stars |
+| `jitter` | `0.8` | 0–1, how far a star wanders inside its own cell |
+| `lines` | `true` | the thin lines joining near neighbours into constellations |
+| `dust` | `4` | 0–32 background dust stars per contributor; `0` clears the sky |
+
+### Skyline
+
+A city skyline: each contributor is a building whose height follows their weight — the
+people carrying the project are the towers — with the avatar up top like a rooftop
+billboard and a grid of lit windows below it. Daytime silhouette on light walls, dusk
+city on dark ones.
+
+```yaml
+style: skyline
+skyline:
+  width: 520
+  avatar_size: 48
+```
+
+![skyline](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/skyline.svg)
+
+| Option | Default | Accepts |
+| ------ | ------- | ------- |
+| `width` | `800` | 64–8000; buildings wrap into further rows past it |
+| `avatar_size` | `48` | 8–512 |
+| `min_height` | `96` | 28–1024, and at least `avatar_size` + 20 |
+| `max_height` | `220` | 28–1024, must be ≥ `min_height` (the top contributor's tower) |
+| `gap` | `6` | 0–200 |
+| `shape` | `rounded` | `circle`, `rounded`, `square` |
+| `windows` | `true` | the lit-and-dark window panes |
+| `show_names` | `false` | draws the name under each building |
+| `truncate` | `10` | max name length; `0` disables truncation |
+
+### Metro
+
+A transit map: contributors are stations on a coloured route that snakes across the
+wall, with the heavier terminus rings at both ends of the line. Each section is its own
+line in its own colour — the section title reads as the line's name — and `role_lines`
+splits a section further into one line per role, named after it. Add `weave` and those
+lines interleave and cross one another, the way a real network does.
+
+```yaml
+style: metro
+metro:
+  columns: 4
+  station_size: 52
+```
+
+![metro](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/metro.svg)
+
+| Option | Default | Accepts |
+| ------ | ------- | ------- |
+| `columns` | `6` | 1–100 (stations per row before the line turns) |
+| `station_size` | `56` | 8–512 |
+| `line_width` | `8` | 2–64, at most half of `station_size` |
+| `gap` | `24` | 0–200 (clearance between station rings) |
+| `role_lines` | `false` | one line per role, named after it; the unroled ride an unnamed line |
+| `weave` | `false` | interleave the role lines so their routes cross; needs `gap` ≥ 2.5 × `line_width` |
+| `show_names` | `true` | draws the name under each station |
+| `truncate` | `10` | max name length; `0` disables truncation |
+
 ## Theme
 
 Four presets, each a light/dark palette pair:
@@ -425,7 +508,9 @@ and a huge commit count still only means "first". `scale` names the person inste
 | `mosaic` | multiplies the tier span and rounds, ties up — `1.5` turns a 1-cell tier into a 2×2 cell, without moving a boundary everyone in that tier shares |
 | `spiral` | multiplies the avatar size; the bloom re-packs so the larger avatar keeps a full `gap` from its neighbours |
 | `orbit` | multiplies the avatar size; its ring holds fewer people and sits further out to make room |
-| `grid`, `honeycomb`, `stencil` | ignored — in a fixed lattice a larger avatar either overlaps its neighbours or leaves a hole |
+| `constellation` | multiplies the star size; the sky keeps everyone a full `gap` apart around it |
+| `skyline` | multiplies the building's height — the emphasised tower rises above the wall; the avatar keeps its size |
+| `grid`, `honeycomb`, `stencil`, `metro` | ignored — in a fixed lattice a larger avatar either overlaps its neighbours or leaves a hole |
 | `voronoi` | ignored — cells are cut out of the block rather than placed, so there is no per-user size to multiply |
 
 A `scale` the chosen style cannot honour is reported as a workflow warning rather than
@@ -441,7 +526,8 @@ users:                      # your curated list — always wins on conflicts
   - login: hahwul
     name: HAHWUL            # optional display name (default: login)
     weight: 10              # optional, drives mosaic/voronoi sizing and weight sort
-    scale: 1.6              # optional 1–2 size multiplier (mosaic, spiral, orbit)
+    scale: 1.6              # optional 1–2 size multiplier (mosaic, spiral, orbit,
+                            # constellation, skyline)
     role: Creator           # optional label under the name
     group: Contributors     # optional section
     link: https://hahwul.com          # optional (default: the GitHub profile)
@@ -608,7 +694,8 @@ on a fractional one.
 <summary>Every key on one page</summary>
 
 ```yaml
-style: grid                 # grid | honeycomb | mosaic | spiral | orbit | voronoi | stencil
+style: grid                 # grid | honeycomb | mosaic | spiral | orbit | voronoi |
+                            # stencil | constellation | skyline | metro
 output: CONTRIBUTOR_MURAL.svg    # path relative to the repository root
 
 # --- Sources: write a block to enable it; results are merged ---
@@ -618,7 +705,8 @@ users:                      # your curated list
     name: HAHWUL            # optional display name (default: login)
     weight: 10              # optional, drives mosaic sizing + weight sort
     scale: 1.6              # optional 1–2 size multiplier for this person alone;
-                            # honoured by mosaic, spiral, and orbit
+                            # honoured by mosaic, spiral, orbit, constellation,
+                            # and skyline
     role: Creator           # optional label under the name (grid) / in tooltips
     group: Contributors     # optional section this user renders in
     link: https://hahwul.com          # optional (default: the GitHub profile)
@@ -723,6 +811,36 @@ stencil:                    # avatars fill the pixels of a word
   line_gap: 1
   shape: circle             # circle | rounded | square
   ghosts: true              # faint dots on the pixels nobody has filled yet
+
+constellation:              # a night sky; rank sets each star's size and glow
+  width: 720
+  max_size: 64              # the brightest star
+  min_size: 20              # the faintest
+  gap: 12                   # the least clearance between any two stars
+  jitter: 0.8               # 0..1, how far a star wanders inside its cell
+  lines: true               # join near neighbours into constellations
+  dust: 4                   # background dust stars per contributor (0 = none)
+
+skyline:                    # a city; weight sets each building's height
+  width: 800                # buildings wrap into further rows past this
+  avatar_size: 48
+  min_height: 96            # at least avatar_size + 20
+  max_height: 220           # the top contributor's tower
+  gap: 6
+  shape: rounded            # circle | rounded | square
+  windows: true             # the lit-and-dark window panes
+  show_names: false
+  truncate: 10
+
+metro:                      # a transit map; each section is its own line
+  columns: 6                # stations per row before the line turns
+  station_size: 56
+  line_width: 8             # at most half of station_size
+  gap: 24                   # clearance between station rings
+  role_lines: false         # split each section into one line per role
+  weave: false              # interleave the role lines so their routes cross
+  show_names: true
+  truncate: 10
 
 theme:
   preset: github            # github | midnight | paper | mono
@@ -856,7 +974,7 @@ cannot drift from what the renderer does. To regenerate them (needs network — 
 come from github.com):
 
 ```bash
-bin/contributor-mural -c examples/showcase.yml            # the seven style heroes
+bin/contributor-mural -c examples/showcase.yml            # the ten style heroes
 for f in examples/variants/*.yml; do bin/contributor-mural -c "$f"; done
 ```
 

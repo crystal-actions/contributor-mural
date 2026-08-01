@@ -1,0 +1,384 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="798" height="238" viewBox="0 0 798 238">
+  <style>.mural-label{fill:#57606a}.mural-role{fill:#6e7781}.mural-title{fill:#24292f}.mural-bg{fill:transparent}.mural-building{fill:#d0d7de}.mural-ground{fill:#afb8c1}.mural-window-lit{fill:#fff8c5}.mural-window-dark{fill:#afb8c1}@media (prefers-color-scheme:dark){.mural-label{fill:#8b949e}.mural-role{fill:#7d8590}.mural-title{fill:#e6edf3}.mural-bg{fill:transparent}.mural-building{fill:#21262d}.mural-ground{fill:#30363d}.mural-window-lit{fill:#f2cc60}.mural-window-dark{fill:#30363d}}</style>
+  <defs><clipPath id="skyline-clip" clipPathUnits="objectBoundingBox"><rect width="1" height="1" rx="0.15"/></clipPath></defs>
+  <rect x="0" y="236" width="798" height="2" class="mural-ground"/>
+  <a href="https://github.com/user000" target="_blank">
+    <title>user000</title>
+    <g class="mural-building">
+      <rect x="7" y="24" width="58" height="212"/>
+      <rect x="9" y="20" width="54" height="4"/>
+      <rect x="21.5" y="16" width="29" height="4"/>
+      <rect x="35" y="4" width="2" height="12"/>
+    </g>
+    <g class="mural-window-lit">
+      <rect x="14.28" y="87.96" width="7.44" height="4.08"/>
+      <rect x="38.28" y="87.96" width="7.44" height="4.08"/>
+      <rect x="50.28" y="87.96" width="7.44" height="4.08"/>
+      <rect x="26.28" y="99.96" width="7.44" height="4.08"/>
+      <rect x="38.28" y="99.96" width="7.44" height="4.08"/>
+      <rect x="50.28" y="99.96" width="7.44" height="4.08"/>
+      <rect x="26.28" y="111.96" width="7.44" height="4.08"/>
+      <rect x="50.28" y="111.96" width="7.44" height="4.08"/>
+      <rect x="14.28" y="123.96" width="7.44" height="4.08"/>
+      <rect x="26.28" y="123.96" width="7.44" height="4.08"/>
+      <rect x="38.28" y="123.96" width="7.44" height="4.08"/>
+      <rect x="50.28" y="123.96" width="7.44" height="4.08"/>
+      <rect x="26.28" y="135.96" width="7.44" height="4.08"/>
+      <rect x="50.28" y="135.96" width="7.44" height="4.08"/>
+      <rect x="26.28" y="147.96" width="7.44" height="4.08"/>
+      <rect x="14.28" y="159.96" width="7.44" height="4.08"/>
+      <rect x="26.28" y="159.96" width="7.44" height="4.08"/>
+      <rect x="38.28" y="159.96" width="7.44" height="4.08"/>
+      <rect x="38.28" y="171.96" width="7.44" height="4.08"/>
+      <rect x="14.28" y="183.96" width="7.44" height="4.08"/>
+      <rect x="50.28" y="195.96" width="7.44" height="4.08"/>
+      <rect x="14.28" y="207.96" width="7.44" height="4.08"/>
+      <rect x="26.28" y="207.96" width="7.44" height="4.08"/>
+      <rect x="38.28" y="207.96" width="7.44" height="4.08"/>
+      <rect x="14.28" y="219.96" width="7.44" height="4.08"/>
+      <rect x="38.28" y="219.96" width="7.44" height="4.08"/>
+    </g>
+    <g class="mural-window-dark">
+      <rect x="26.28" y="87.96" width="7.44" height="4.08"/>
+      <rect x="14.28" y="99.96" width="7.44" height="4.08"/>
+      <rect x="14.28" y="111.96" width="7.44" height="4.08"/>
+      <rect x="38.28" y="111.96" width="7.44" height="4.08"/>
+      <rect x="14.28" y="135.96" width="7.44" height="4.08"/>
+      <rect x="38.28" y="135.96" width="7.44" height="4.08"/>
+      <rect x="14.28" y="147.96" width="7.44" height="4.08"/>
+      <rect x="38.28" y="147.96" width="7.44" height="4.08"/>
+      <rect x="50.28" y="147.96" width="7.44" height="4.08"/>
+      <rect x="50.28" y="159.96" width="7.44" height="4.08"/>
+      <rect x="14.28" y="171.96" width="7.44" height="4.08"/>
+      <rect x="26.28" y="171.96" width="7.44" height="4.08"/>
+      <rect x="50.28" y="171.96" width="7.44" height="4.08"/>
+      <rect x="26.28" y="183.96" width="7.44" height="4.08"/>
+      <rect x="38.28" y="183.96" width="7.44" height="4.08"/>
+      <rect x="50.28" y="183.96" width="7.44" height="4.08"/>
+      <rect x="14.28" y="195.96" width="7.44" height="4.08"/>
+      <rect x="26.28" y="195.96" width="7.44" height="4.08"/>
+      <rect x="38.28" y="195.96" width="7.44" height="4.08"/>
+      <rect x="50.28" y="207.96" width="7.44" height="4.08"/>
+      <rect x="26.28" y="219.96" width="7.44" height="4.08"/>
+      <rect x="50.28" y="219.96" width="7.44" height="4.08"/>
+    </g>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDA6OTY=" x="12" y="30" width="48" height="48" preserveAspectRatio="xMidYMid slice" clip-path="url(#skyline-clip)"/>
+  </a>
+  <a href="https://github.com/user001" target="_blank">
+    <title>user001</title>
+    <g class="mural-building">
+      <rect x="72" y="65.61" width="60" height="170.39"/>
+      <rect x="72" y="57.61" width="16.8" height="8"/>
+      <rect x="115.2" y="57.61" width="16.8" height="8"/>
+    </g>
+    <g class="mural-window-lit">
+      <rect x="104.28" y="129.57" width="7.44" height="4.08"/>
+      <rect x="80.28" y="141.57" width="7.44" height="4.08"/>
+      <rect x="92.28" y="141.57" width="7.44" height="4.08"/>
+      <rect x="80.28" y="165.57" width="7.44" height="4.08"/>
+      <rect x="92.28" y="165.57" width="7.44" height="4.08"/>
+      <rect x="116.28" y="165.57" width="7.44" height="4.08"/>
+      <rect x="104.28" y="177.57" width="7.44" height="4.08"/>
+      <rect x="80.28" y="189.57" width="7.44" height="4.08"/>
+      <rect x="92.28" y="189.57" width="7.44" height="4.08"/>
+      <rect x="104.28" y="189.57" width="7.44" height="4.08"/>
+      <rect x="116.28" y="189.57" width="7.44" height="4.08"/>
+      <rect x="92.28" y="201.57" width="7.44" height="4.08"/>
+      <rect x="104.28" y="201.57" width="7.44" height="4.08"/>
+      <rect x="116.28" y="201.57" width="7.44" height="4.08"/>
+      <rect x="80.28" y="213.57" width="7.44" height="4.08"/>
+      <rect x="104.28" y="213.57" width="7.44" height="4.08"/>
+    </g>
+    <g class="mural-window-dark">
+      <rect x="80.28" y="129.57" width="7.44" height="4.08"/>
+      <rect x="92.28" y="129.57" width="7.44" height="4.08"/>
+      <rect x="116.28" y="129.57" width="7.44" height="4.08"/>
+      <rect x="104.28" y="141.57" width="7.44" height="4.08"/>
+      <rect x="116.28" y="141.57" width="7.44" height="4.08"/>
+      <rect x="80.28" y="153.57" width="7.44" height="4.08"/>
+      <rect x="92.28" y="153.57" width="7.44" height="4.08"/>
+      <rect x="104.28" y="153.57" width="7.44" height="4.08"/>
+      <rect x="116.28" y="153.57" width="7.44" height="4.08"/>
+      <rect x="104.28" y="165.57" width="7.44" height="4.08"/>
+      <rect x="80.28" y="177.57" width="7.44" height="4.08"/>
+      <rect x="92.28" y="177.57" width="7.44" height="4.08"/>
+      <rect x="116.28" y="177.57" width="7.44" height="4.08"/>
+      <rect x="80.28" y="201.57" width="7.44" height="4.08"/>
+      <rect x="92.28" y="213.57" width="7.44" height="4.08"/>
+      <rect x="116.28" y="213.57" width="7.44" height="4.08"/>
+    </g>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDE6OTY=" x="78" y="71.61" width="48" height="48" preserveAspectRatio="xMidYMid slice" clip-path="url(#skyline-clip)"/>
+  </a>
+  <a href="https://github.com/user002" target="_blank">
+    <title>user002</title>
+    <g class="mural-building">
+      <rect x="139" y="71.9" width="58" height="164.1"/>
+    </g>
+    <g class="mural-window-lit">
+      <rect x="171" y="142.9" width="6" height="6"/>
+      <rect x="183" y="142.9" width="6" height="6"/>
+      <rect x="159" y="154.9" width="6" height="6"/>
+      <rect x="171" y="166.9" width="6" height="6"/>
+      <rect x="183" y="166.9" width="6" height="6"/>
+      <rect x="147" y="190.9" width="6" height="6"/>
+      <rect x="159" y="190.9" width="6" height="6"/>
+      <rect x="171" y="190.9" width="6" height="6"/>
+      <rect x="183" y="190.9" width="6" height="6"/>
+      <rect x="159" y="202.9" width="6" height="6"/>
+      <rect x="171" y="202.9" width="6" height="6"/>
+      <rect x="183" y="214.9" width="6" height="6"/>
+    </g>
+    <g class="mural-window-dark">
+      <rect x="147" y="142.9" width="6" height="6"/>
+      <rect x="159" y="142.9" width="6" height="6"/>
+      <rect x="147" y="154.9" width="6" height="6"/>
+      <rect x="171" y="154.9" width="6" height="6"/>
+      <rect x="183" y="154.9" width="6" height="6"/>
+      <rect x="147" y="166.9" width="6" height="6"/>
+      <rect x="159" y="166.9" width="6" height="6"/>
+      <rect x="147" y="178.9" width="6" height="6"/>
+      <rect x="159" y="178.9" width="6" height="6"/>
+      <rect x="171" y="178.9" width="6" height="6"/>
+      <rect x="183" y="178.9" width="6" height="6"/>
+      <rect x="147" y="202.9" width="6" height="6"/>
+      <rect x="183" y="202.9" width="6" height="6"/>
+      <rect x="147" y="214.9" width="6" height="6"/>
+      <rect x="159" y="214.9" width="6" height="6"/>
+      <rect x="171" y="214.9" width="6" height="6"/>
+    </g>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDI6OTY=" x="144" y="85.9" width="48" height="48" preserveAspectRatio="xMidYMid slice" clip-path="url(#skyline-clip)"/>
+  </a>
+  <a href="https://github.com/user003" target="_blank">
+    <title>user003</title>
+    <g class="mural-building">
+      <rect x="205" y="91.34" width="58" height="144.66"/>
+      <rect x="205" y="83.34" width="16.24" height="8"/>
+      <rect x="246.76" y="83.34" width="16.24" height="8"/>
+    </g>
+    <g class="mural-window-lit">
+      <rect x="236.28" y="155.3" width="7.44" height="4.08"/>
+      <rect x="248.28" y="155.3" width="7.44" height="4.08"/>
+      <rect x="212.28" y="167.3" width="7.44" height="4.08"/>
+      <rect x="224.28" y="167.3" width="7.44" height="4.08"/>
+      <rect x="248.28" y="167.3" width="7.44" height="4.08"/>
+      <rect x="224.28" y="179.3" width="7.44" height="4.08"/>
+      <rect x="236.28" y="179.3" width="7.44" height="4.08"/>
+      <rect x="248.28" y="179.3" width="7.44" height="4.08"/>
+      <rect x="248.28" y="191.3" width="7.44" height="4.08"/>
+      <rect x="224.28" y="203.3" width="7.44" height="4.08"/>
+      <rect x="236.28" y="203.3" width="7.44" height="4.08"/>
+      <rect x="212.28" y="215.3" width="7.44" height="4.08"/>
+      <rect x="224.28" y="215.3" width="7.44" height="4.08"/>
+      <rect x="236.28" y="215.3" width="7.44" height="4.08"/>
+      <rect x="248.28" y="215.3" width="7.44" height="4.08"/>
+    </g>
+    <g class="mural-window-dark">
+      <rect x="212.28" y="155.3" width="7.44" height="4.08"/>
+      <rect x="224.28" y="155.3" width="7.44" height="4.08"/>
+      <rect x="236.28" y="167.3" width="7.44" height="4.08"/>
+      <rect x="212.28" y="179.3" width="7.44" height="4.08"/>
+      <rect x="212.28" y="191.3" width="7.44" height="4.08"/>
+      <rect x="224.28" y="191.3" width="7.44" height="4.08"/>
+      <rect x="236.28" y="191.3" width="7.44" height="4.08"/>
+      <rect x="212.28" y="203.3" width="7.44" height="4.08"/>
+      <rect x="248.28" y="203.3" width="7.44" height="4.08"/>
+    </g>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDM6OTY=" x="210" y="97.34" width="48" height="48" preserveAspectRatio="xMidYMid slice" clip-path="url(#skyline-clip)"/>
+  </a>
+  <a href="https://github.com/user004" target="_blank">
+    <title>user004</title>
+    <g class="mural-building">
+      <rect x="271" y="103.88" width="58" height="132.12"/>
+      <rect x="285.5" y="95.88" width="29" height="8"/>
+    </g>
+    <g class="mural-window-lit">
+      <rect x="290.28" y="167.84" width="7.44" height="4.08"/>
+      <rect x="278.28" y="179.84" width="7.44" height="4.08"/>
+      <rect x="314.28" y="179.84" width="7.44" height="4.08"/>
+      <rect x="278.28" y="203.84" width="7.44" height="4.08"/>
+      <rect x="290.28" y="203.84" width="7.44" height="4.08"/>
+      <rect x="302.28" y="203.84" width="7.44" height="4.08"/>
+      <rect x="314.28" y="203.84" width="7.44" height="4.08"/>
+      <rect x="278.28" y="215.84" width="7.44" height="4.08"/>
+      <rect x="314.28" y="215.84" width="7.44" height="4.08"/>
+    </g>
+    <g class="mural-window-dark">
+      <rect x="278.28" y="167.84" width="7.44" height="4.08"/>
+      <rect x="302.28" y="167.84" width="7.44" height="4.08"/>
+      <rect x="314.28" y="167.84" width="7.44" height="4.08"/>
+      <rect x="290.28" y="179.84" width="7.44" height="4.08"/>
+      <rect x="302.28" y="179.84" width="7.44" height="4.08"/>
+      <rect x="278.28" y="191.84" width="7.44" height="4.08"/>
+      <rect x="290.28" y="191.84" width="7.44" height="4.08"/>
+      <rect x="302.28" y="191.84" width="7.44" height="4.08"/>
+      <rect x="314.28" y="191.84" width="7.44" height="4.08"/>
+      <rect x="290.28" y="215.84" width="7.44" height="4.08"/>
+      <rect x="302.28" y="215.84" width="7.44" height="4.08"/>
+    </g>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDQ6OTY=" x="276" y="109.88" width="48" height="48" preserveAspectRatio="xMidYMid slice" clip-path="url(#skyline-clip)"/>
+  </a>
+  <a href="https://github.com/user005" target="_blank">
+    <title>user005</title>
+    <g class="mural-building">
+      <rect x="336" y="112.73" width="60" height="123.27"/>
+      <rect x="346.8" y="104.73" width="5" height="8"/>
+      <rect x="380.2" y="104.73" width="5" height="8"/>
+    </g>
+    <g class="mural-window-lit">
+      <rect x="344.28" y="176.69" width="7.44" height="4.08"/>
+      <rect x="356.28" y="176.69" width="7.44" height="4.08"/>
+      <rect x="344.28" y="188.69" width="7.44" height="4.08"/>
+      <rect x="356.28" y="188.69" width="7.44" height="4.08"/>
+      <rect x="380.28" y="188.69" width="7.44" height="4.08"/>
+      <rect x="356.28" y="200.69" width="7.44" height="4.08"/>
+      <rect x="368.28" y="200.69" width="7.44" height="4.08"/>
+    </g>
+    <g class="mural-window-dark">
+      <rect x="368.28" y="176.69" width="7.44" height="4.08"/>
+      <rect x="380.28" y="176.69" width="7.44" height="4.08"/>
+      <rect x="368.28" y="188.69" width="7.44" height="4.08"/>
+      <rect x="344.28" y="200.69" width="7.44" height="4.08"/>
+      <rect x="380.28" y="200.69" width="7.44" height="4.08"/>
+      <rect x="344.28" y="212.69" width="7.44" height="4.08"/>
+      <rect x="356.28" y="212.69" width="7.44" height="4.08"/>
+      <rect x="368.28" y="212.69" width="7.44" height="4.08"/>
+      <rect x="380.28" y="212.69" width="7.44" height="4.08"/>
+    </g>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDU6OTY=" x="342" y="118.73" width="48" height="48" preserveAspectRatio="xMidYMid slice" clip-path="url(#skyline-clip)"/>
+  </a>
+  <a href="https://github.com/user006" target="_blank">
+    <title>user006</title>
+    <g class="mural-building">
+      <rect x="404" y="117.23" width="56" height="118.77"/>
+      <rect x="407" y="109.23" width="50" height="8"/>
+    </g>
+    <g class="mural-window-lit">
+      <rect x="411" y="180.23" width="6" height="6"/>
+      <rect x="423" y="180.23" width="6" height="6"/>
+      <rect x="435" y="180.23" width="6" height="6"/>
+      <rect x="447" y="180.23" width="6" height="6"/>
+      <rect x="423" y="192.23" width="6" height="6"/>
+      <rect x="411" y="204.23" width="6" height="6"/>
+      <rect x="447" y="204.23" width="6" height="6"/>
+      <rect x="411" y="216.23" width="6" height="6"/>
+      <rect x="435" y="216.23" width="6" height="6"/>
+    </g>
+    <g class="mural-window-dark">
+      <rect x="411" y="192.23" width="6" height="6"/>
+      <rect x="435" y="192.23" width="6" height="6"/>
+      <rect x="447" y="192.23" width="6" height="6"/>
+      <rect x="423" y="204.23" width="6" height="6"/>
+      <rect x="435" y="204.23" width="6" height="6"/>
+      <rect x="423" y="216.23" width="6" height="6"/>
+      <rect x="447" y="216.23" width="6" height="6"/>
+    </g>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDY6OTY=" x="408" y="123.23" width="48" height="48" preserveAspectRatio="xMidYMid slice" clip-path="url(#skyline-clip)"/>
+  </a>
+  <a href="https://github.com/user007" target="_blank">
+    <title>user007</title>
+    <g class="mural-building">
+      <rect x="469" y="125.56" width="58" height="110.44"/>
+      <rect x="469" y="117.56" width="16.24" height="8"/>
+      <rect x="510.76" y="117.56" width="16.24" height="8"/>
+    </g>
+    <g class="mural-window-lit">
+      <rect x="477" y="188.56" width="6" height="6"/>
+      <rect x="489" y="188.56" width="6" height="6"/>
+      <rect x="501" y="188.56" width="6" height="6"/>
+      <rect x="477" y="200.56" width="6" height="6"/>
+      <rect x="501" y="200.56" width="6" height="6"/>
+      <rect x="477" y="212.56" width="6" height="6"/>
+      <rect x="489" y="212.56" width="6" height="6"/>
+      <rect x="513" y="212.56" width="6" height="6"/>
+    </g>
+    <g class="mural-window-dark">
+      <rect x="513" y="188.56" width="6" height="6"/>
+      <rect x="489" y="200.56" width="6" height="6"/>
+      <rect x="513" y="200.56" width="6" height="6"/>
+      <rect x="501" y="212.56" width="6" height="6"/>
+    </g>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDc6OTY=" x="474" y="131.56" width="48" height="48" preserveAspectRatio="xMidYMid slice" clip-path="url(#skyline-clip)"/>
+  </a>
+  <a href="https://github.com/user008" target="_blank">
+    <title>user008</title>
+    <g class="mural-building">
+      <rect x="535" y="124.88" width="58" height="111.12"/>
+    </g>
+    <g class="mural-window-lit">
+      <rect x="566.28" y="196.84" width="7.44" height="4.08"/>
+      <rect x="578.28" y="196.84" width="7.44" height="4.08"/>
+      <rect x="554.28" y="220.84" width="7.44" height="4.08"/>
+      <rect x="566.28" y="220.84" width="7.44" height="4.08"/>
+      <rect x="578.28" y="220.84" width="7.44" height="4.08"/>
+    </g>
+    <g class="mural-window-dark">
+      <rect x="542.28" y="196.84" width="7.44" height="4.08"/>
+      <rect x="554.28" y="196.84" width="7.44" height="4.08"/>
+      <rect x="542.28" y="208.84" width="7.44" height="4.08"/>
+      <rect x="554.28" y="208.84" width="7.44" height="4.08"/>
+      <rect x="566.28" y="208.84" width="7.44" height="4.08"/>
+      <rect x="578.28" y="208.84" width="7.44" height="4.08"/>
+      <rect x="542.28" y="220.84" width="7.44" height="4.08"/>
+    </g>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDg6OTY=" x="540" y="138.88" width="48" height="48" preserveAspectRatio="xMidYMid slice" clip-path="url(#skyline-clip)"/>
+  </a>
+  <a href="https://github.com/user009" target="_blank">
+    <title>user009</title>
+    <g class="mural-building">
+      <rect x="602" y="136.01" width="56" height="99.99"/>
+      <rect x="612.08" y="128.01" width="5" height="8"/>
+      <rect x="642.92" y="128.01" width="5" height="8"/>
+    </g>
+    <g class="mural-window-lit">
+      <rect x="633" y="199.01" width="6" height="6"/>
+      <rect x="645" y="199.01" width="6" height="6"/>
+      <rect x="621" y="211.01" width="6" height="6"/>
+    </g>
+    <g class="mural-window-dark">
+      <rect x="609" y="199.01" width="6" height="6"/>
+      <rect x="621" y="199.01" width="6" height="6"/>
+      <rect x="609" y="211.01" width="6" height="6"/>
+      <rect x="633" y="211.01" width="6" height="6"/>
+      <rect x="645" y="211.01" width="6" height="6"/>
+    </g>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDk6OTY=" x="606" y="142.01" width="48" height="48" preserveAspectRatio="xMidYMid slice" clip-path="url(#skyline-clip)"/>
+  </a>
+  <a href="https://github.com/user010" target="_blank">
+    <title>user010</title>
+    <g class="mural-building">
+      <rect x="666" y="143.26" width="60" height="92.74"/>
+      <rect x="676.8" y="135.26" width="5" height="8"/>
+      <rect x="710.2" y="135.26" width="5" height="8"/>
+    </g>
+    <g class="mural-window-lit">
+      <rect x="674.28" y="207.22" width="7.44" height="4.08"/>
+      <rect x="698.28" y="207.22" width="7.44" height="4.08"/>
+      <rect x="674.28" y="219.22" width="7.44" height="4.08"/>
+      <rect x="710.28" y="219.22" width="7.44" height="4.08"/>
+    </g>
+    <g class="mural-window-dark">
+      <rect x="686.28" y="207.22" width="7.44" height="4.08"/>
+      <rect x="710.28" y="207.22" width="7.44" height="4.08"/>
+      <rect x="686.28" y="219.22" width="7.44" height="4.08"/>
+      <rect x="698.28" y="219.22" width="7.44" height="4.08"/>
+    </g>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMTA6OTY=" x="672" y="149.26" width="48" height="48" preserveAspectRatio="xMidYMid slice" clip-path="url(#skyline-clip)"/>
+  </a>
+  <a href="https://github.com/user011" target="_blank">
+    <title>user011</title>
+    <g class="mural-building">
+      <rect x="734" y="147.38" width="56" height="88.62"/>
+      <rect x="736" y="143.38" width="52" height="4"/>
+      <rect x="748" y="139.38" width="28" height="4"/>
+    </g>
+    <g class="mural-window-lit">
+      <rect x="741" y="210.38" width="6" height="6"/>
+      <rect x="753" y="210.38" width="6" height="6"/>
+    </g>
+    <g class="mural-window-dark">
+      <rect x="765" y="210.38" width="6" height="6"/>
+      <rect x="777" y="210.38" width="6" height="6"/>
+    </g>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMTE6OTY=" x="738" y="153.38" width="48" height="48" preserveAspectRatio="xMidYMid slice" clip-path="url(#skyline-clip)"/>
+  </a>
+</svg>

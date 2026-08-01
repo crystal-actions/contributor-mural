@@ -175,7 +175,7 @@ module ContributorMural
       return if ignored.empty?
 
       Annotations.warning("per-user `scale` is ignored by #{ignored.map(&.to_s.downcase).join(", ")} — " \
-                          "mosaic, spiral, and orbit are the styles that size each avatar")
+                          "mosaic, spiral, orbit, constellation, and skyline are the styles that honour it")
     end
 
     # Checked up front so a missing rasterizer fails before any file is

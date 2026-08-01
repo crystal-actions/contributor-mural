@@ -57,7 +57,7 @@ describe "list order across styles" do
   it "places users in the order `sort` asked for" do
     # Listed against their weights, so any style that re-ranks shows it.
     users = "users:\n  - login: zoe\n    weight: 1\n  - login: yan\n    weight: 2\n  - login: xu\n    weight: 3\n"
-    %w[grid honeycomb mosaic voronoi stencil spiral orbit].each do |style|
+    %w[grid honeycomb mosaic voronoi stencil spiral orbit constellation skyline metro].each do |style|
       {
         "none"   => ["zoe", "yan", "xu"],
         "login"  => ["xu", "yan", "zoe"],

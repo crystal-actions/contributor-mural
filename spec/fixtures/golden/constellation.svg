@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="218.4" viewBox="0 0 720 218.4">
+  <style>.mural-label{fill:#57606a}.mural-role{fill:#6e7781}.mural-title{fill:#24292f}.mural-bg{fill:transparent}.mural-glow{stop-color:#24292f}.mural-halo{opacity:0.4}.mural-dust{fill:#57606a}.mural-line{stroke:#57606a}@media (prefers-color-scheme:dark){.mural-label{fill:#8b949e}.mural-role{fill:#7d8590}.mural-title{fill:#e6edf3}.mural-bg{fill:transparent}.mural-glow{stop-color:#e6edf3}.mural-halo{opacity:0.9}.mural-dust{fill:#8b949e}.mural-line{stroke:#8b949e}}</style>
+  <defs>
+    <clipPath id="star-clip" clipPathUnits="objectBoundingBox"><circle cx="0.5" cy="0.5" r="0.5"/></clipPath>
+    <radialGradient id="star-glow">
+      <stop offset="0" class="mural-glow" stop-opacity="0.9"/>
+      <stop offset="0.5" class="mural-glow" stop-opacity="0.35"/>
+      <stop offset="1" class="mural-glow" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g fill-opacity="0.25" class="mural-dust">
+    <circle cx="429.3" cy="193.86" r="0.79"/>
+    <circle cx="207.92" cy="159.9" r="0.56"/>
+    <circle cx="92.98" cy="154.1" r="0.54"/>
+    <circle cx="527.09" cy="57.89" r="0.6"/>
+    <circle cx="437.6" cy="179.77" r="0.84"/>
+    <circle cx="600.67" cy="173.47" r="0.82"/>
+    <circle cx="325.18" cy="173.13" r="0.55"/>
+    <circle cx="616.75" cy="151.16" r="0.6"/>
+    <circle cx="353.27" cy="14" r="0.7"/>
+    <circle cx="470.21" cy="195.13" r="0.77"/>
+    <circle cx="227.02" cy="182.65" r="0.71"/>
+    <circle cx="150.61" cy="205.03" r="0.64"/>
+    <circle cx="292.46" cy="78.34" r="0.69"/>
+    <circle cx="336.89" cy="101.43" r="0.51"/>
+    <circle cx="180.15" cy="135.1" r="0.71"/>
+    <circle cx="633.15" cy="192.73" r="0.76"/>
+    <circle cx="672.86" cy="170.12" r="0.6"/>
+    <circle cx="541.25" cy="180.36" r="0.79"/>
+    <circle cx="91.87" cy="97.81" r="0.78"/>
+  </g>
+  <g fill-opacity="0.5" class="mural-dust">
+    <circle cx="45.55" cy="195.21" r="1.08"/>
+    <circle cx="168.61" cy="190.94" r="1.1"/>
+    <circle cx="675.85" cy="198.48" r="0.87"/>
+    <circle cx="496.12" cy="113.47" r="0.92"/>
+    <circle cx="636.1" cy="159.49" r="0.95"/>
+    <circle cx="441.65" cy="66.75" r="1.02"/>
+    <circle cx="32.63" cy="189.06" r="1.02"/>
+    <circle cx="468.63" cy="18.5" r="0.91"/>
+    <circle cx="639.53" cy="49.09" r="0.96"/>
+    <circle cx="637.09" cy="27.12" r="1.15"/>
+    <circle cx="563.57" cy="70.55" r="1.16"/>
+    <circle cx="120.23" cy="21.39" r="1.17"/>
+    <circle cx="664.76" cy="188.53" r="0.85"/>
+    <circle cx="149.78" cy="25.12" r="1.02"/>
+    <circle cx="176.29" cy="89.11" r="0.85"/>
+    <circle cx="221.22" cy="28.05" r="0.91"/>
+    <circle cx="353.66" cy="81.82" r="1.16"/>
+    <circle cx="275.89" cy="191.65" r="1.1"/>
+    <circle cx="287.74" cy="189.34" r="0.89"/>
+    <circle cx="639.9" cy="151.38" r="0.99"/>
+    <circle cx="548.88" cy="23.32" r="0.97"/>
+    <circle cx="19.71" cy="55.41" r="1.14"/>
+    <circle cx="415.87" cy="107.23" r="0.92"/>
+    <circle cx="129.16" cy="161.03" r="0.9"/>
+    <circle cx="137.62" cy="195.59" r="1.2"/>
+    <circle cx="126.89" cy="134.08" r="0.96"/>
+  </g>
+  <g fill="none" stroke-width="1" stroke-linecap="round" opacity="0.4" class="mural-line">
+    <line x1="436.82" y1="156.44" x2="457" y2="158.61"/>
+    <line x1="476.72" y1="142.58" x2="481.27" y2="96.58"/>
+    <line x1="468.96" y1="79.69" x2="430.23" y2="71.31"/>
+    <line x1="374.48" y1="71.29" x2="340.51" y2="78.61"/>
+    <line x1="320.74" y1="97.29" x2="315.75" y2="115.41"/>
+    <line x1="283.45" y1="144.42" x2="251.84" y2="149.59"/>
+    <line x1="218.22" y1="151.25" x2="181.35" y2="148.93"/>
+    <line x1="159.14" y1="123.75" x2="162.09" y2="76.6"/>
+    <line x1="185.52" y1="54.74" x2="215.33" y2="54.93"/>
+    <line x1="133.99" y1="149.41" x2="77.24" y2="154.14"/>
+    <line x1="492.99" y1="160.9" x2="561.79" y2="162.26"/>
+  </g>
+  <circle cx="401.03" cy="152.59" r="57.6" fill="url(#star-glow)" class="mural-halo"/>
+  <circle cx="402.36" cy="65.28" r="39.97" fill="url(#star-glow)" class="mural-halo"/>
+  <circle cx="308.9" cy="140.27" r="34.15" fill="url(#star-glow)" class="mural-halo"/>
+  <circle cx="157.65" cy="147.44" r="30.03" fill="url(#star-glow)" class="mural-halo"/>
+  <circle cx="163.47" cy="54.6" r="26.76" fill="url(#star-glow)" class="mural-halo"/>
+  <circle cx="56.74" cy="155.84" r="24.02" fill="url(#star-glow)" class="mural-halo"/>
+  <circle cx="581.03" cy="162.64" r="21.65" fill="url(#star-glow)" class="mural-halo"/>
+  <circle cx="474.94" cy="160.54" r="19.56" fill="url(#star-glow)" class="mural-halo"/>
+  <circle cx="235.13" cy="152.32" r="17.68" fill="url(#star-glow)" class="mural-halo"/>
+  <circle cx="324.97" cy="81.97" r="15.98" fill="url(#star-glow)" class="mural-halo"/>
+  <circle cx="230.25" cy="55.03" r="14.43" fill="url(#star-glow)" class="mural-halo"/>
+  <circle cx="482.64" cy="82.65" r="13" fill="url(#star-glow)" class="mural-halo"/>
+  <a href="https://github.com/user000" target="_blank">
+    <title>user000</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDA6MTI4" x="369.03" y="120.59" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#star-clip)"/>
+  </a>
+  <a href="https://github.com/user001" target="_blank">
+    <title>user001</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDE6OTk=" x="377.83" y="40.76" width="49.04" height="49.04" preserveAspectRatio="xMidYMid slice" clip-path="url(#star-clip)"/>
+  </a>
+  <a href="https://github.com/user002" target="_blank">
+    <title>user002</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDI6ODg=" x="287.11" y="118.48" width="43.57" height="43.57" preserveAspectRatio="xMidYMid slice" clip-path="url(#star-clip)"/>
+  </a>
+  <a href="https://github.com/user003" target="_blank">
+    <title>user003</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDM6Nzk=" x="137.91" y="127.7" width="39.48" height="39.48" preserveAspectRatio="xMidYMid slice" clip-path="url(#star-clip)"/>
+  </a>
+  <a href="https://github.com/user004" target="_blank">
+    <title>user004</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDQ6NzM=" x="145.43" y="36.55" width="36.09" height="36.09" preserveAspectRatio="xMidYMid slice" clip-path="url(#star-clip)"/>
+  </a>
+  <a href="https://github.com/user005" target="_blank">
+    <title>user005</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDU6Njc=" x="40.17" y="139.27" width="33.14" height="33.14" preserveAspectRatio="xMidYMid slice" clip-path="url(#star-clip)"/>
+  </a>
+  <a href="https://github.com/user006" target="_blank">
+    <title>user006</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDY6NjI=" x="565.78" y="147.39" width="30.5" height="30.5" preserveAspectRatio="xMidYMid slice" clip-path="url(#star-clip)"/>
+  </a>
+  <a href="https://github.com/user007" target="_blank">
+    <title>user007</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDc6NTc=" x="460.89" y="146.49" width="28.1" height="28.1" preserveAspectRatio="xMidYMid slice" clip-path="url(#star-clip)"/>
+  </a>
+  <a href="https://github.com/user008" target="_blank">
+    <title>user008</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDg6NTI=" x="222.19" y="139.38" width="25.87" height="25.87" preserveAspectRatio="xMidYMid slice" clip-path="url(#star-clip)"/>
+  </a>
+  <a href="https://github.com/user009" target="_blank">
+    <title>user009</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDk6NDg=" x="313.07" y="70.07" width="23.8" height="23.8" preserveAspectRatio="xMidYMid slice" clip-path="url(#star-clip)"/>
+  </a>
+  <a href="https://github.com/user010" target="_blank">
+    <title>user010</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMTA6NDQ=" x="219.33" y="44.11" width="21.85" height="21.85" preserveAspectRatio="xMidYMid slice" clip-path="url(#star-clip)"/>
+  </a>
+  <a href="https://github.com/user011" target="_blank">
+    <title>user011</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMTE6NDA=" x="472.64" y="72.65" width="20" height="20" preserveAspectRatio="xMidYMid slice" clip-path="url(#star-clip)"/>
+  </a>
+</svg>

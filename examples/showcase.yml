@@ -47,6 +47,12 @@ outputs:
     style: voronoi
   - path: examples/stencil.svg
     style: stencil
+  - path: examples/constellation.svg
+    style: constellation
+  - path: examples/skyline.svg
+    style: skyline
+  - path: examples/metro.svg
+    style: metro
 
 grid:
   columns: 6
@@ -82,3 +88,16 @@ stencil:
   text: THANKS
   pixel_size: 14
   gap: 2
+
+constellation:
+  width: 480
+  max_size: 72
+  min_size: 28
+
+skyline:
+  width: 520
+  avatar_size: 48
+
+metro:
+  columns: 4
+  station_size: 52

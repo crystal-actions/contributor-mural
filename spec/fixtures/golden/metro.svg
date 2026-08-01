@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="335.2" height="348.8" viewBox="0 0 335.2 348.8">
+  <style>.mural-label{fill:#57606a}.mural-role{fill:#6e7781}.mural-title{fill:#24292f}.mural-bg{fill:transparent}@media (prefers-color-scheme:dark){.mural-label{fill:#8b949e}.mural-role{fill:#7d8590}.mural-title{fill:#e6edf3}.mural-bg{fill:transparent}}</style>
+  <defs><clipPath id="metro-clip" clipPathUnits="objectBoundingBox"><circle cx="0.5" cy="0.5" r="0.5"/></clipPath></defs>
+  <path d="M62,42.8L273.2,42.8A56 56 0 0 1 329.2,98.8L329.2,110.4A56 56 0 0 1 273.2,166.4L62,166.4A56 56 0 0 0 6,222.4L6,234A56 56 0 0 0 62,290L167.6,290" fill="none" stroke="#e5484d" stroke-width="8" stroke-linecap="round"/>
+  <a href="https://github.com/user000" target="_blank">
+    <title>user000</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDA6MTEy" x="34" y="14.8" width="56" height="56" preserveAspectRatio="xMidYMid slice" clip-path="url(#metro-clip)"/>
+    <circle cx="62" cy="42.8" r="34.4" fill="none" stroke="#e5484d" stroke-width="12.8"/>
+    <text x="62" y="95.6" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">user000</text>
+  </a>
+  <a href="https://github.com/user001" target="_blank">
+    <title>user001</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDE6MTEy" x="139.6" y="14.8" width="56" height="56" preserveAspectRatio="xMidYMid slice" clip-path="url(#metro-clip)"/>
+    <circle cx="167.6" cy="42.8" r="32" fill="none" stroke="#e5484d" stroke-width="8"/>
+    <text x="167.6" y="95.6" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">user001</text>
+  </a>
+  <a href="https://github.com/user002" target="_blank">
+    <title>user002</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDI6MTEy" x="245.2" y="14.8" width="56" height="56" preserveAspectRatio="xMidYMid slice" clip-path="url(#metro-clip)"/>
+    <circle cx="273.2" cy="42.8" r="32" fill="none" stroke="#e5484d" stroke-width="8"/>
+    <text x="273.2" y="95.6" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">user002</text>
+  </a>
+  <a href="https://github.com/user003" target="_blank">
+    <title>user003</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDM6MTEy" x="245.2" y="138.4" width="56" height="56" preserveAspectRatio="xMidYMid slice" clip-path="url(#metro-clip)"/>
+    <circle cx="273.2" cy="166.4" r="32" fill="none" stroke="#e5484d" stroke-width="8"/>
+    <text x="273.2" y="219.2" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">user003</text>
+  </a>
+  <a href="https://github.com/user004" target="_blank">
+    <title>user004</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDQ6MTEy" x="139.6" y="138.4" width="56" height="56" preserveAspectRatio="xMidYMid slice" clip-path="url(#metro-clip)"/>
+    <circle cx="167.6" cy="166.4" r="32" fill="none" stroke="#e5484d" stroke-width="8"/>
+    <text x="167.6" y="219.2" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">user004</text>
+  </a>
+  <a href="https://github.com/user005" target="_blank">
+    <title>user005</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDU6MTEy" x="34" y="138.4" width="56" height="56" preserveAspectRatio="xMidYMid slice" clip-path="url(#metro-clip)"/>
+    <circle cx="62" cy="166.4" r="32" fill="none" stroke="#e5484d" stroke-width="8"/>
+    <text x="62" y="219.2" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">user005</text>
+  </a>
+  <a href="https://github.com/user006" target="_blank">
+    <title>user006</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDY6MTEy" x="34" y="262" width="56" height="56" preserveAspectRatio="xMidYMid slice" clip-path="url(#metro-clip)"/>
+    <circle cx="62" cy="290" r="32" fill="none" stroke="#e5484d" stroke-width="8"/>
+    <text x="62" y="342.8" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">user006</text>
+  </a>
+  <a href="https://github.com/user007" target="_blank">
+    <title>user007</title>
+    <image href="data:image/png;base64,SU1HOnVzZXIwMDc6MTEy" x="139.6" y="262" width="56" height="56" preserveAspectRatio="xMidYMid slice" clip-path="url(#metro-clip)"/>
+    <circle cx="167.6" cy="290" r="34.4" fill="none" stroke="#e5484d" stroke-width="12.8"/>
+    <text x="167.6" y="342.8" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">user007</text>
+  </a>
+</svg>

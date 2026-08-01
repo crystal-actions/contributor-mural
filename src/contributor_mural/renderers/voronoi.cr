@@ -156,18 +156,6 @@ module ContributorMural::Renderers
       Array.new(rows) { |row| base + (row < extra ? 1 : 0) }
     end
 
-    # Jitter is addressed by index rather than drawn from a running generator:
-    # seed k depends only on k, so placement is pure and survives being called
-    # once for sizing and again for drawing.
-    private def noise(index : Int32, salt : UInt64) : Float64
-      state = (index.to_u64 &+ salt &* 0x9e3779b97f4a7c15_u64) &* 6364136223846793005_u64 &+ 1442695040888963407_u64
-      state = (state ^ (state >> 33)) &* 0xff51afd7ed558ccd_u64
-      state ^= state >> 29
-      # The divisor is a power of two, so this is exact in binary floating
-      # point — which is what keeps the golden files stable.
-      ((state >> 43) & 0x1fffff).to_f64 / 0x200000.to_f64
-    end
-
     private def place(users : Array(EmbeddedUser), width : Float64, height : Float64, rows : Int32) : Array(Seed)
       return [] of Seed if rows.zero?
 

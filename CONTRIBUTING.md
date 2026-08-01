@@ -39,7 +39,7 @@ just render         # run a config through the action image, committing nothing
 
 Every image in the README is generated from a committed config, and the YAML snippet
 next to an image is expected to match that config verbatim — so a snippet cannot
-describe something the renderer does not do. `examples/showcase.yml` produces the seven
+describe something the renderer does not do. `examples/showcase.yml` produces the ten
 style heroes; `examples/variants/*.yml` produce the per-option comparisons, one file per
 variant (the per-style blocks are global, so `shape: circle` and `shape: square` cannot
 share a run).

@@ -7,6 +7,21 @@ and the generated files.
 
 ## Unreleased
 
+### Added
+
+- Three new styles. `constellation` draws a night sky: rank sets each star's
+  size and glow, near neighbours join up into constellations, and two depths
+  of dust fill the dark between them. `skyline` draws a city: weight sets
+  each building's height, the avatar sits up top like a rooftop billboard,
+  and each building draws one of six roof silhouettes, a wall width, and a
+  glazing for its lit windows from a deterministic lottery. `metro` draws a
+  transit map: stations on a coloured route that snakes across the wall, one
+  line per section — or one per role with `role_lines`, and `weave` makes
+  those lines interleave and cross one another like a real network — with
+  the heavier terminus rings at both ends. `constellation` and `skyline`
+  honour per-user `scale` (skyline in height); `metro` is a fixed lattice
+  and ignores it.
+
 ### Fixed
 
 - The `svg_path` output is emitted again. It is declared in `action.yml` and

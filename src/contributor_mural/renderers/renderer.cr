@@ -74,24 +74,28 @@ module ContributorMural
 
     def self.for(style : Style, config : Config, mode : ThemeMode? = nil) : Renderer
       case style
-      in .grid?      then Renderers::Grid.new(config, mode)
-      in .honeycomb? then Renderers::Honeycomb.new(config, mode)
-      in .mosaic?    then Renderers::Mosaic.new(config, mode)
-      in .spiral?    then Renderers::Spiral.new(config, mode)
-      in .orbit?     then Renderers::Orbit.new(config, mode)
-      in .voronoi?   then Renderers::Voronoi.new(config, mode)
-      in .stencil?   then Renderers::Stencil.new(config, mode)
+      in .grid?          then Renderers::Grid.new(config, mode)
+      in .honeycomb?     then Renderers::Honeycomb.new(config, mode)
+      in .mosaic?        then Renderers::Mosaic.new(config, mode)
+      in .spiral?        then Renderers::Spiral.new(config, mode)
+      in .orbit?         then Renderers::Orbit.new(config, mode)
+      in .voronoi?       then Renderers::Voronoi.new(config, mode)
+      in .stencil?       then Renderers::Stencil.new(config, mode)
+      in .constellation? then Renderers::Constellation.new(config, mode)
+      in .skyline?       then Renderers::Skyline.new(config, mode)
+      in .metro?         then Renderers::Metro.new(config, mode)
       end
     end
 
     # Styles that can honour a per-user `scale`: the ones that already derive
     # a size per user, where an override is exact. The fixed lattices (grid,
-    # honeycomb, stencil) have nowhere to put an avatar larger than its cell
-    # without overlapping a neighbour or leaving a hole, and voronoi sizes
+    # honeycomb, stencil, metro) have nowhere to put an avatar larger than its
+    # cell without overlapping a neighbour or leaving a hole, and voronoi sizes
     # cells by cutting the block up rather than by placing a shape — those
-    # ignore `scale` rather than approximate it.
+    # ignore `scale` rather than approximate it. Skyline honours it in the one
+    # dimension it is free in: the emphasised tower grows taller, not wider.
     def self.honors_scale?(style : Style) : Bool
-      style.mosaic? || style.spiral? || style.orbit?
+      style.mosaic? || style.spiral? || style.orbit? || style.constellation? || style.skyline?
     end
 
     # Style-wide <defs>, emitted once per document.
@@ -125,6 +129,30 @@ module ContributorMural
     # Left inset aligning section titles with block content.
     protected def title_inset : Float64
       8.0
+    end
+
+    # Deterministic noise in [0, 1), addressed by index rather than drawn from
+    # a running generator: value k depends only on k and the salt, so layouts
+    # survive being computed once for sizing and again for drawing. One copy
+    # for every renderer, because the exact bits are golden-file contract.
+    protected def noise(index : Int32, salt : UInt64) : Float64
+      mix((index.to_u64 &+ salt &* 0x9e3779b97f4a7c15_u64) &* 6364136223846793005_u64 &+ 1442695040888963407_u64)
+    end
+
+    # The same noise keyed by a string — for per-person variation that has to
+    # survive the list around it changing.
+    protected def hash01(text : String, salt : UInt64) : Float64
+      state = 0xcbf29ce484222325_u64
+      text.each_byte { |byte| state = (state ^ byte) &* 0x100000001b3_u64 }
+      mix(state &+ salt &* 0x9e3779b97f4a7c15_u64)
+    end
+
+    # The divisor is a power of two, so the result is exact in binary floating
+    # point — which is what keeps the golden files stable.
+    private def mix(state : UInt64) : Float64
+      state = (state ^ (state >> 33)) &* 0xff51afd7ed558ccd_u64
+      state ^= state >> 29
+      ((state >> 43) & 0x1fffff).to_f64 / 0x200000.to_f64
     end
 
     protected def theme : ThemeConfig

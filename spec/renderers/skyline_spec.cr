@@ -124,6 +124,30 @@ describe ContributorMural::Renderers::Skyline do
     end
   end
 
+  it "glazes a tower in taller storeys rather than more of them" do
+    # A small avatar against a tall band asks for a window row every few
+    # pixels — specks, and a crowd of them turns one wall into thousands of
+    # rectangles. The rows are capped, and the ones that remain still reach
+    # the foot of the wall.
+    svg = render_skyline("style: skyline\nskyline:\n" \
+                         "  avatar_size: 12\n  min_height: 600\n  max_height: 640\n#{skyline_users(3)}")
+
+    svg.scan(%r{<a href[^>]*>\n(.*?)</a>}m).each do |anchor|
+      panes = anchor[1].scan(%r{<g class="mural-window-\w+">\n(.*?)</g>}m)
+        .flat_map { |group| rects(group[1]) }
+      rows = panes.map(&.[](1)).uniq!.sort!
+      rows.size.should be <= 32
+
+      body = rects(anchor[1].scan(%r{<g class="mural-building">\n(.*?)</g>}m).first[1])
+        .select { |(_x, _y, w, _h)| w > 2.0 }
+      bottom = body.max_of { |(_x, y, _w, h)| y + h }
+      # Uncapped these rows would stop a long way up the wall; the stretched
+      # storey is what keeps the glazing reaching the street.
+      lowest = panes.max_of { |(_x, y, _w, h)| y + h }
+      (bottom - lowest).should be < (rows[1] - rows[0])
+    end
+  end
+
   it "wraps into further rows, each with its own street" do
     svg = render_skyline("style: skyline\n#{skyline_users(25)}") # 12 columns at the defaults
     svg.scan(/class="mural-ground"/).size.should eq(3)

@@ -22,6 +22,10 @@ module ContributorMural::Renderers
     LABEL_H = 16.0
     # Share of windows lit.
     LIT_RATIO = 0.5
+    # Most rows of windows one wall will draw. Well clear of what the default
+    # band asks for (a 220px tower glazes 12), so it only ever bites the
+    # towers that would otherwise be drawn in specks.
+    FLOOR_CAP = 32
     # Height jitter as a share of the smallest step between weight ranks —
     # under half, so jitter can never reorder what the weights decided.
     JITTER_SHARE = 0.35
@@ -280,11 +284,23 @@ module ContributorMural::Renderers
       floors = (zone / pitch).floor.to_i
       return if floors < 1
 
+      # A tower that wants more rows than this gets taller storeys instead of
+      # more of them: the glazing still fills the wall exactly, but a small
+      # `avatar_size` against a big `max_height` can no longer turn one wall
+      # into hundreds of rows of 2px specks — which read as noise anyway, and
+      # which a crowd multiplies into a document of a third of a million
+      # rectangles. Constellation caps its dust for the same reason.
+      storey = pitch
+      if floors > FLOOR_CAP
+        floors = FLOOR_CAP
+        storey = zone / floors
+      end
+
       ribbon = noise(index * 3 + 2, salt) < 0.5
       pane_w = ribbon ? pitch * 0.62 : pitch / 2
-      pane_h = ribbon ? pitch * 0.34 : pitch / 2
+      pane_h = ribbon ? storey * 0.34 : storey / 2
       off_x = ribbon ? pitch * 0.19 : pitch / 4
-      off_y = ribbon ? pitch * 0.33 : pitch / 4
+      off_y = ribbon ? storey * 0.33 : storey / 4
 
       pane_salt = salt &+ index.to_u64 &* 7919_u64
       lit = [] of {Float64, Float64}
@@ -292,7 +308,7 @@ module ContributorMural::Renderers
       floors.times do |floor|
         cols.times do |column|
           pane_x = x + PAD + column * pitch + off_x
-          pane_y = zone_top + floor * pitch + off_y
+          pane_y = zone_top + floor * storey + off_y
           state = noise(floor * cols + column, pane_salt)
           (state < LIT_RATIO ? lit : unlit) << {pane_x, pane_y}
         end

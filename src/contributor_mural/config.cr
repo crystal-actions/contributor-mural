@@ -651,6 +651,10 @@ module ContributorMural
 
     property width : Int32 = 720
     property cell_size : Int32 = 96
+    # How many rows to divide the wall into. Unset lets `cell_size` decide,
+    # which keeps the cells near that pitch and adds rows as people arrive;
+    # setting it fixes the rows instead and lets the cells take up the slack.
+    property rows : Int32? = nil
     property gap : Int32 = 4
     @[YAML::Field(converter: ContributorMural::NumberConverter)]
     property jitter : Float64 = 0.5
@@ -666,6 +670,9 @@ module ContributorMural
       errors << "voronoi `width` must be between 64 and 8000" unless (64..8000).includes?(width)
       errors << "voronoi `cell_size` must be between 16 and 512" unless (16..512).includes?(cell_size)
       errors << "voronoi `cell_size` must not exceed `width`" if cell_size > width
+      if count = rows
+        errors << "voronoi `rows` must be between 1 and 64" unless (1..64).includes?(count)
+      end
       errors << "voronoi `jitter` must be between 0 and 0.8" unless (0.0..0.8).includes?(jitter)
       errors << "voronoi `weight_influence` must be between 0 and 1" unless (0.0..1.0).includes?(weight_influence)
       errors << "voronoi `gap` must be between 0 and 64" unless (0..64).includes?(gap)

@@ -5,6 +5,15 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) — f
 an action, the "public API" is the config schema, the action inputs and outputs,
 and the generated files.
 
+## Unreleased
+
+### Added
+
+- `voronoi` takes a `rows` count. Left unset nothing changes — `cell_size` sets
+  the pitch and the wall grows a row at a time. Setting it fixes the rows and
+  lets the cells take up the slack instead, so a crowded wall can spread over
+  more rows rather than packing more faces across the same width.
+
 ## v1.2.0
 
 ### Added

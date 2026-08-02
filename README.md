@@ -259,10 +259,28 @@ voronoi:
 | ------ | ------- | ------- |
 | `width` | `720` | 64–8000 |
 | `cell_size` | `96` | 16–512 — a target pitch, not a hard size |
+| `rows` | unset | 1–64 — fix the row count instead of letting `cell_size` set it |
 | `gap` | `4` | 0–64, and at most `0.25 × (1 − jitter) × cell_size` |
 | `jitter` | `0.5` | 0–0.8 |
 | `weight_influence` | `0.6` | 0–1, how much weight widens a cell |
 | `outline` | `false` | hairline cell borders, for busy backgrounds |
+
+**`rows`** — how many rows to divide the wall into. Left unset, `cell_size` decides:
+the cells stay near that pitch and the wall grows a row at a time as people arrive.
+Setting `rows` fixes the rows instead, and the cells take up the slack — the wall keeps
+its `width`, so fewer people to a row means bigger cells. Handy when a crowded wall packs
+too many faces across:
+
+```yaml
+style: voronoi
+voronoi:
+  width: 720
+  rows: 8     # 40 people go five to a row in 144px cells, not eight in 90px
+```
+
+It never outruns the crowd — a row count above the headcount gives one person per row —
+but it is a fixed number, so a wall that keeps growing on a small `rows` does get tight
+across. Raise it as the crowd grows, or leave it unset and let `cell_size` track it.
 
 **`jitter`** — how far seeds wander off the lattice. `0` is a plain grid; `0.8` is as
 loose as it gets.
@@ -797,6 +815,7 @@ orbit:                      # one avatar at the centre, the rest in rings
 voronoi:                    # stained glass; cells tile the block edge to edge
   width: 720
   cell_size: 96             # target cell pitch, not a hard size
+  rows: 5                   # optional; fixes the rows and lets the cells widen
   gap: 4                    # the lead between cells — the page shows through
   jitter: 0.5               # 0 is a plain lattice, 0.8 is as loose as it gets
   weight_influence: 0.6     # 0..1, how much weight widens a cell

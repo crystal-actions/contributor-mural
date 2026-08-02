@@ -197,4 +197,45 @@ describe ContributorMural::Renderers::Voronoi do
     # 720 / 8 columns = 90px pitch, 3x for DPI and heavy-cell slack.
     renderer.fetch_size(ContributorMural::ResolvedUser.new("x")).should eq(270)
   end
+
+  it "divides the wall into the rows the config asks for" do
+    svg = render_voronoi(<<-YAML)
+      style: voronoi
+      voronoi:
+        width: 400
+        cell_size: 100
+        gap: 0
+        jitter: 0
+        weight_influence: 0
+        rows: 6
+      #{ranked_users(12)}
+      YAML
+    placed = cells(svg)
+
+    # Four columns of pitch 100 would have stacked these three deep. Six rows
+    # split the same crowd two to a row, and the cells take the width back.
+    placed.size.should eq(12)
+    placed.each { |cell| extent(cell).should eq({200.0, 200.0}) }
+    placed.map { |cell| cell.min_of(&.[](1)) }.uniq!.size.should eq(6)
+    svg.should contain(%(width="400" height="1200"))
+  end
+
+  it "keeps a fixed row count from outrunning the crowd" do
+    svg = render_voronoi("style: voronoi\nvoronoi:\n  rows: 8\n  jitter: 0\n#{ranked_users(3)}")
+    placed = cells(svg)
+
+    placed.size.should eq(3)
+    # Three people cannot fill eight rows, so they get one row each rather
+    # than five empty bands and a division by zero.
+    placed.map { |cell| cell.min_of(&.[](1)) }.uniq!.size.should eq(3)
+  end
+
+  it "fetches avatars large enough for the cells a fixed row count widens" do
+    config = ContributorMural::Config.parse("style: voronoi\nvoronoi:\n  rows: 6\n#{ranked_users(12)}")
+    renderer = ContributorMural::Renderer.for(ContributorMural::Style::Voronoi, config)
+    renderer.prepare(ContributorMural::Resolver.resolve(config))
+    # 12 over 6 rows is 2 to a row, so a cell is 360px across, not the 90px
+    # the pitch alone would have asked for.
+    renderer.fetch_size(ContributorMural::ResolvedUser.new("x")).should eq(1080)
+  end
 end

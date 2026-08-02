@@ -40,12 +40,14 @@ module ContributorMural::Renderers
     @ranks = {} of String => Float64
     @section = 0
     @next_cell = 0
+    @headcount = 0
 
     # Dense rank over the *distinct* weight values, not over users: a
     # contributor with 1000x the commits lands at the top of the scale exactly
     # like one with 2x, so an outlier can never distort the geometry. All-equal
     # weights leave the table empty, which reduces to a plain Voronoi.
     def prepare(users : Array(ResolvedUser)) : Nil
+      @headcount = users.size
       distinct = users.map(&.weight).uniq!.sort!
       return if distinct.size <= 1
 
@@ -57,10 +59,9 @@ module ContributorMural::Renderers
 
     def fetch_size(user : ResolvedUser) : Int32
       voronoi = @config.voronoi
-      columns = column_target
       # 2x for high-DPI, and half again because a heavy cell runs wider than
       # the nominal pitch and the image is squared to its longer side.
-      (voronoi.width.to_f / columns * 3).ceil.to_i
+      (voronoi.width.to_f / loosest_row * 3).ceil.to_i
     end
 
     # Cell ids are numbered across the whole document, so a renderer reused for
@@ -133,17 +134,36 @@ module ContributorMural::Renderers
       Math.max(1, (voronoi.width + voronoi.cell_size // 2) // voronoi.cell_size)
     end
 
+    # The fewest cells a row can hold, which is the widest a cell can get —
+    # what the avatar has to be fetched large enough to fill. A fixed row count
+    # divides the crowd `prepare` saw; without one the pitch rules, and a row
+    # never holds fewer than the columns that pitch asks for.
+    private def loosest_row : Int32
+      columns = column_target
+      rows = @config.voronoi.rows
+      return columns unless rows && @headcount.positive?
+      Math.min(columns, Math.max((@headcount + rows - 1) // rows, 1))
+    end
+
     # {width, height, rows} in closed form. The base class sizes every section
     # before drawing any of them, so this has to be cheap and must never touch
     # the id counters.
     private def frame(count : Int32) : {Float64, Float64, Int32}
       return {16.0, 16.0, 0} if count.zero?
 
-      columns = column_target
-      rows = Math.min(Math.max((count + columns // 2) // columns, 1), count)
-      pitch = @config.voronoi.width.to_f / columns
-      # A list shorter than one row shrinks the slab instead of stretching it.
-      width = count < columns ? count * pitch : @config.voronoi.width.to_f
+      if fixed = @config.voronoi.rows
+        # An explicit row count says how the wall divides, so the slab keeps
+        # its full width and the cells widen or narrow to fill it — that is
+        # the whole point of asking for a row count rather than a pitch.
+        rows = Math.min(fixed, count)
+        width = @config.voronoi.width.to_f
+      else
+        columns = column_target
+        rows = Math.min(Math.max((count + columns // 2) // columns, 1), count)
+        pitch = @config.voronoi.width.to_f / columns
+        # A list shorter than one row shrinks the slab instead of stretching it.
+        width = count < columns ? count * pitch : @config.voronoi.width.to_f
+      end
       # Rows tall enough that the average cell comes out square.
       {width, width * rows * rows / count, rows}
     end

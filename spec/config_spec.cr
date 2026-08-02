@@ -364,6 +364,18 @@ describe ContributorMural::Config do
       error = expect_raises(ContributorMural::ConfigError) { config.validate! }
       (error.message || "").should contain("voronoi `gap` must be at most 5")
     end
+
+    it "rejects a voronoi row count outside the range" do
+      config = ContributorMural::Config.parse(<<-YAML)
+        users:
+          - login: a
+        voronoi:
+          rows: 0
+        YAML
+
+      error = expect_raises(ContributorMural::ConfigError) { config.validate! }
+      (error.message || "").should contain("voronoi `rows` must be between 1 and 64")
+    end
   end
 end
 

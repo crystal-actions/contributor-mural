@@ -63,4 +63,46 @@ describe ContributorMural::Inputs do
       ContributorMural::Inputs.resolve.token.should eq("ghtok")
     end
   end
+
+  it "reads the spellings of a boolean that GitHub Actions produces" do
+    {"true", "1", "yes", "TRUE", " yes "}.each do |value|
+      with_clean_env({"GITHUB_ACTIONS" => "true", "INPUT_NO_COMMIT" => value}) do
+        ContributorMural::Inputs.resolve.commit?.should be_false, value
+      end
+    end
+
+    {"false", "0", "no", "FALSE", ""}.each do |value|
+      with_clean_env({"GITHUB_ACTIONS" => "true", "INPUT_NO_COMMIT" => value}) do
+        ContributorMural::Inputs.resolve.commit?.should be_true, value
+      end
+    end
+  end
+
+  # `no_commit` exists to prevent a push. A typo must not read as "not true"
+  # and quietly fall through to committing, so it is an error instead.
+  it "refuses a no_commit value it cannot read rather than guessing" do
+    {"tru", "maybe", "on", "y"}.each do |value|
+      with_clean_env({"GITHUB_ACTIONS" => "true", "INPUT_NO_COMMIT" => value}) do
+        error = expect_raises(ContributorMural::ConfigError) { ContributorMural::Inputs.resolve }
+        (error.message || "").should contain("INPUT_NO_COMMIT must be true or false")
+      end
+    end
+  end
+
+  it "ignores blank INPUT_* values instead of treating them as set" do
+    env = {"INPUT_CONFIG" => "", "INPUT_TOKEN" => "", "INPUT_COMMIT_MESSAGE" => "", "GITHUB_WORKSPACE" => ""}
+    with_clean_env(env) do
+      inputs = ContributorMural::Inputs.resolve("conf.yml", "/tmp/ws", false)
+      inputs.config_path.should eq("conf.yml")
+      inputs.workspace.should eq("/tmp/ws")
+      inputs.token.should be_nil
+      inputs.commit_message.should eq(ContributorMural::Inputs::DEFAULT_COMMIT_MESSAGE)
+    end
+  end
+
+  it "prefers INPUT_TOKEN over GITHUB_TOKEN" do
+    with_clean_env({"INPUT_TOKEN" => "input", "GITHUB_TOKEN" => "fallback"}) do
+      ContributorMural::Inputs.resolve.token.should eq("input")
+    end
+  end
 end

@@ -68,6 +68,55 @@ describe ContributorMural::SVG do
     end
   end
 
+  # Every coordinate in every style goes through `num`, so the golden files are
+  # only stable while its formatting is.
+  describe ".num" do
+    it "drops the decimals a coordinate does not need" do
+      ContributorMural::SVG.num(12.0).should eq("12")
+      ContributorMural::SVG.num(12.5).should eq("12.5")
+      ContributorMural::SVG.num(12.25).should eq("12.25")
+      ContributorMural::SVG.num(0.0).should eq("0")
+      ContributorMural::SVG.num(-1.5).should eq("-1.5")
+    end
+
+    it "rounds to two decimals" do
+      ContributorMural::SVG.num(1.005).should eq("1")
+      ContributorMural::SVG.num(0.999).should eq("1")
+      ContributorMural::SVG.num(0.004).should eq("0")
+    end
+
+    # "-0" is a legal SVG number and a pointless diff: it is what a value
+    # rounds to from either side of zero, so the same layout could serialise
+    # two ways depending on floating-point noise.
+    it "never emits a negative zero" do
+      ContributorMural::SVG.num(-0.001).should eq("0")
+      ContributorMural::SVG.num(-0.0).should eq("0")
+    end
+
+    it "passes integers through untouched" do
+      ContributorMural::SVG.num(7).should eq("7")
+      ContributorMural::SVG.num(0).should eq("0")
+      ContributorMural::SVG.num(-3).should eq("-3")
+    end
+  end
+
+  describe ".document" do
+    it "wraps the body in a sized root element" do
+      svg = ContributorMural::SVG.document(10, 20.5) { |io| io << "<g/>" }
+      svg.should eq(<<-SVG)
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="20.5" viewBox="0 0 10 20.5">
+        <g/></svg>\n
+        SVG
+      XML.parse(svg).errors.should be_nil
+    end
+
+    it "formats the dimensions the same way coordinates are formatted" do
+      svg = ContributorMural::SVG.document(100.0, 50.250) { }
+      svg.should contain(%(width="100" height="50.25"))
+      svg.should contain(%(viewBox="0 0 100 50.25"))
+    end
+  end
+
   {"grid", "honeycomb", "mosaic", "spiral", "orbit", "voronoi", "stencil", "constellation", "skyline", "metro"}.each do |style|
     it "writes well-formed XML for #{style} however a user is named" do
       svg = render_hostile(style)

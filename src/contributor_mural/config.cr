@@ -32,6 +32,7 @@ module ContributorMural
     Constellation
     Skyline
     Metro
+    Pebble
   end
 
   enum Shape
@@ -77,6 +78,7 @@ module ContributorMural
     property constellation : ConstellationConfig = ConstellationConfig.new
     property skyline : SkylineConfig = SkylineConfig.new
     property metro : MetroConfig = MetroConfig.new
+    property pebble : PebbleConfig = PebbleConfig.new
     property theme : ThemeConfig = ThemeConfig.new
     property png : PngConfig = PngConfig.new
 
@@ -251,6 +253,7 @@ module ContributorMural
       errors.concat(constellation.validate)
       errors.concat(skyline.validate)
       errors.concat(metro.validate)
+      errors.concat(pebble.validate)
       errors.concat(theme.validate)
 
       raise ConfigError.new(errors.join("; ")) unless errors.empty?
@@ -438,7 +441,7 @@ module ContributorMural
     # is not the same question as how large to draw them: a rank is relative
     # to everyone else and moves whenever the list does. Honoured by the
     # styles that derive a size per user (mosaic, spiral, orbit,
-    # constellation, and skyline — the latter in height).
+    # constellation, pebble, and skyline — the latter in height).
     @[YAML::Field(converter: ContributorMural::NumberConverter)]
     property scale : Float64? = nil
     property role : String? = nil
@@ -839,6 +842,49 @@ module ContributorMural
         errors << "metro `gap` must be at least 2.5 × `line_width` when `weave` is on"
       end
       errors << "metro `truncate` must be >= 0" if truncate < 0
+      errors
+    end
+  end
+
+  class PebbleConfig
+    include YAML::Serializable
+    include YAML::Serializable::Strict
+
+    # The slab the pebbles are poured into, not a hard document width: the pack
+    # can bulge past it, and the block that comes back is the bounding box.
+    property width : Int32 = 720
+    # Diameters, not radii — the top contributor's pebble and the bottom one's.
+    property max_size : Int32 = 88
+    property min_size : Int32 = 28
+    # Clearance kept between two pebbles once they settle.
+    property gap : Int32 = 6
+    # How much of the slab the pebbles cover. Lower pours them out loose; higher
+    # packs them tighter, up to the point where the crowd cannot be packed that
+    # tightly at all, and then the pile loosens itself and takes the room it
+    # needs — so this is the density asked for rather than the one guaranteed.
+    @[YAML::Field(converter: ContributorMural::NumberConverter)]
+    property density : Float64 = 0.7
+    # How far off its lattice cell a pebble starts. It only sets where the
+    # shaking begins — the pack finds its own arrangement from there — so this
+    # loosens the rows rather than scattering the pile.
+    @[YAML::Field(converter: ContributorMural::NumberConverter)]
+    property jitter : Float64 = 0.6
+
+    def initialize
+    end
+
+    def validate : Array(String)
+      errors = [] of String
+      errors << "pebble `width` must be between 64 and 8000" unless (64..8000).includes?(width)
+      errors << "pebble `max_size` must be between 8 and 512" unless (8..512).includes?(max_size)
+      errors << "pebble `min_size` must be between 8 and 512" unless (8..512).includes?(min_size)
+      errors << "pebble `min_size` must not exceed `max_size`" if min_size > max_size
+      # Narrower than a single pebble and the sideways pull has nothing left to
+      # gather: the pile just runs off the slab it was poured into.
+      errors << "pebble `width` must be at least `max_size` plus `gap`" if width < max_size + gap
+      errors << "pebble `gap` must be between 0 and 200" unless (0..200).includes?(gap)
+      errors << "pebble `density` must be between 0.2 and 0.9" unless (0.2..0.9).includes?(density)
+      errors << "pebble `jitter` must be between 0 and 1" unless (0.0..1.0).includes?(jitter)
       errors
     end
   end

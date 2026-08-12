@@ -33,7 +33,7 @@ private def readme_configs(readme : String) : Array({Int32, String})
   end
 
   workflow = /^\s*(uses|runs-on|steps|jobs|permissions):/m
-  mural = /^(style|output|outputs|users|groups|contributors|members|stargazers|sponsors|exclude|sort|limit|fail_on_missing|grid|honeycomb|mosaic|spiral|orbit|voronoi|stencil|constellation|skyline|metro|theme|png):/m
+  mural = /^(style|output|outputs|users|groups|contributors|members|stargazers|sponsors|exclude|sort|limit|fail_on_missing|grid|honeycomb|mosaic|spiral|orbit|voronoi|stencil|constellation|skyline|metro|pebble|theme|png):/m
   blocks.select { |(_line, text)| text.matches?(mural) && !text.matches?(workflow) }
 end
 

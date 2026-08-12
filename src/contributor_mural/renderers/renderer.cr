@@ -84,6 +84,7 @@ module ContributorMural
       in .constellation? then Renderers::Constellation.new(config, mode)
       in .skyline?       then Renderers::Skyline.new(config, mode)
       in .metro?         then Renderers::Metro.new(config, mode)
+      in .pebble?        then Renderers::Pebble.new(config, mode)
       end
     end
 
@@ -94,8 +95,11 @@ module ContributorMural
     # cells by cutting the block up rather than by placing a shape — those
     # ignore `scale` rather than approximate it. Skyline honours it in the one
     # dimension it is free in: the emphasised tower grows taller, not wider.
+    # Pebble sizes its disc before anything is placed and the pack pushes the
+    # neighbours aside, so the multiplier lands exactly.
     def self.honors_scale?(style : Style) : Bool
-      style.mosaic? || style.spiral? || style.orbit? || style.constellation? || style.skyline?
+      style.mosaic? || style.spiral? || style.orbit? ||
+        style.constellation? || style.skyline? || style.pebble?
     end
 
     # Style-wide <defs>, emitted once per document.

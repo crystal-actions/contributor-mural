@@ -55,7 +55,7 @@ describe ContributorMural::Renderer do
     it "is true for the styles that size each avatar for themselves" do
       {ContributorMural::Style::Mosaic, ContributorMural::Style::Spiral,
        ContributorMural::Style::Orbit, ContributorMural::Style::Constellation,
-       ContributorMural::Style::Skyline}.each do |style|
+       ContributorMural::Style::Skyline, ContributorMural::Style::Pebble}.each do |style|
         ContributorMural::Renderer.honors_scale?(style).should be_true, style.to_s
       end
     end
@@ -74,8 +74,8 @@ describe ContributorMural::Renderer do
     # defaulting into the silent half.
     it "classifies every style" do
       honoring = ContributorMural::Style.values.count { |style| ContributorMural::Renderer.honors_scale?(style) }
-      honoring.should eq(5)
-      ContributorMural::Style.values.size.should eq(10)
+      honoring.should eq(6)
+      ContributorMural::Style.values.size.should eq(11)
     end
   end
 end

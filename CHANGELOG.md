@@ -7,6 +7,14 @@ and the generated files.
 
 ## Unreleased
 
+### Added
+
+- A `pebble` style: circle packing, where everyone is a disc sized by their rank,
+  poured into a slab and shaken until nothing overlaps. It is the first style that
+  does not fill its rectangle — the page shows between the stones — and it honours
+  per-user `scale`. `width` caps how wide the pile may spread rather than fixing it,
+  and `density` decides whether the pile reads as packed or scattered.
+
 ## v1.2.1
 
 ### Added

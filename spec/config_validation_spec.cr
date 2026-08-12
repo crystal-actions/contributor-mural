@@ -129,6 +129,20 @@ private REJECTED = [
   {"metro:\n  gap: -1", "metro `gap` must be between 0 and 200"},
   {"metro:\n  gap: 201", "metro `gap` must be between 0 and 200"},
   {"metro:\n  truncate: -1", "metro `truncate` must be >= 0"},
+
+  # pebble
+  {"pebble:\n  width: 63", "pebble `width` must be between 64 and 8000"},
+  {"pebble:\n  width: 8001", "pebble `width` must be between 64 and 8000"},
+  {"pebble:\n  max_size: 7", "pebble `max_size` must be between 8 and 512"},
+  {"pebble:\n  max_size: 513", "pebble `max_size` must be between 8 and 512"},
+  {"pebble:\n  min_size: 7", "pebble `min_size` must be between 8 and 512"},
+  {"pebble:\n  min_size: 513", "pebble `min_size` must be between 8 and 512"},
+  {"pebble:\n  gap: -1", "pebble `gap` must be between 0 and 200"},
+  {"pebble:\n  gap: 201", "pebble `gap` must be between 0 and 200"},
+  {"pebble:\n  density: 0.1", "pebble `density` must be between 0.2 and 0.9"},
+  {"pebble:\n  density: 0.95", "pebble `density` must be between 0.2 and 0.9"},
+  {"pebble:\n  jitter: -0.1", "pebble `jitter` must be between 0 and 1"},
+  {"pebble:\n  jitter: 1.1", "pebble `jitter` must be between 0 and 1"},
 ]
 
 # Values sitting exactly on a documented bound. A `<` written where `<=` was
@@ -155,6 +169,8 @@ private ACCEPTED = [
   "skyline:\n  width: 8000\n  avatar_size: 512\n  min_height: 1024\n  max_height: 1024\n  gap: 200",
   "metro:\n  columns: 1\n  station_size: 8\n  line_width: 4\n  gap: 0\n  truncate: 0",
   "metro:\n  columns: 100\n  station_size: 512\n  line_width: 64\n  gap: 200",
+  "pebble:\n  width: 64\n  max_size: 64\n  min_size: 8\n  gap: 0\n  density: 0.2\n  jitter: 0",
+  "pebble:\n  width: 8000\n  max_size: 512\n  min_size: 512\n  gap: 200\n  density: 0.9\n  jitter: 1",
 ]
 
 describe "ContributorMural::Config#validate! bounds" do
@@ -221,6 +237,19 @@ describe "ContributorMural::Config#validate! bounds" do
     # The same gap is fine without the weave, so the rule has to be gated on it.
     it "allows that gap when the weave is off" do
       block_errors("metro:\n  line_width: 8\n  gap: 10").should be_empty
+    end
+
+    # The taper runs from the smallest pebble to the largest, so a `min_size`
+    # above `max_size` asks for a ratio the pack cannot draw.
+    it "refuses a pebble taper that runs backwards" do
+      block_errors("pebble:\n  max_size: 40\n  min_size: 60")
+        .should contain("pebble `min_size` must not exceed `max_size`")
+    end
+
+    # Narrower than a single pebble and the pile just runs off the slab.
+    it "refuses a pebble slab narrower than one pebble" do
+      block_errors("pebble:\n  width: 90\n  max_size: 88\n  gap: 6")
+        .should contain("pebble `width` must be at least `max_size` plus `gap`")
     end
   end
 end

@@ -21,10 +21,11 @@
 A GitHub Action that renders your users, your contributors, or both into embeddable
 SVG art and commits it to your repository.
 
-- **Ten styles** — a classic grid, honeycomb hexagons, a weight-tiered mosaic, a
+- **Eleven styles** — a classic grid, honeycomb hexagons, a weight-tiered mosaic, a
   golden-angle spiral, an orbit with your lead contributor at its centre, a
   stained-glass voronoi, a stencil that spells a word out of faces, a night-sky
-  constellation, a city skyline, and a transit-map metro.
+  constellation, a city skyline, a transit-map metro, and a pebble pack where
+  everyone settles into a pile of weighted discs.
 - **Many sources, one mural** — your curated `users` list, repository contributors,
   org members, stargazers, and GitHub Sponsors (tier amounts become weights). Write a
   source to enable it; everything merges, and your YAML entries always win.
@@ -38,7 +39,7 @@ SVG art and commits it to your repository.
 ## Contents
 
 - [Quick start](#quick-start)
-- [Styles](#styles) — [grid](#grid) · [honeycomb](#honeycomb) · [mosaic](#mosaic) · [spiral](#spiral) · [orbit](#orbit) · [voronoi](#voronoi) · [stencil](#stencil) · [constellation](#constellation) · [skyline](#skyline) · [metro](#metro)
+- [Styles](#styles) — [grid](#grid) · [honeycomb](#honeycomb) · [mosaic](#mosaic) · [spiral](#spiral) · [orbit](#orbit) · [voronoi](#voronoi) · [stencil](#stencil) · [constellation](#constellation) · [skyline](#skyline) · [metro](#metro) · [pebble](#pebble)
 - [Theme](#theme)
 - [Sections and roles](#sections-and-roles)
 - [Emphasising a person](#emphasising-a-person)
@@ -415,6 +416,42 @@ metro:
 | `show_names` | `true` | draws the name under each station |
 | `truncate` | `10` | max name length; `0` disables truncation |
 
+### Pebble
+
+Circle packing: everyone is a pebble sized by their rank, poured into a slab and
+shaken until nothing overlaps. It is the one style that does not fill its rectangle
+— the page shows between the stones, so it sits over a themed background without
+being told what colour that background is.
+
+`width` is a cap rather than a target. A handful of people make a small pile instead
+of a sparse line stretched across the full width; a crowd large enough to reach the
+cap grows downward instead. `density` is the other half of that: it says how much of
+the slab the pebbles cover, so it decides whether the pile reads as packed or as
+scattered. It is a request rather than a promise — the same figure that packs cleanly
+at forty people cannot be met at eight, where there are too few pebbles for the edges
+of the pile not to dominate, and the pack loosens itself rather than let two avatars
+overlap. `width` gives way on the same terms: a pile cannot be narrower than the widest
+stone in it, so a `scale` that takes one pebble past the cap sets the cap aside.
+
+```yaml
+style: pebble
+pebble:
+  width: 420
+  max_size: 84
+  min_size: 30
+```
+
+![pebble](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/pebble.svg)
+
+| Option | Default | Accepts |
+| ------ | ------- | ------- |
+| `width` | `720` | 64–8000; the widest the pile may spread, and at least `max_size` + `gap` |
+| `max_size` | `88` | 8–512 (the top contributor's pebble, as a diameter) |
+| `min_size` | `28` | 8–512, must not exceed `max_size` |
+| `gap` | `6` | 0–200 (clearance kept between two pebbles) |
+| `density` | `0.7` | 0.2–0.9; how much of the slab the pebbles cover, loosening itself if the crowd cannot pack that tight |
+| `jitter` | `0.6` | 0–1; how far off its starting cell a pebble begins |
+
 ## Theme
 
 Four presets, each a light/dark palette pair:
@@ -528,6 +565,7 @@ and a huge commit count still only means "first". `scale` names the person inste
 | `orbit` | multiplies the avatar size; its ring holds fewer people and sits further out to make room |
 | `constellation` | multiplies the star size; the sky keeps everyone a full `gap` apart around it |
 | `skyline` | multiplies the building's height — the emphasised tower rises above the wall; the avatar keeps its size |
+| `pebble` | multiplies the pebble's diameter; the pack pushes its neighbours aside to make room |
 | `grid`, `honeycomb`, `stencil`, `metro` | ignored — in a fixed lattice a larger avatar either overlaps its neighbours or leaves a hole |
 | `voronoi` | ignored — cells are cut out of the block rather than placed, so there is no per-user size to multiply |
 
@@ -713,7 +751,7 @@ on a fractional one.
 
 ```yaml
 style: grid                 # grid | honeycomb | mosaic | spiral | orbit | voronoi |
-                            # stencil | constellation | skyline | metro
+                            # stencil | constellation | skyline | metro | pebble
 output: CONTRIBUTOR_MURAL.svg    # path relative to the repository root
 
 # --- Sources: write a block to enable it; results are merged ---
@@ -724,7 +762,7 @@ users:                      # your curated list
     weight: 10              # optional, drives mosaic sizing + weight sort
     scale: 1.6              # optional 1–2 size multiplier for this person alone;
                             # honoured by mosaic, spiral, orbit, constellation,
-                            # and skyline
+                            # skyline, and pebble
     role: Creator           # optional label under the name (grid) / in tooltips
     group: Contributors     # optional section this user renders in
     link: https://hahwul.com          # optional (default: the GitHub profile)
@@ -861,6 +899,14 @@ metro:                      # a transit map; each section is its own line
   show_names: true
   truncate: 10
 
+pebble:                     # a packed pile; rank sets each pebble's size
+  width: 720                # a cap, not a target — a small crowd makes a small pile
+  max_size: 88              # the top contributor's pebble, as a diameter
+  min_size: 28              # the smallest
+  gap: 6                    # clearance kept between two pebbles
+  density: 0.7              # 0.2..0.9, how much of the slab the pebbles cover
+  jitter: 0.6               # 0..1, how far off its starting cell a pebble begins
+
 theme:
   preset: github            # github | midnight | paper | mono
   mode: auto                # auto (follows the viewer's dark mode) | light | dark
@@ -993,7 +1039,7 @@ cannot drift from what the renderer does. To regenerate them (needs network — 
 come from github.com):
 
 ```bash
-bin/contributor-mural -c examples/showcase.yml            # the ten style heroes
+bin/contributor-mural -c examples/showcase.yml            # the eleven style heroes
 for f in examples/variants/*.yml; do bin/contributor-mural -c "$f"; done
 ```
 

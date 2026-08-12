@@ -53,6 +53,8 @@ outputs:
     style: skyline
   - path: examples/metro.svg
     style: metro
+  - path: examples/pebble.svg
+    style: pebble
 
 grid:
   columns: 6
@@ -101,3 +103,8 @@ skyline:
 metro:
   columns: 4
   station_size: 52
+
+pebble:
+  width: 420
+  max_size: 84
+  min_size: 30

@@ -117,7 +117,7 @@ describe ContributorMural::SVG do
     end
   end
 
-  {"grid", "honeycomb", "mosaic", "spiral", "orbit", "voronoi", "stencil", "constellation", "skyline", "metro"}.each do |style|
+  {"grid", "honeycomb", "mosaic", "spiral", "orbit", "voronoi", "stencil", "constellation", "skyline", "metro", "pebble"}.each do |style|
     it "writes well-formed XML for #{style} however a user is named" do
       svg = render_hostile(style)
 

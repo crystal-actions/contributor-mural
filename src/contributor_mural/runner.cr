@@ -176,7 +176,7 @@ module ContributorMural
       return if ignored.empty?
 
       Annotations.warning("per-user `scale` is ignored by #{ignored.map(&.to_s.downcase).join(", ")} — " \
-                          "mosaic, spiral, orbit, constellation, and skyline are the styles that honour it")
+                          "mosaic, spiral, orbit, constellation, skyline, and pebble are the styles that honour it")
     end
 
     # `weave` interleaves a section's lines, so without `role_lines` there is

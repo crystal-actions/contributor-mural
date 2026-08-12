@@ -61,10 +61,7 @@ module ContributorMural::Renderers
         y = mosaic.gap + row * unit + y_offset
         size = span * mosaic.base_cell + (span - 1) * mosaic.gap
 
-        io << %(  <a href="#{SVG.escape(user.link)}" target="_blank">\n)
-        io << %(    <title>#{SVG.escape(title_for(user))}</title>\n)
-        io << %(    <image href="#{user.data_uri}" x="#{SVG.num(x)}" y="#{SVG.num(y)}" width="#{size}" height="#{size}" preserveAspectRatio="xMidYMid slice" clip-path="url(##{CLIP_ID})"/>\n)
-        io << "  </a>\n"
+        linked(io, user) { avatar(io, user, x, y, size, size, CLIP_ID) }
       end
     end
 

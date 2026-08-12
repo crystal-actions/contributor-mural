@@ -55,11 +55,9 @@ module ContributorMural::Renderers
       (size_for(user.login) * 2).ceil.to_i
     end
 
-    # Cell shuffles and dust are salted by section, so a renderer reused for a
-    # second document has to start counting over.
-    def render(groups : Array({String?, Array(EmbeddedUser)})) : String
+    # Cell shuffles and dust are salted by section.
+    protected def reset_document : Nil
       @section = 0
-      super
     end
 
     protected def defs(io : String::Builder) : Nil
@@ -111,10 +109,9 @@ module ContributorMural::Renderers
       stars.each do |star|
         user = star[:user]
         size = star[:size]
-        io << %(  <a href="#{SVG.escape(user.link)}" target="_blank">\n)
-        io << %(    <title>#{SVG.escape(title_for(user))}</title>\n)
-        io << %(    <image href="#{user.data_uri}" x="#{SVG.num(star[:x] - size / 2)}" y="#{SVG.num(star[:y] - size / 2 + y_offset)}" width="#{SVG.num(size)}" height="#{SVG.num(size)}" preserveAspectRatio="xMidYMid slice" clip-path="url(##{CLIP_ID})"/>\n)
-        io << "  </a>\n"
+        linked(io, user) do
+          avatar(io, user, star[:x] - size / 2, star[:y] - size / 2 + y_offset, size, size, CLIP_ID)
+        end
       end
 
       @section += 1

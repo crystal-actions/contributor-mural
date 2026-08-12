@@ -51,10 +51,7 @@ module ContributorMural::Renderers
         x += (cell_w + gap) / 2 if row.odd? && hc.columns > 1
         y = gap + row * pitch + y_offset
 
-        io << %(  <a href="#{SVG.escape(user.link)}" target="_blank">\n)
-        io << %(    <title>#{SVG.escape(title_for(user))}</title>\n)
-        io << %(    <image href="#{user.data_uri}" x="#{SVG.num(x)}" y="#{SVG.num(y)}" width="#{SVG.num(cell_w)}" height="#{SVG.num(cell_h)}" preserveAspectRatio="xMidYMid slice" clip-path="url(##{CLIP_ID})"/>\n)
-        io << "  </a>\n"
+        linked(io, user) { avatar(io, user, x, y, cell_w, cell_h, CLIP_ID) }
       end
     end
 

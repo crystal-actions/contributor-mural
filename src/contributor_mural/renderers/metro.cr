@@ -53,11 +53,9 @@ module ContributorMural::Renderers
       @config.metro.station_size * 2
     end
 
-    # Line colours cycle across the document, so a renderer reused for a
-    # second document has to start the cycle over.
-    def render(groups : Array({String?, Array(EmbeddedUser)})) : String
+    # Line colours cycle across the document.
+    protected def reset_document : Nil
       @line = 0
-      super
     end
 
     # The line's name starts over the first station, not over the corner
@@ -138,14 +136,13 @@ module ContributorMural::Renderers
                              ring : Float64, color : String, m : Metrics) : Nil
       metro = @config.metro
       size = metro.station_size.to_f
-      io << %(  <a href="#{SVG.escape(user.link)}" target="_blank">\n)
-      io << %(    <title>#{SVG.escape(title_for(user))}</title>\n)
-      io << %(    <image href="#{user.data_uri}" x="#{SVG.num(cx - size / 2)}" y="#{SVG.num(cy - size / 2)}" width="#{SVG.num(size)}" height="#{SVG.num(size)}" preserveAspectRatio="xMidYMid slice" clip-path="url(##{CLIP_ID})"/>\n)
-      io << %(    <circle cx="#{SVG.num(cx)}" cy="#{SVG.num(cy)}" r="#{SVG.num(size / 2 + ring / 2)}" fill="none" stroke="#{color}" stroke-width="#{SVG.num(ring)}"/>\n)
-      if metro.show_names?
-        label(io, truncate(user.name, metro.truncate), cx, cy + m.outer + 12)
+      linked(io, user) do
+        avatar(io, user, cx - size / 2, cy - size / 2, size, size, CLIP_ID)
+        io << %(    <circle cx="#{SVG.num(cx)}" cy="#{SVG.num(cy)}" r="#{SVG.num(size / 2 + ring / 2)}" fill="none" stroke="#{color}" stroke-width="#{SVG.num(ring)}"/>\n)
+        if metro.show_names?
+          label(io, truncate(user.name, metro.truncate), cx, cy + m.outer + 12)
+        end
       end
-      io << "  </a>\n"
     end
 
     # --- Weave mode: the lines share one lattice and cross one another ---

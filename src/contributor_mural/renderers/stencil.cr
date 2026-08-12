@@ -83,12 +83,7 @@ module ContributorMural::Renderers
         size = stencil.pixel_size / side.to_f
         x, y = spot(pixels[seat], slot_order(side)[pass], side, pitch, y_offset)
 
-        io << %(  <a href="#{SVG.escape(user.link)}" target="_blank">\n)
-        io << %(    <title>#{SVG.escape(title_for(user))}</title>\n)
-        io << %(    <image href="#{user.data_uri}" x="#{SVG.num(x)}" y="#{SVG.num(y)}" width="#{SVG.num(size)}" height="#{SVG.num(size)}" preserveAspectRatio="xMidYMid slice")
-        io << %( clip-path="url(##{CLIP_ID})") if clipped
-        io << "/>\n"
-        io << "  </a>\n"
+        linked(io, user) { avatar(io, user, x, y, size, size, clipped ? CLIP_ID : nil) }
       end
     end
 

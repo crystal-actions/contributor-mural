@@ -29,7 +29,16 @@ module ContributorMural
     def prepare(users : Array(ResolvedUser)) : Nil
     end
 
+    # Per-document scratch a style has to clear before it draws another one:
+    # section ordinals, colour cycles, generated clip-path ids, cached packs.
+    # A hook rather than each style overriding `render` and remembering to call
+    # `super` — a style that forgot inherited the last document's counters, and
+    # the symptom is a second render coming out subtly different from the first.
+    protected def reset_document : Nil
+    end
+
     def render(groups : Array({String?, Array(EmbeddedUser)})) : String
+      reset_document
       groups = groups.reject { |(_title, users)| users.empty? }
       if groups.empty?
         @last_size = {16.0, 16.0}
@@ -221,6 +230,30 @@ module ContributorMural
       else
         base
       end
+    end
+
+    # Wraps everything one person contributes to the document in their link,
+    # with the tooltip every style shows. Every avatar on every wall is
+    # clickable and titled, so the two places a person's own text reaches the
+    # markup — `link` and `title_for` — are escaped here rather than in each
+    # style, where the next one added is the one that forgets.
+    protected def linked(io : String::Builder, user : EmbeddedUser, & : -> Nil) : Nil
+      io << %(  <a href="#{SVG.escape(user.link)}" target="_blank">\n)
+      io << %(    <title>#{SVG.escape(title_for(user))}</title>\n)
+      yield
+      io << "  </a>\n"
+    end
+
+    # The avatar itself. `clip` names a clipPath in the document's <defs>, or
+    # is nil where the style draws the picture square — `square` needs no clip
+    # at all, which is why `shape_clip` emits nothing for it.
+    protected def avatar(io : String::Builder, user : EmbeddedUser,
+                         x : Int32 | Float64, y : Int32 | Float64,
+                         width : Int32 | Float64, height : Int32 | Float64,
+                         clip : String? = nil) : Nil
+      io << %(    <image href="#{user.data_uri}" x="#{SVG.num(x)}" y="#{SVG.num(y)}" width="#{SVG.num(width)}" height="#{SVG.num(height)}" preserveAspectRatio="xMidYMid slice")
+      io << %( clip-path="url(##{clip})") if clip
+      io << "/>\n"
     end
 
     protected def label(io : String::Builder, text : String, x : Int32 | Float64, y : Int32 | Float64) : Nil

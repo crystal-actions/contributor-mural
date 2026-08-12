@@ -64,12 +64,10 @@ module ContributorMural::Renderers
       (voronoi.width.to_f / loosest_row * 3).ceil.to_i
     end
 
-    # Cell ids are numbered across the whole document, so a renderer reused for
-    # a second document has to start over.
-    def render(groups : Array({String?, Array(EmbeddedUser)})) : String
+    # Cell ids are numbered across the whole document.
+    protected def reset_document : Nil
       @section = 0
       @next_cell = 0
-      super
     end
 
     protected def title_inset : Float64
@@ -112,10 +110,7 @@ module ContributorMural::Renderers
 
       users.each_with_index do |user, index|
         x, y, side = cover(cells[index])
-        io << %(  <a href="#{SVG.escape(user.link)}" target="_blank">\n)
-        io << %(    <title>#{SVG.escape(title_for(user))}</title>\n)
-        io << %(    <image href="#{user.data_uri}" x="#{SVG.num(x)}" y="#{SVG.num(y + y_offset)}" width="#{SVG.num(side)}" height="#{SVG.num(side)}" preserveAspectRatio="xMidYMid slice" clip-path="url(##{CLIP_PREFIX}#{first + index})"/>\n)
-        io << "  </a>\n"
+        linked(io, user) { avatar(io, user, x, y + y_offset, side, side, "#{CLIP_PREFIX}#{first + index}") }
       end
 
       if @config.voronoi.outline?

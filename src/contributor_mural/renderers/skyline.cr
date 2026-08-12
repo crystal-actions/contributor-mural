@@ -109,11 +109,9 @@ module ContributorMural::Renderers
       @config.skyline.avatar_size * 2
     end
 
-    # Building cosmetics are salted per section, so a renderer reused for a
-    # second document has to start counting over.
-    def render(groups : Array({String?, Array(EmbeddedUser)})) : String
+    # Building cosmetics are salted per section.
+    protected def reset_document : Nil
       @section = 0
-      super
     end
 
     protected def title_inset : Float64
@@ -209,22 +207,20 @@ module ContributorMural::Renderers
       body_x = x + inset
       body_w = wall - 2 * inset
 
-      io << %(  <a href="#{SVG.escape(user.link)}" target="_blank">\n)
-      io << %(    <title>#{SVG.escape(title_for(user))}</title>\n)
-      io << %(    <g #{building_paint}>\n)
-      draw_roof(io, (noise(index * 3 + 1, salt) * ROOF_TYPES).to_i, body_x, body_w, top, height)
-      if @antenna.includes?(user.login)
-        io << %(      <rect x="#{SVG.num(x + wall / 2 - ANTENNA_W / 2)}" y="#{SVG.num(top - ANTENNA_H)}" width="#{SVG.num(ANTENNA_W)}" height="#{SVG.num(ANTENNA_H)}"/>\n)
+      linked(io, user) do
+        io << %(    <g #{building_paint}>\n)
+        draw_roof(io, (noise(index * 3 + 1, salt) * ROOF_TYPES).to_i, body_x, body_w, top, height)
+        if @antenna.includes?(user.login)
+          io << %(      <rect x="#{SVG.num(x + wall / 2 - ANTENNA_W / 2)}" y="#{SVG.num(top - ANTENNA_H)}" width="#{SVG.num(ANTENNA_W)}" height="#{SVG.num(ANTENNA_H)}"/>\n)
+        end
+        io << "    </g>\n"
+        draw_windows(io, index, salt, x, top, height) if skyline.windows?
+        avatar(io, user, x + PAD, top + ROOF_BAND + PAD,
+          skyline.avatar_size, skyline.avatar_size, clipped ? CLIP_ID : nil)
+        if skyline.show_names?
+          label(io, truncate(user.name, skyline.truncate), x + wall / 2, baseline + GROUND_H + 12)
+        end
       end
-      io << "    </g>\n"
-      draw_windows(io, index, salt, x, top, height) if skyline.windows?
-      io << %(    <image href="#{user.data_uri}" x="#{SVG.num(x + PAD)}" y="#{SVG.num(top + ROOF_BAND + PAD)}" width="#{skyline.avatar_size}" height="#{skyline.avatar_size}" preserveAspectRatio="xMidYMid slice")
-      io << %( clip-path="url(##{CLIP_ID})") if clipped
-      io << "/>\n"
-      if skyline.show_names?
-        label(io, truncate(user.name, skyline.truncate), x + wall / 2, baseline + GROUND_H + 12)
-      end
-      io << "  </a>\n"
     end
 
     # Six roof silhouettes, all confined to the top ROOF_BAND so the avatar

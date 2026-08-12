@@ -50,6 +50,48 @@ describe ContributorMural::Renderer do
     end
   end
 
+  describe "#render" do
+    # Several styles carry state across a document: section ordinals that salt
+    # the jitter, a colour cycle, generated clip-path ids, a cached pack. All of
+    # it has to be cleared before the next document, or a renderer used twice
+    # draws a different picture the second time — which is what the action does
+    # when one config names several outputs in the same style.
+    #
+    # Checked over every style rather than the five that hold state today, so a
+    # style that starts holding some cannot quietly skip the reset.
+    it "draws the same document every time the renderer is reused" do
+      config = config_for(<<-YAML)
+        groups: [core, friends]
+        users:
+          - login: alpha
+            group: core
+            weight: 9
+            role: maintainer
+          - login: bravo
+            group: core
+            weight: 4
+          - login: charlie
+            group: friends
+            weight: 2
+          - login: delta
+            group: friends
+            weight: 1
+        YAML
+
+      ContributorMural::Style.each do |style|
+        renderer = ContributorMural::Renderer.for(style, config)
+        users = ContributorMural::Resolver.resolve(config)
+        renderer.prepare(users)
+        embedded, _ = ContributorMural::Embedder.new(FakeAvatarSource.new)
+          .embed(users, renderer, fail_on_missing: false)
+        groups = ContributorMural::Resolver.grouped(embedded, config)
+
+        first = renderer.render(groups)
+        renderer.render(groups).should eq(first), style.to_s
+      end
+    end
+  end
+
   describe ".honors_scale?" do
     # The styles that derive a size per user, where an override is exact.
     it "is true for the styles that size each avatar for themselves" do

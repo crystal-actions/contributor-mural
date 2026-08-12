@@ -57,19 +57,16 @@ module ContributorMural::Renderers
         x = gutter + grid.margin + col * (cell_w + grid.margin)
         y = grid.margin + row * (cell_h + grid.margin) + y_offset
 
-        io << %(  <a href="#{SVG.escape(user.link)}" target="_blank">\n)
-        io << %(    <title>#{SVG.escape(title_for(user))}</title>\n)
-        io << %(    <image href="#{user.data_uri}" x="#{SVG.num(x)}" y="#{SVG.num(y)}" width="#{grid.avatar_size}" height="#{grid.avatar_size}" preserveAspectRatio="xMidYMid slice")
-        io << %( clip-path="url(##{CLIP_ID})") if clipped
-        io << "/>\n"
-        if grid.show_names?
-          center = x + cell_w / 2
-          label(io, name_label(user), center, y + grid.avatar_size + 13)
-          if role = role_label(user)
-            io << %(    <text x="#{SVG.num(center)}" y="#{SVG.num(y + grid.avatar_size + 26)}" text-anchor="middle" font-family="#{SVG.escape(theme.font_family)}" font-size="9" #{role_paint}>#{SVG.escape(role)}</text>\n)
+        linked(io, user) do
+          avatar(io, user, x, y, grid.avatar_size, grid.avatar_size, clipped ? CLIP_ID : nil)
+          if grid.show_names?
+            center = x + cell_w / 2
+            label(io, name_label(user), center, y + grid.avatar_size + 13)
+            if role = role_label(user)
+              io << %(    <text x="#{SVG.num(center)}" y="#{SVG.num(y + grid.avatar_size + 26)}" text-anchor="middle" font-family="#{SVG.escape(theme.font_family)}" font-size="9" #{role_paint}>#{SVG.escape(role)}</text>\n)
+            end
           end
         end
-        io << "  </a>\n"
       end
     end
 

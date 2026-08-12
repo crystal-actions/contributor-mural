@@ -116,11 +116,9 @@ module ContributorMural::Renderers
       (size_for(user.login, user.scale) * 2).ceil.to_i
     end
 
-    # The jitter is salted by the section's ordinal, which the memo hands out,
-    # so a renderer reused for a second document has to start over.
-    def render(groups : Array({String?, Array(EmbeddedUser)})) : String
+    # The jitter is salted by the section's ordinal, which the memo hands out.
+    protected def reset_document : Nil
       @layouts.clear
-      super
     end
 
     protected def defs(io : String::Builder) : Nil
@@ -144,10 +142,9 @@ module ContributorMural::Renderers
       users.each_with_index do |user, index|
         disc = discs[index]
         side = disc.r * 2
-        io << %(  <a href="#{SVG.escape(user.link)}" target="_blank">\n)
-        io << %(    <title>#{SVG.escape(title_for(user))}</title>\n)
-        io << %(    <image href="#{user.data_uri}" x="#{SVG.num(disc.x - disc.r)}" y="#{SVG.num(disc.y - disc.r + y_offset)}" width="#{SVG.num(side)}" height="#{SVG.num(side)}" preserveAspectRatio="xMidYMid slice" clip-path="url(##{CLIP_ID})"/>\n)
-        io << "  </a>\n"
+        linked(io, user) do
+          avatar(io, user, disc.x - disc.r, disc.y - disc.r + y_offset, side, side, CLIP_ID)
+        end
       end
     end
 

@@ -542,3 +542,247 @@ describe ContributorMural::Runner do
     end
   end
 end
+
+# An avatar host that throttles for a minute used to take people off the wall
+# and commit the result, so the picture regressed over a failure that had
+# already fixed itself. The file being replaced is the cache.
+describe "ContributorMural::Runner avatar salvage" do
+  it "keeps the face the previous wall had when this run cannot fetch it" do
+    yaml = <<-YAML
+      output: wall.svg
+      users:
+        - login: alpha
+        - login: bravo
+      YAML
+
+    good = File.tempname("mural_good")
+    Dir.mkdir_p(good)
+    begin
+      # Render once with everyone reachable, then reuse that file as the wall
+      # the flaky run is about to replace.
+      config = ContributorMural::Config.parse(yaml)
+      config.validate!
+      ContributorMural::Runner.new(config, FakeAvatarSource.new, good).run
+      previous = File.read(File.join(good, "wall.svg"))
+
+      seed = ->(workspace : String) { File.write(File.join(workspace, "wall.svg"), previous) }
+      run_in_tmp(yaml, FakeAvatarSource.new(missing: ["bravo"]), before: seed) do |exit_code, outputs, workspace|
+        exit_code.should eq(0)
+        File.read(File.join(workspace, "wall.svg")).should eq(previous)
+        outputs.should contain("user_count=2")
+        log = ContributorMural::Annotations.io.to_s
+        log.should contain("::notice::1 person kept the avatar already in the previous output")
+        log.should contain("could not fetch theirs: bravo")
+        log.should_not contain("skipped bravo")
+      end
+    ensure
+      FileUtils.rm_rf(good)
+    end
+  end
+
+  # `fail_on_missing` exists to stop someone quietly leaving the picture. A
+  # salvaged face means nobody left it, so it must not trip.
+  it "does not trip `fail_on_missing` for a face it could salvage" do
+    yaml = <<-YAML
+      output: wall.svg
+      fail_on_missing: true
+      users:
+        - login: alpha
+        - login: bravo
+      YAML
+
+    good = File.tempname("mural_good")
+    Dir.mkdir_p(good)
+    begin
+      config = ContributorMural::Config.parse(yaml)
+      config.validate!
+      ContributorMural::Runner.new(config, FakeAvatarSource.new, good).run
+      previous = File.read(File.join(good, "wall.svg"))
+
+      seed = ->(workspace : String) { File.write(File.join(workspace, "wall.svg"), previous) }
+      run_in_tmp(yaml, FakeAvatarSource.new(missing: ["bravo"]), before: seed) do |exit_code, outputs, _ws|
+        exit_code.should eq(0)
+        outputs.should contain("user_count=2")
+      end
+    ensure
+      FileUtils.rm_rf(good)
+    end
+  end
+
+  it "still drops the person when there is no previous wall to read" do
+    yaml = <<-YAML
+      output: wall.svg
+      users:
+        - login: alpha
+        - login: bravo
+      YAML
+
+    run_in_tmp(yaml, FakeAvatarSource.new(missing: ["bravo"])) do |exit_code, outputs, _workspace|
+      exit_code.should eq(0)
+      outputs.should contain("user_count=1")
+      ContributorMural::Annotations.io.to_s.should contain("::warning::skipped bravo")
+    end
+  end
+
+  # A person removed from the config, or cut by `exclude`, must not come back
+  # just because their face is still sitting in the file.
+  it "never reads someone back onto a wall they are no longer on" do
+    yaml = <<-YAML
+      output: wall.svg
+      users:
+        - login: alpha
+        - login: bravo
+      YAML
+
+    good = File.tempname("mural_good")
+    Dir.mkdir_p(good)
+    begin
+      config = ContributorMural::Config.parse(yaml)
+      config.validate!
+      ContributorMural::Runner.new(config, FakeAvatarSource.new, good).run
+      previous = File.read(File.join(good, "wall.svg"))
+
+      trimmed = <<-YAML
+        output: wall.svg
+        users:
+          - login: alpha
+        YAML
+      seed = ->(workspace : String) { File.write(File.join(workspace, "wall.svg"), previous) }
+      run_in_tmp(trimmed, FakeAvatarSource.new, before: seed) do |exit_code, outputs, workspace|
+        exit_code.should eq(0)
+        outputs.should contain("user_count=1")
+        File.read(File.join(workspace, "wall.svg")).should_not contain("bravo")
+      end
+    ensure
+      FileUtils.rm_rf(good)
+    end
+  end
+end
+
+# Forty per-person warnings scroll past as noise, and a run that lost forty
+# people looks exactly like one that lost none.
+describe "ContributorMural::Runner missing-avatar reporting" do
+  it "counts the people who are not in the mural" do
+    yaml = <<-YAML
+      users:
+        - login: alpha
+        - login: bravo
+        - login: charlie
+        - login: delta
+      YAML
+
+    run_in_tmp(yaml, FakeAvatarSource.new(missing: ["bravo"])) do |exit_code, _outputs, _workspace|
+      exit_code.should eq(0)
+      ContributorMural::Annotations.io.to_s
+        .should contain("::warning::1 of 4 person is missing from the mural")
+    end
+  end
+
+  it "refuses to write a wall missing more than half its people" do
+    yaml = <<-YAML
+      output: wall.svg
+      users:
+        - login: u01
+        - login: u02
+        - login: u03
+        - login: u04
+        - login: u05
+        - login: u06
+        - login: u07
+        - login: u08
+        - login: u09
+        - login: u10
+      YAML
+
+    source = FakeAvatarSource.new(missing: (1..6).map { |index| "u%02d" % index })
+    run_in_tmp(yaml, source) do |exit_code, _outputs, workspace|
+      exit_code.should eq(1)
+      File.exists?(File.join(workspace, "wall.svg")).should be_false
+      ContributorMural::Annotations.io.to_s
+        .should contain("::error::6 of 10 avatars could not be fetched")
+    end
+  end
+
+  it "leaves the wall already on disk alone when it refuses" do
+    yaml = <<-YAML
+      output: wall.svg
+      users:
+        - login: u01
+        - login: u02
+        - login: u03
+        - login: u04
+        - login: u05
+        - login: u06
+        - login: u07
+        - login: u08
+        - login: u09
+        - login: u10
+      YAML
+
+    seed = ->(workspace : String) { File.write(File.join(workspace, "wall.svg"), "PRECIOUS") }
+    source = FakeAvatarSource.new(missing: (1..6).map { |index| "u%02d" % index })
+    run_in_tmp(yaml, source, before: seed) do |exit_code, _outputs, workspace|
+      exit_code.should eq(1)
+      File.read(File.join(workspace, "wall.svg")).should eq("PRECIOUS")
+    end
+  end
+
+  # Without a floor the rule turns ordinary attrition into a workflow that is
+  # red forever: two deleted accounts on a wall of three are over any share
+  # worth picking, and they will be over it again tomorrow.
+  it "does not apply the share to a wall too small to have one" do
+    yaml = <<-YAML
+      output: wall.svg
+      users:
+        - login: alpha
+        - login: bravo
+        - login: charlie
+      YAML
+
+    run_in_tmp(yaml, FakeAvatarSource.new(missing: ["alpha", "bravo"])) do |exit_code, outputs, workspace|
+      exit_code.should eq(0)
+      File.exists?(File.join(workspace, "wall.svg")).should be_true
+      outputs.should contain("user_count=1")
+    end
+  end
+
+  # A target whose own avatars all arrived is complete and has done nothing
+  # wrong; the union across targets is for the log line, not for the refusal.
+  it "judges the share per target rather than across the run" do
+    yaml = <<-YAML
+      outputs:
+        - path: wall.svg
+      users:
+        - login: u01
+        - login: u02
+        - login: u03
+        - login: u04
+        - login: u05
+        - login: u06
+        - login: u07
+        - login: u08
+        - login: u09
+        - login: u10
+      YAML
+
+    run_in_tmp(yaml, FakeAvatarSource.new(missing: ["u01"])) do |exit_code, outputs, _workspace|
+      exit_code.should eq(0)
+      outputs.should contain("user_count=9")
+      ContributorMural::Annotations.io.to_s
+        .should contain("::warning::1 of 10 person is missing from the mural")
+    end
+  end
+
+  it "stays quiet when everyone is on the wall" do
+    yaml = <<-YAML
+      users:
+        - login: alpha
+        - login: bravo
+      YAML
+
+    run_in_tmp(yaml) do |exit_code, _outputs, _workspace|
+      exit_code.should eq(0)
+      ContributorMural::Annotations.io.to_s.should_not contain("not in the mural")
+    end
+  end
+end

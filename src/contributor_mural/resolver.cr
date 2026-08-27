@@ -8,11 +8,13 @@ module ContributorMural
       seen = Set(String).new
       result = [] of ResolvedUser
 
+      curated = Set(String).new
       unless config.users.empty?
         config.users.each do |entry|
           key = entry.login.downcase
           result << from_entry(entry, api_by_login[key]?)
           seen << key
+          curated << key
         end
       end
 
@@ -26,8 +28,51 @@ module ContributorMural
       patterns = config.exclude.map(&.downcase)
       result.reject! { |user| excluded?(user.login, patterns) }
       result = sort(result, config.sort)
-      config.limit.try { |lim| result = result.first(lim) }
+      config.limit.try { |lim| result = apply_limit(result, lim, curated) }
       result
+    end
+
+    # `limit` caps the wall, and used to cap it by rank alone — so a
+    # contributor with a thousand commits could push someone written down in
+    # `users:` off the end, and the curated list that is documented as always
+    # winning quietly lost. A name in `users:` is a decision already made; the
+    # cap spends what is left of itself on everybody else.
+    #
+    # Render order does not move: the survivors come back in the order `sort`
+    # put them in, which is what keeps `limit` from doubling as a second sort.
+    private def self.apply_limit(users : Array(ResolvedUser), limit : Int32,
+                                 curated : Set(String)) : Array(ResolvedUser)
+      return users if users.size <= limit
+      return users.first(limit) if curated.empty?
+
+      # Downcased once per user rather than once per test: three of these
+      # passes used to build a throwaway String for every login they looked at.
+      keyed = users.map { |user| {user, curated.includes?(user.login.downcase)} }
+      wanted = keyed.count { |(_user, curated_entry)| curated_entry }
+
+      if wanted >= limit
+        # Nothing left to spend, and `limit` is still a cap — so it cuts into
+        # the curated list itself. Said out loud, because this is the one case
+        # where writing a name down is not enough to keep it.
+        #
+        # Counted as "still on the wall", not as "listed in `users:`": `exclude`
+        # runs first, so the two numbers differ and quoting the config's own
+        # would send someone to a file where it does not appear.
+        if (dropped = wanted - limit) > 0
+          Annotations.warning("`limit: #{limit}` is below the #{wanted} curated people still on " \
+                              "the wall — #{dropped} of them #{dropped == 1 ? "is" : "are"} not " \
+                              "in the mural")
+        end
+        return keyed.compact_map { |(user, curated_entry)| user if curated_entry }.first(limit)
+      end
+
+      room = limit - wanted
+      keyed.compact_map do |(user, curated_entry)|
+        next user if curated_entry
+        next unless room > 0
+        room -= 1
+        user
+      end
     end
 
     # Entries are matched case-insensitively, exactly unless they carry a

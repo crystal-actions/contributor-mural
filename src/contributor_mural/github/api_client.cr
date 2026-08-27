@@ -22,6 +22,17 @@ module ContributorMural
     abstract def members(org : String) : Array(ResolvedUser)
     abstract def stargazers(repo : String) : Array(ResolvedUser)
     abstract def sponsors(login : String) : Array(ResolvedUser)
+
+    # Anything the source needs said in the log once the fetching is over.
+    #
+    # Collected rather than printed, because the four sources are fetched
+    # concurrently: `Annotations` ends in an `IO#puts`, which is a write of the
+    # message and then a write of the newline, and a flush between the two
+    # hands the fiber over — splicing one workflow command into another, which
+    # GitHub then parses as neither. Ordering would be a lottery besides.
+    def notices : Array(String)
+      [] of String
+    end
   end
 
   # Fetches users from the GitHub REST and GraphQL APIs. Contribution counts
@@ -39,6 +50,16 @@ module ContributorMural
     # better spent failing with a message someone can act on.
     MAX_RETRY_AFTER = 30.seconds
 
+    # GitHub's own ceiling on the contributors endpoint, which it applies by
+    # answering with a full list rather than with an error. A repository past
+    # it simply stops having contributors as far as this API is concerned, so
+    # a list that ends on exactly this number is the only signal there is.
+    CONTRIBUTOR_CEILING = 500
+
+    # Notices are ranked by the section that raised them rather than by which
+    # fiber reached the end first, so two runs of one config read alike.
+    SECTIONS = %w[contributors members stargazers sponsors]
+
     def initialize(@token : String? = nil, @config : Config = Config.empty,
                    @api_base : String = "https://api.github.com",
                    @backoff_base : Time::Span = 1.second,
@@ -47,6 +68,28 @@ module ContributorMural
       # built here does not, and has to be given back — see `#close`.
       @owns_pool = pool.nil?
       @pool = pool || HTTPPool.new
+      # Appended to from the source fibers, which is safe as it stands: nothing
+      # in `Array#<<` yields, so no two of them can be inside it at once.
+      @notes = [] of {Int32, String}
+    end
+
+    def notices : Array(String)
+      @notes.sort.map { |(_rank, message)| message }
+    end
+
+    private def note(section : String, message : String) : Nil
+      @notes << {SECTIONS.index(section) || SECTIONS.size, message}
+    end
+
+    # How many more items the caller can still use, plus one.
+    #
+    # The plus one is what makes `capped` honest. Truncation is only claimed
+    # once an item is seen *past* the cap, and a `max` that lands exactly on a
+    # page boundary — the default 100 is exactly one page — would otherwise
+    # stop the walk with that item unfetched and the question unanswerable.
+    # It costs one extra page, only for a source that really did fill up.
+    private def room(max : Int32, taken : Int32) : Int32
+      max + 1 - taken
     end
 
     # Hands back the connections this client opened. A no-op when the pool was
@@ -60,11 +103,22 @@ module ContributorMural
       path = repo_path(repo, "contributors")
 
       users = [] of ResolvedUser
+      offered = 0
       each_page("/repos/#{path}/contributors#{options.include_anonymous? ? "?anon=1" : ""}",
-        "repository #{repo}", ContributorDTO, wanted: -> { options.max - users.size }) do |dto|
+        "repository #{repo}", ContributorDTO, wanted: -> { room(options.max, users.size) }) do |dto|
+        offered += 1
         next unless user = contributor_to_user(dto, repo, options)
+        return capped("contributors", users, options.max) if users.size >= options.max
         users << user
-        return users if users.size >= options.max
+      end
+      # Counted before the bot filter, because the ceiling is GitHub's and it
+      # applies to the list it sends, not to the one we keep. `anon=1` mixes a
+      # second, uncapped list into the same walk, so the signature is only
+      # legible without it.
+      if offered == CONTRIBUTOR_CEILING && !options.include_anonymous?
+        note("contributors",
+          "contributors: GitHub's contributors API returns at most #{CONTRIBUTOR_CEILING} " \
+          "people for #{repo}, so anyone past that cannot be fetched from it whatever `max` says")
       end
       users
     end
@@ -75,9 +129,9 @@ module ContributorMural
 
       users = [] of ResolvedUser
       each_page("/orgs/#{org_path(org)}/members", "organization #{org}", AccountDTO,
-        wanted: -> { options.max - users.size }) do |dto|
+        wanted: -> { room(options.max, users.size) }) do |dto|
+        return capped("members", users, options.max) if users.size >= options.max
         users << account_to_user(dto, options.group, options.weight)
-        return users if users.size >= options.max
       end
       users
     end
@@ -89,9 +143,9 @@ module ContributorMural
 
       users = [] of ResolvedUser
       each_page("/repos/#{path}/stargazers", "repository #{repo}", AccountDTO,
-        wanted: -> { options.max - users.size }) do |dto|
+        wanted: -> { room(options.max, users.size) }) do |dto|
+        return capped("stargazers", users, options.max) if users.size >= options.max
         users << account_to_user(dto, options.group, options.weight)
-        return users if users.size >= options.max
       end
       users
     end
@@ -109,8 +163,8 @@ module ContributorMural
         connection = sponsors_page(login, Math.min(PER_PAGE, options.max), cursor)
         connection["nodes"].as_a.each do |node|
           next unless user = sponsor_from(node, options.group, options.weight)
+          return capped("sponsors", users, options.max) if users.size >= options.max
           users << user
-          return users if users.size >= options.max
         end
         break unless connection.dig?("pageInfo", "hasNextPage").try(&.as_bool?)
         next_cursor = connection.dig?("pageInfo", "endCursor").try(&.as_s?)
@@ -118,6 +172,25 @@ module ContributorMural
         break if next_cursor.nil? || next_cursor == cursor
         cursor = next_cursor
       end
+      users
+    end
+
+    # `max` is the one way a source leaves people out with nothing going wrong:
+    # every request succeeded, the wall is just shorter than the crowd. Nothing
+    # downstream can tell that apart from a repository that really does have
+    # this many people, so the symptom — someone who contributed and is not on
+    # the wall — reads as a bug in the fetch rather than as a number to raise.
+    #
+    # A notice rather than a warning: stopping at the number that was asked for
+    # is correct behaviour, and a wall deliberately capped at 60 faces must not
+    # light up the workflow summary on every run.
+    #
+    # Only ever said with someone actually past the cap in hand — a source
+    # holding exactly `max` people has left nobody out, and telling its owner
+    # to raise a number that is not cutting anything is worse than silence.
+    private def capped(section : String, users : Array(ResolvedUser), max : Int32) : Array(ResolvedUser)
+      note(section, "#{section}: stopped at `max: #{max}` — anyone past that is " \
+                    "not in the mural (raise `max` to include more)")
       users
     end
 

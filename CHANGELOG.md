@@ -7,6 +7,53 @@ and the generated files.
 
 ## Unreleased
 
+### Added
+
+- Avatars survive a flaky run. Before writing, the run reads the outputs it is
+  about to replace and keeps every avatar already in them, so anyone whose
+  avatar cannot be fetched this time keeps the face the last wall gave them
+  instead of dropping out of the picture. A throttling host used to take people
+  off the mural and commit the result — a regression over a failure that had
+  usually fixed itself by the time anyone looked. Nothing extra is written or
+  cached between runs and no workflow change is needed: the committed SVG is
+  the cache, and `actions/checkout` is what puts it back in the workspace.
+  A salvaged face does not trip `fail_on_missing`, because nobody left the
+  picture, and someone the current config no longer renders is never read back
+  in, nor is a data URI that is not the exact shape this program writes — a
+  previous wall is a file on disk, and one stray character in an `href` costs
+  the whole document rather than one label. The notice names the logins it
+  salvaged, because an avatar that is gone for good is otherwise invisible.
+  There is nothing to read back from on a first run, on a PNG-only config
+  (a PNG has been rasterized, so its avatars are no longer addressable), or for
+  an output path in `.gitignore`; those drop the person as they always did.
+- A notice when a source stops at its `max`, naming the source and the number
+  to raise. Hitting `max` is the one way a source leaves people out with
+  nothing going wrong, and the only symptom was a contributor who is not on the
+  wall. Only raised with someone actually past the cap in hand: a source
+  holding exactly `max` people has left nobody out.
+- A notice when the contributors API hits GitHub's own 500-person ceiling,
+  which no `max` can lift. The endpoint applies it by answering with a full
+  list rather than an error, so there was nothing to notice before.
+- A warning counting the people whose avatars could not be fetched, on top of
+  the per-person ones. Forty individual warnings scroll past as noise, and a
+  run that lost forty people looked exactly like one that lost none.
+
+### Changed
+
+- `limit` now spends itself on the API list before touching `users:`. The cap
+  was applied to the ranking alone, so a contributor with enough commits could
+  push a name written down in `users:` off the end of the wall — while the
+  curated list is documented as the one that always wins. Render order is
+  unchanged: survivors come out in the order `sort` put them in. A `limit`
+  below the number of `users:` entries still cuts into them, and now says so.
+- An output whose avatars mostly fail is refused rather than committed missing
+  more than half its people; the run exits 1 without touching anything on disk.
+  At that scale the cause is a token, a network, or a host-wide throttle rather
+  than a handful of deleted accounts. Judged per output, since a target whose
+  own avatars all arrived is complete, and only from eight people up — below
+  that a share carries no information, and failing on it would turn ordinary
+  attrition into a workflow that is red forever.
+
 ## v1.3.0
 
 ### Added

@@ -11,6 +11,23 @@ module ContributorMural
     # the network.
     MAX_RASTER_JOBS = 4
 
+    # How much of a wall may go missing before the run refuses to write it, and
+    # the smallest wall the rule is allowed to judge.
+    #
+    # One 404 is an ordinary thing — a deleted account, a renamed org — and the
+    # per-person warning is the right weight for it. Most of a large wall going
+    # at once is not: that shape is a token, a network, or a host-wide throttle,
+    # and it is never what anyone meant to commit.
+    #
+    # The floor is what keeps the rule from turning ordinary attrition into a
+    # workflow that is red forever. On a wall of three, two deleted accounts are
+    # over any share worth picking, and they will still be over it tomorrow with
+    # nothing anyone can fix — which would make `fail_on_missing: false`, the
+    # default, a promise this broke. A share only carries information once there
+    # are enough people for it to be a share of.
+    MAX_MISSING_SHARE = 0.5
+    MISSING_FLOOR     =   8
+
     getter written_paths = [] of String
 
     def initialize(@config : Config, @avatar_source : AvatarSource,
@@ -34,7 +51,15 @@ module ContributorMural
                               "(check `users`, the source blocks, and `exclude`); existing files were left untouched")
       end
 
-      embedder = Embedder.new(@avatar_source)
+      # Whoever this run cannot fetch keeps the face the last one gave them
+      # instead of falling off the wall. Handed over as a thunk rather than a
+      # hash: on the run where nothing fails — which is nearly all of them —
+      # this never opens the file, and the previous mural's base64 never sits
+      # in memory beside the copy that was just fetched. It is still read
+      # before anything is written, because it reads what is being replaced.
+      target_paths = targets.map { |path, _style, _mode| path }
+      embedder = Embedder.new(@avatar_source,
+        salvage: -> { AvatarSalvage.read(@workspace, target_paths) })
       # Every renderer is built and asked what it needs *before* anything is
       # fetched, so all the targets' avatars come down in one fan-out. A config
       # with several outputs used to wait out a separate round of latency per
@@ -47,15 +72,16 @@ module ContributorMural
       embedder.warm(users, plans.map { |_path, renderer| renderer })
 
       user_count = 0
-      warned = Set(String).new
+      missing = Set(String).new
 
       # Render everything before writing anything: a failure halfway through
       # would otherwise leave some outputs updated and others stale.
       drawn = plans.map do |path, renderer|
-        svg, count = draw(path, renderer, users, embedder, warned)
+        svg, count = draw(path, renderer, users, embedder, missing)
         user_count = count
         {path, svg, renderer.last_size}
       end
+      report_avatars(users.size, missing, embedder.salvaged, plans.size)
 
       rendered = convert(drawn)
       rendered.each do |path, content, _dimensions|
@@ -113,16 +139,71 @@ module ContributorMural
       png?(path) && mode.auto? ? ThemeMode::Light : mode
     end
 
+    # What the run did to the guest list, said once and in one place.
+    #
+    # The per-person warnings are the detail, and detail is what a workflow log
+    # buries: forty of them scroll past as noise, and a run that quietly lost
+    # forty people looks exactly like a run that lost none. The count is what
+    # someone scanning the log actually reads.
+    private def report_avatars(headcount : Int32, missing : Set(String),
+                               salvaged : Set(String), targets : Int32) : Nil
+      unless salvaged.empty?
+        # Named, not just counted. A face that is permanently gone — a deleted
+        # account — is salvaged on every run from here on and is otherwise
+        # invisible: no warning fires for it, because nobody left the picture.
+        # The logins are the only way anyone learns which ones to go and fix.
+        Annotations.notice("#{salvaged.size} #{people(salvaged.size)} kept the avatar already in " \
+                           "the previous output — this run could not fetch theirs: #{listed(salvaged)}")
+      end
+      return if missing.empty?
+
+      # `missing` is the union across targets, and targets can disagree: two
+      # styles ask for different pixel sizes, so they fetch different URLs and
+      # one can fail where the other did not. Which output a person is absent
+      # from is the per-target refusal's business; this line is the run's.
+      where = targets > 1 ? " from at least one output" : ""
+      Annotations.warning("#{missing.size} of #{headcount} #{people(missing.size)} " \
+                          "#{missing.size == 1 ? "is" : "are"} missing from the mural#{where} — " \
+                          "their avatars could not be fetched (set `fail_on_missing: true` to " \
+                          "fail the run instead)")
+    end
+
+    private def people(count : Int32) : String
+      count == 1 ? "person" : "people"
+    end
+
+    # Bounded: a run that loses two hundred faces must not put two hundred
+    # logins into a single annotation.
+    private def listed(logins : Set(String)) : String
+      shown = logins.to_a.sort!
+      return shown.join(", ") if shown.size <= 12
+      "#{shown.first(12).join(", ")}, and #{shown.size - 12} more"
+    end
+
+    # A wall this far gone is not one to commit over the good file already on
+    # disk. Judged per target, because a target whose own avatars all arrived
+    # is complete and has done nothing wrong — and checked here rather than
+    # after every target is drawn, so the run refuses before it spends the work
+    # of building documents it is going to throw away.
+    private def refuse_if_mostly_missing(path : String, headcount : Int32, absent : Int32) : Nil
+      return if headcount < MISSING_FLOOR
+      return unless absent > headcount * MAX_MISSING_SHARE
+      raise AvatarError.new("#{absent} of #{headcount} avatars could not be fetched — refusing " \
+                            "to write #{path}, which would be missing more than half its people " \
+                            "(the warnings above say why; existing files were left untouched)")
+    end
+
     # Returns the SVG for one target and how many users made it into it.
     private def draw(path : String, renderer : Renderer, users : Array(ResolvedUser),
-                     embedder : Embedder, warned : Set(String)) : {String, Int32}
+                     embedder : Embedder, missing : Set(String)) : {String, Int32}
       embedded, skipped = embedder.embed(users, renderer, @config.fail_on_missing?)
       skipped.each do |skip|
-        Annotations.warning("skipped #{skip.login}: #{skip.reason}") if warned.add?(skip.login)
+        Annotations.warning("skipped #{skip.login}: #{skip.reason}") if missing.add?(skip.login)
       end
       if embedded.empty?
         raise AvatarError.new("no avatars could be fetched — refusing to write an empty #{path}")
       end
+      refuse_if_mostly_missing(path, users.size, skipped.size)
 
       {renderer.render(Resolver.grouped(embedded, @config)), embedded.size}
     end
@@ -242,6 +323,10 @@ module ContributorMural
       # configuration order, and so does the first error, which leaves nothing
       # downstream able to tell the difference except in how long it took.
       per_source = Concurrent.map(fetches, fetches.size, &.call)
+      # Said here rather than from inside the fibers above: one workflow command
+      # spliced into another is a command GitHub parses as neither, and the
+      # order would otherwise be whichever source happened to finish first.
+      source.notices.each { |message| Annotations.notice(message) }
       per_source.flatten
     end
 

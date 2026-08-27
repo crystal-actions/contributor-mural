@@ -272,3 +272,122 @@ describe "ContributorMural::Resolver.grouped" do
     sections.map(&.first).should eq([nil])
   end
 end
+
+# `users:` is documented as the list that always wins, and `limit` used to
+# overrule it: the cap was applied to the ranking alone, so a contributor with
+# enough commits pushed a name someone had written down off the end.
+describe "ContributorMural::Resolver limit" do
+  it "spends the cap on the API list before touching curated entries" do
+    config = config_from(<<-YAML)
+      limit: 2
+      users:
+        - login: alice
+        - login: bob
+      contributors:
+      YAML
+
+    users = ContributorMural::Resolver.resolve(config, [
+      api_user("carol", 500), api_user("dave", 400),
+    ])
+    users.map(&.login).should eq(["alice", "bob"])
+  end
+
+  it "keeps render order the sort asked for" do
+    config = config_from(<<-YAML)
+      limit: 3
+      users:
+        - login: alice
+          weight: 1
+      contributors:
+      YAML
+
+    users = ContributorMural::Resolver.resolve(config, [
+      api_user("carol", 500), api_user("dave", 400), api_user("erin", 300),
+    ])
+    # Alice is kept because she is curated, not promoted for it.
+    users.map(&.login).should eq(["carol", "dave", "alice"])
+  end
+
+  it "matches curated entries case-insensitively, as the merge does" do
+    config = config_from(<<-YAML)
+      limit: 1
+      users:
+        - login: Alice
+      contributors:
+      YAML
+
+    users = ContributorMural::Resolver.resolve(config, [api_user("alice", 500), api_user("bob", 400)])
+    users.map(&.login).should eq(["Alice"])
+  end
+
+  it "still caps, and says so, when `users:` alone is over the limit" do
+    io = IO::Memory.new
+    previous = ContributorMural::Annotations.io
+    ContributorMural::Annotations.io = io
+    begin
+      config = config_from(<<-YAML)
+        sort: none
+        limit: 2
+        users:
+          - login: alice
+          - login: bob
+          - login: carol
+        YAML
+
+      ContributorMural::Resolver.resolve(config).map(&.login).should eq(["alice", "bob"])
+    ensure
+      ContributorMural::Annotations.io = previous
+    end
+    io.to_s.should contain("::warning::`limit: 2` is below the 3 curated people still on the wall")
+  end
+
+  it "stays quiet when the curated list fits exactly" do
+    io = IO::Memory.new
+    previous = ContributorMural::Annotations.io
+    ContributorMural::Annotations.io = io
+    begin
+      config = config_from(<<-YAML)
+        limit: 2
+        users:
+          - login: alice
+          - login: bob
+        contributors:
+        YAML
+
+      ContributorMural::Resolver.resolve(config, [api_user("carol", 500)])
+        .map(&.login).should eq(["alice", "bob"])
+    ensure
+      ContributorMural::Annotations.io = previous
+    end
+    io.to_s.should_not contain("limit")
+  end
+end
+
+# `exclude` runs before the cap, so the count in the warning is the curated
+# people still standing — not the number of lines under `users:`.
+describe "ContributorMural::Resolver limit warning" do
+  it "counts the curated people still on the wall, not the config's lines" do
+    io = IO::Memory.new
+    previous = ContributorMural::Annotations.io
+    ContributorMural::Annotations.io = io
+    begin
+      config = config_from(<<-YAML)
+        sort: none
+        limit: 1
+        exclude: [carol]
+        users:
+          - login: alice
+          - login: bob
+          - login: carol
+        YAML
+
+      ContributorMural::Resolver.resolve(config).map(&.login).should eq(["alice"])
+    ensure
+      ContributorMural::Annotations.io = previous
+    end
+    # Two survive `exclude`; saying "3 listed in `users:`" would be a number the
+    # reader cannot reconcile with anything.
+    io.to_s.should contain("is below the 2 curated people still on the wall")
+    io.to_s.should contain("1 of them is not in the mural")
+  end
+end

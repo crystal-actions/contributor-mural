@@ -594,7 +594,8 @@ contributors:               # this repository's contributors
   include_bots: false       # keep accounts GitHub types as bots; legacy
                             # service accounts need an `exclude` entry
   include_anonymous: false  # include anonymous (email-only) contributors
-  max: 100                  # contribution counts become weights
+  max: 100                  # cap; contribution counts become weights. GitHub itself
+                            # returns at most 500 contributors, whatever this says
   weight: 1                 # optional: put everyone from here on one rung
   group: Contributors
 
@@ -654,7 +655,7 @@ the two for anyone who is both.
 ```yaml
 exclude: ["*[bot]", ImgBotApp]  # drop logins from any source
 sort: weight                # weight | login | none (none keeps list order)
-limit: 60                   # cap rendered users after merge and sort
+limit: 60                   # cap rendered users after merge and sort; `users:` first
 fail_on_missing: false      # true: fail the run when an avatar cannot be fetched
 ```
 
@@ -663,6 +664,56 @@ fail_on_missing: false      # true: fail the run when an avatar cannot be fetche
 match. Those two are the whole vocabulary — there are no `[...]` character classes, so
 `*[bot]` means what it looks like, "ends with the literal `[bot]`", rather than "ends with
 b, o, or t".
+
+**`limit` spends itself on the API list first.** A name in `users:` is a decision already
+made, so the cap takes what is left after the curated entries rather than ranking everyone
+together — a contributor with a thousand commits can no longer push someone you wrote down
+off the end. Render order is untouched: the survivors come out in the order `sort` put them
+in. If `limit` is below the number of `users:` entries it still cuts into them, and says so
+as a workflow warning.
+
+**When people are missing, the log says how many.** Three things used to happen quietly and
+no longer do:
+
+| Situation | What you see |
+| --------- | ------------ |
+| A source stopped at its `max` | a notice naming the source and the number to raise |
+| The contributors API hit GitHub's own 500-person ceiling | a notice — no `max` can lift it |
+| Avatars could not be fetched | a warning counting them, on top of the per-person ones |
+
+The `max` notice is only raised with someone actually past the cap in hand — a source
+holding exactly `max` people has left nobody out, and being told to raise a number that is
+not cutting anything is worse than silence.
+
+If more than half of an output's avatars fail, the run refuses to write **that** output and
+exits 1 without touching anything on disk: at that scale the cause is a token, a network,
+or a host-wide throttle rather than a handful of deleted accounts. It applies only from
+eight people up. Below that a share carries no information — two deleted accounts on a wall
+of three are over any threshold worth picking, and would be over it again tomorrow with
+nothing to fix, which is not what `fail_on_missing: false` promises. Small walls report and
+carry on, exactly as before.
+
+**Avatars survive a flaky run.** Before writing, the run reads the outputs it is about to
+replace and keeps every avatar already in them. Anyone whose avatar cannot be fetched this
+time keeps the face the last wall gave them instead of dropping out — so a throttling host
+no longer makes the picture regress, and it recovers by itself on the next run.
+
+Nothing extra is written or cached between runs, and no workflow change is needed: the
+committed SVG is the cache, and `actions/checkout` is what puts it back in the workspace.
+That holds on a `pull_request` run with `no_commit: true` too — the tree still carries the
+last committed wall. A salvaged face does not trip `fail_on_missing`, because nobody left
+the picture, and someone the current config no longer renders is never read back in. The
+notice names the logins it salvaged: an avatar that is gone for good — a deleted account —
+is salvaged on every run from then on and is otherwise invisible, so the names are how you
+learn which ones to go and fix.
+
+There is nothing to read back from in three cases, where a failed avatar drops the person
+as it always did:
+
+- the first run, before any output exists;
+- a **PNG-only** config — a PNG has been rasterized, so its avatars are no longer
+  addressable. Adding an SVG output alongside it restores the cover;
+- an output path in `.gitignore`, which is never committed and so never checked back out.
 
 **What `include_bots: false` actually filters.** It drops accounts GitHub *types* as bots:
 `type: "Bot"`, or a login ending in `[bot]`. Service accounts that predate the GitHub Apps
@@ -776,7 +827,8 @@ contributors:               # this repository's contributors (all fields optiona
   repo: owner/name          # default: the current repository
   include_bots: false       # keep type=Bot / *[bot] accounts
   include_anonymous: false  # include anonymous (email-only) contributors
-  max: 100                  # cap fetched contributors; contributions become weight
+  max: 100                  # cap fetched contributors; contributions become weight.
+                            # GitHub returns at most 500, whatever this says
   weight: 1                 # optional: one weight for everyone from this source,
                             # replacing the derived one; `users:` still overrides
   group: Contributors       # optional section for API-fetched users
@@ -807,7 +859,7 @@ exclude:                    # drop logins from any source; `*` and `?` wildcards
                             # API, so `include_bots: false` does not catch them
 
 sort: weight                # weight | login | none (none keeps list order)
-limit: 60                   # cap rendered users after merge/sort
+limit: 60                   # cap rendered users after merge/sort; `users:` kept first
 fail_on_missing: false      # true: fail the run when an avatar can't be fetched
 
 outputs:                    # optional: render several files in one run

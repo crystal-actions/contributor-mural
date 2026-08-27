@@ -203,7 +203,7 @@ private class PaginatedServer
   getter address : String
 
   def initialize(@last_page : Int32, @bot_pages : Array(Int32) = [] of Int32,
-                 @delay : Time::Span = 20.milliseconds)
+                 @delay : Time::Span = 20.milliseconds, @last_count : Int32 = 40)
     in_flight = 0
     @server = HTTP::Server.new do |context|
       page = (context.request.query_params["page"]? || "1").to_i
@@ -216,7 +216,7 @@ private class PaginatedServer
       context.response.content_type = "application/json"
       context.response.headers["Link"] = link_header(page)
       # Full pages everywhere but the last, so nothing stops the walk early.
-      count = page < @last_page ? 100 : 40
+      count = page < @last_page ? 100 : @last_count
       context.response.print("[#{page_body(page, count)}]")
     end
     @address = "http://#{@server.bind_unused_port("127.0.0.1")}"
@@ -239,8 +239,9 @@ private class PaginatedServer
   end
 end
 
-private def with_paginated_server(last_page : Int32, bot_pages : Array(Int32) = [] of Int32, &)
-  server = PaginatedServer.new(last_page, bot_pages)
+private def with_paginated_server(last_page : Int32, bot_pages : Array(Int32) = [] of Int32,
+                                  last_count : Int32 = 40, &)
+  server = PaginatedServer.new(last_page, bot_pages, last_count: last_count)
   begin
     yield server
   ensure
@@ -540,6 +541,97 @@ describe "ContributorMural::GitHubApi extra sources" do
       expect_raises(ContributorMural::ApiError, /no user or organization/) do
         github_api(token: "tok", config: config, api_base: base).sponsors("nobody")
       end
+    end
+  end
+end
+
+# `max` is the quietest way to lose people: nothing fails, the wall is just
+# shorter than the crowd, and the only symptom is a contributor who is not on
+# it. The log has to say so, or the number to raise is unguessable.
+#
+# Collected rather than printed, because the sources are fetched concurrently —
+# so these read `notices` instead of the annotation stream.
+describe "ContributorMural::GitHubApi truncation notices" do
+  it "says so when a source stops at `max`" do
+    with_paginated_server(20) do |server|
+      options = config_with("contributors:\n  max: 50")
+      api = github_api(config: options, api_base: server.address)
+      api.contributors("o/r").size.should eq(50)
+      api.notices.join("\n").should contain("contributors: stopped at `max: 50`")
+    end
+  end
+
+  it "stays quiet when everyone fits" do
+    with_paginated_server(1) do |server|
+      options = config_with("contributors:\n  max: 500")
+      api = github_api(config: options, api_base: server.address)
+      api.contributors("o/r").size.should eq(40)
+      api.notices.should be_empty
+    end
+  end
+
+  # Telling someone to raise a cap that is not cutting anything is worse than
+  # saying nothing: they raise it, nothing changes, and the log still nags.
+  it "does not claim truncation when the source holds exactly `max` people" do
+    with_paginated_server(1) do |server|
+      options = config_with("contributors:\n  max: 40")
+      api = github_api(config: options, api_base: server.address)
+      api.contributors("o/r").size.should eq(40)
+      api.notices.should be_empty
+    end
+  end
+
+  # The default `max` is exactly one page, so the boundary case is the common
+  # one: the cap is reached with the page exhausted and the question — is there
+  # a 101st person? — only answerable by looking one further.
+  it "sees past a cap that lands on a page boundary" do
+    with_paginated_server(3) do |server|
+      options = config_with("contributors:\n  max: 100")
+      api = github_api(config: options, api_base: server.address)
+      api.contributors("o/r").size.should eq(100)
+      api.notices.join("\n").should contain("stopped at `max: 100`")
+    end
+  end
+
+  it "keeps quiet when a filtered walk ends at `max` with nobody past it" do
+    # 240 contributors, 200 of them bots, `max: 40`: the wall holds all forty
+    # real people and the cap cut nobody.
+    with_paginated_server(3, bot_pages: [1, 2]) do |server|
+      options = config_with("contributors:\n  max: 40")
+      api = github_api(config: options, api_base: server.address)
+      api.contributors("o/r").size.should eq(40)
+      api.notices.should be_empty
+    end
+  end
+
+  it "names GitHub's own 500-contributor ceiling, which no `max` can lift" do
+    # Five full pages and nothing after them is exactly how the endpoint
+    # answers a repository it will not go past: a list, not an error.
+    with_paginated_server(5, last_count: 100) do |server|
+      options = config_with("contributors:\n  max: 5000")
+      api = github_api(config: options, api_base: server.address)
+      api.contributors("o/r").size.should eq(500)
+      api.notices.join("\n").should contain("at most 500")
+    end
+  end
+
+  it "counts the ceiling before the bot filter, not after" do
+    # The ceiling is GitHub's and applies to the list it sends; counting what
+    # survives filtering would miss it on every repository with a bot.
+    with_paginated_server(5, bot_pages: [1], last_count: 100) do |server|
+      options = config_with("contributors:\n  max: 5000")
+      api = github_api(config: options, api_base: server.address)
+      api.contributors("o/r").size.should eq(400)
+      api.notices.join("\n").should contain("at most 500")
+    end
+  end
+
+  it "stays quiet below the ceiling" do
+    with_paginated_server(5) do |server|
+      options = config_with("contributors:\n  max: 5000")
+      api = github_api(config: options, api_base: server.address)
+      api.contributors("o/r").size.should eq(440)
+      api.notices.join("\n").should_not contain("at most 500")
     end
   end
 end

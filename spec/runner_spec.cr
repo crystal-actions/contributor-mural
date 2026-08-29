@@ -307,6 +307,46 @@ describe ContributorMural::Runner do
     end
   end
 
+  # Four `users:` entries used to exist purely to attach a role to people the
+  # API had already put on the wall — and the next first-time contributor
+  # showed up beside them with a blank role line until a human noticed.
+  it "draws the source's role for people no users: entry names" do
+    yaml = <<-YAML
+      sort: none
+      contributors:
+        repo: o/r
+        role: Code
+      users:
+        - login: hahwul          # curated, says nothing about a role
+        - login: reporter        # curated, and not a contributor at all
+          role: Bug reports
+      grid:
+        columns: 3
+        avatar_size: 64
+        margin: 8
+      YAML
+
+    # What the client builds for this config: the source's role on everyone.
+    api_users = [
+      ContributorMural::ResolvedUser.new("hahwul", weight: 9, role: "Code"),
+      ContributorMural::ResolvedUser.new("newcomer", weight: 1, role: "Code"),
+    ]
+
+    run_in_tmp(yaml, github_source: FakeGitHubSource.new(api_users)) do |exit_code, _outputs, workspace|
+      exit_code.should eq(0)
+      svg = File.read(File.join(workspace, "CONTRIBUTOR_MURAL.svg"))
+      # The newcomer needs no config entry to get a role line.
+      svg.should contain("<title>newcomer · Code</title>")
+      # A curated entry that says nothing about a role inherits the source's.
+      svg.should contain("<title>hahwul · Code</title>")
+      # And one that names its own still wins, even against the source.
+      svg.should contain("<title>reporter · Bug reports</title>")
+      svg.scan(/font-size="9"/).size.should eq(3)
+      # Roles under every face means taller cells: 64 + 18 + 14 label area.
+      svg.should contain(%(height="112"))
+    end
+  end
+
   it "rasterizes .png outputs with a static light palette" do
     yaml = <<-YAML
       outputs:

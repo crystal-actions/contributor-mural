@@ -294,7 +294,7 @@ module ContributorMural
       if block = contributors
         errors << "contributors `max` must be >= 1" if block.max < 1
         validate_repo(errors, "contributors", block.repo)
-        validate_source_weight(errors, "contributors", block.weight)
+        block.validate_defaults(errors, "contributors")
       end
       if block = members
         if block.org.strip.empty?
@@ -303,16 +303,16 @@ module ContributorMural
           errors << "members `org` must be a plain organization name: #{block.org.inspect}"
         end
         errors << "members `max` must be >= 1" if block.max < 1
-        validate_source_weight(errors, "members", block.weight)
+        block.validate_defaults(errors, "members")
       end
       if block = stargazers
         errors << "stargazers `max` must be >= 1" if block.max < 1
         validate_repo(errors, "stargazers", block.repo)
-        validate_source_weight(errors, "stargazers", block.weight)
+        block.validate_defaults(errors, "stargazers")
       end
       if block = sponsors
         errors << "sponsors `max` must be >= 1" if block.max < 1
-        validate_source_weight(errors, "sponsors", block.weight)
+        block.validate_defaults(errors, "sponsors")
       end
     end
 
@@ -325,11 +325,6 @@ module ContributorMural
       return if !slash.empty? && ContributorMural.path_segment?(owner) &&
                 ContributorMural.path_segment?(name)
       errors << "#{section} `repo` must look like owner/name: #{repo.inspect}"
-    end
-
-    private def validate_source_weight(errors : Array(String), section : String, weight : Int32?) : Nil
-      return unless weight
-      errors << "#{section} `weight` must be >= 1" if weight < 1
     end
 
     private def validate_groups(errors : Array(String)) : Nil
@@ -448,19 +443,58 @@ module ContributorMural
     property group : String? = nil
   end
 
+  # What a source asserts about everyone it yields.
+  #
+  # A source decides who is on the wall; these decide how they appear once they
+  # are on it — which section they are filed under, what the role line under
+  # their name reads, and where they stand in the ranking. All three are
+  # defaults rather than decisions: a `users:` entry still wins field by field,
+  # so the curated list carries the exceptions and nothing else.
+  #
+  # Shared rather than written onto each block, because they mean the same
+  # thing on all four — and because it gives the API client one thing to be
+  # handed instead of a lengthening row of loose arguments.
+  module SourceDefaults
+    property group : String? = nil
+    # The role line for everyone from this source: `Code` on contributors,
+    # `Sponsor` on sponsors. Without it a wall that uses roles to say what each
+    # person did has to name every code contributor in `users:` purely to write
+    # a role next to them — and the day someone lands their first commit they
+    # appear beside those entries with a blank line until a human notices.
+    #
+    # Nothing is assumed for you: a source that does not name a role leaves the
+    # line off, as it always has. A role appearing under every face changes the
+    # size of the picture, which is not something to do to an existing wall on
+    # an upgrade.
+    property role : String? = nil
+    # Flattens every user this source yields onto one rung, replacing whatever
+    # the source itself counted — contribution counts, sponsor tier amounts.
+    property weight : Int32? = nil
+
+    # Named by section, because the four blocks are otherwise indistinguishable
+    # in an error message.
+    def validate_defaults(errors : Array(String), section : String) : Nil
+      if value = weight
+        errors << "#{section} `weight` must be >= 1" if value < 1
+      end
+      # A blank role is not "no role": it draws an empty line under every face
+      # and grows the cell to hold it, which reads as a rendering bug rather
+      # than as a stray pair of quotes in the config.
+      if value = role
+        errors << "#{section} `role` must not be empty" if value.strip.empty?
+      end
+    end
+  end
+
   class ContributorsConfig
     include YAML::Serializable
     include YAML::Serializable::Strict
+    include SourceDefaults
 
     property repo : String? = nil
     property? include_bots : Bool = false
     property? include_anonymous : Bool = false
     property max : Int32 = 100
-    property group : String? = nil
-    # Flattens every user this source yields onto one rung, replacing the
-    # contribution count. `users:` entries still win field by field, so the
-    # curated list carries the exceptions and nothing else.
-    property weight : Int32? = nil
 
     def initialize
     end
@@ -470,21 +504,19 @@ module ContributorMural
   class MembersConfig
     include YAML::Serializable
     include YAML::Serializable::Strict
+    include SourceDefaults
 
     property org : String
     property max : Int32 = 100
-    property group : String? = nil
-    property weight : Int32? = nil
   end
 
   class StargazersConfig
     include YAML::Serializable
     include YAML::Serializable::Strict
+    include SourceDefaults
 
     property repo : String? = nil
     property max : Int32 = 100
-    property group : String? = nil
-    property weight : Int32? = nil
 
     def initialize
     end
@@ -493,12 +525,10 @@ module ContributorMural
   class SponsorsConfig
     include YAML::Serializable
     include YAML::Serializable::Strict
+    include SourceDefaults
 
     property login : String? = nil
     property max : Int32 = 100
-    property group : String? = nil
-    # Set this to ignore tier amounts and treat every sponsor alike.
-    property weight : Int32? = nil
 
     def initialize
     end

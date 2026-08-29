@@ -131,7 +131,7 @@ module ContributorMural
       each_page("/orgs/#{org_path(org)}/members", "organization #{org}", AccountDTO,
         wanted: -> { room(options.max, users.size) }) do |dto|
         return capped("members", users, options.max) if users.size >= options.max
-        users << account_to_user(dto, options.group, options.weight)
+        users << account_to_user(dto, options)
       end
       users
     end
@@ -145,7 +145,7 @@ module ContributorMural
       each_page("/repos/#{path}/stargazers", "repository #{repo}", AccountDTO,
         wanted: -> { room(options.max, users.size) }) do |dto|
         return capped("stargazers", users, options.max) if users.size >= options.max
-        users << account_to_user(dto, options.group, options.weight)
+        users << account_to_user(dto, options)
       end
       users
     end
@@ -162,7 +162,7 @@ module ContributorMural
       loop do
         connection = sponsors_page(login, Math.min(PER_PAGE, options.max), cursor)
         connection["nodes"].as_a.each do |node|
-          next unless user = sponsor_from(node, options.group, options.weight)
+          next unless user = sponsor_from(node, options)
           return capped("sponsors", users, options.max) if users.size >= options.max
           users << user
         end
@@ -195,7 +195,7 @@ module ContributorMural
     end
 
     # A private or deleted sponsor comes back as an explicit null entity.
-    private def sponsor_from(node : JSON::Any, group : String?, weight : Int32?) : ResolvedUser?
+    private def sponsor_from(node : JSON::Any, options : SponsorsConfig) : ResolvedUser?
       entity = node["sponsorEntity"]?.try(&.as_h?)
       return unless entity
       sponsor_login = entity["login"]?.try(&.as_s?)
@@ -207,8 +207,9 @@ module ContributorMural
         name: entity["name"]?.try(&.as_s?) || sponsor_login,
         link: entity["url"]?.try(&.as_s?) || "https://github.com/#{sponsor_login}",
         avatar_url: entity["avatarUrl"]?.try(&.as_s?),
-        weight: weight || Math.max(monthly, 1),
-        group: group,
+        weight: options.weight || Math.max(monthly, 1),
+        role: options.role,
+        group: options.group,
       )
     end
 
@@ -482,6 +483,7 @@ module ContributorMural
           link: dto.html_url || "https://github.com/#{login}",
           avatar_url: dto.avatar_url,
           weight: weight,
+          role: options.role,
           group: options.group,
         )
       else
@@ -492,18 +494,23 @@ module ContributorMural
           link: "https://github.com/#{repo}/commits?author=#{URI.encode_www_form(dto.email || seed)}",
           avatar_url: "https://github.com/identicons/#{URI.encode_path_segment(seed)}.png",
           weight: weight,
+          role: options.role,
           group: options.group,
         )
       end
     end
 
-    private def account_to_user(dto : AccountDTO, group : String?, weight : Int32?) : ResolvedUser
+    # Takes the whole source block rather than its fields one by one: what a
+    # source asserts about its people is one thing, and passing it apart is how
+    # the next default added reaches three of the four call sites.
+    private def account_to_user(dto : AccountDTO, options : SourceDefaults) : ResolvedUser
       ResolvedUser.new(
         login: dto.login,
         link: dto.html_url || "https://github.com/#{dto.login}",
         avatar_url: dto.avatar_url,
-        weight: weight || 1,
-        group: group,
+        weight: options.weight || 1,
+        role: options.role,
+        group: options.group,
       )
     end
 

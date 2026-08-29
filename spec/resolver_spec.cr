@@ -4,8 +4,9 @@ private def config_from(yaml : String) : ContributorMural::Config
   ContributorMural::Config.parse(yaml)
 end
 
-private def api_user(login : String, weight : Int32 = 1, avatar_url : String? = nil) : ContributorMural::ResolvedUser
-  ContributorMural::ResolvedUser.new(login: login, avatar_url: avatar_url, weight: weight)
+private def api_user(login : String, weight : Int32 = 1, avatar_url : String? = nil,
+                     role : String? = nil) : ContributorMural::ResolvedUser
+  ContributorMural::ResolvedUser.new(login: login, avatar_url: avatar_url, weight: weight, role: role)
 end
 
 describe ContributorMural::Resolver do
@@ -222,6 +223,61 @@ describe ContributorMural::Resolver do
     user = ContributorMural::Resolver.resolve(config).first
     user.role.should eq("Creator")
     user.group.should eq("Core")
+  end
+end
+
+# `group` and `weight` on a source have always reached a curated entry that
+# leaves them out; `role` is the third field of the same shape.
+describe "ContributorMural::Resolver source roles" do
+  it "fills a curated entry's missing role from the source that also has them" do
+    config = config_from(<<-YAML)
+      contributors:
+        role: Code
+      users:
+        - login: alice
+        - login: bob
+          role: Docs
+      YAML
+
+    users = ContributorMural::Resolver.resolve(config, [
+      api_user("alice", 9, role: "Code"), api_user("bob", 4, role: "Code"),
+    ]).index_by(&.login)
+
+    # alice said nothing, so the source's role reaches her.
+    users["alice"].role.should eq("Code")
+    # bob wrote his own down, and the curated list still wins field by field.
+    users["bob"].role.should eq("Docs")
+  end
+
+  # A curated name the source never yielded has no API entry to inherit from,
+  # which is the whole reason they are written down.
+  it "leaves a curated entry the source never yielded without a role" do
+    config = config_from("contributors:\nusers:\n  - login: reporter")
+    ContributorMural::Resolver.resolve(config, [api_user("alice", 9, role: "Code")])
+      .find! { |user| user.login == "reporter" }.role.should be_nil
+  end
+
+  # Sources are consulted in a fixed order, so a field two of them name comes
+  # from the earlier one — and `group` and `role` are taken separately, so
+  # writing one on each source uses both.
+  it "takes each field from the first source that names it" do
+    config = config_from("contributors:\nsponsors:\n")
+    contributor = ContributorMural::ResolvedUser.new("carol", weight: 9, group: "Contributors")
+    sponsor = ContributorMural::ResolvedUser.new("carol", weight: 1, role: "Sponsor", group: "Sponsors")
+
+    user = ContributorMural::Resolver.resolve(config, [contributor, sponsor]).first
+    user.group.should eq("Contributors")
+    user.role.should eq("Sponsor")
+    user.weight.should eq(9)
+  end
+
+  it "keeps the earlier source's role when both name one" do
+    config = config_from("contributors:\nsponsors:\n")
+    users = ContributorMural::Resolver.resolve(config, [
+      ContributorMural::ResolvedUser.new("carol", role: "Code"),
+      ContributorMural::ResolvedUser.new("carol", role: "Sponsor"),
+    ])
+    users.map(&.role).should eq(["Code"])
   end
 end
 

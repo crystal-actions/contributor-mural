@@ -9,6 +9,21 @@ and the generated files.
 
 ### Added
 
+- `role:` on a source block — `contributors:`, `members:`, `stargazers:` and
+  `sponsors:` — giving the role line to everyone that source yields, the way
+  `group:` and `weight:` already do. Without it, a wall that uses roles to say
+  what each person did had to name every code contributor in `users:` purely to
+  write a role next to them, and the day someone landed their first commit they
+  appeared beside those entries with a blank line under their name until a human
+  noticed. A `users:` entry still wins field by field, so the curated list
+  carries the exceptions and nothing else, and a curated entry that names no
+  role inherits the source's. Nothing is assumed: a source that does not name a
+  role leaves the line off, because a role under every face makes the cells
+  taller and the canvas wider. When one person comes from two sources, every
+  field but the weight still comes from the first source that names it — taken
+  field by field, so `contributors: group: Contributors` next to
+  `sponsors: role: Sponsor` files them under Contributors and still says they
+  sponsor.
 - Avatars survive a flaky run. Before writing, the run reads the outputs it is
   about to replace and keeps every avatar already in them, so anyone whose
   avatar cannot be fetched this time keeps the face the last wall gave them

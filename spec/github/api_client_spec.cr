@@ -87,6 +87,26 @@ describe ContributorMural::GitHubApi do
     end
   end
 
+  # `group` and `weight` on the source already work this way; `role` was the
+  # missing third. Anonymous contributors get it too — they are on the wall for
+  # the same reason and their role line is as blank as anyone else's was.
+  it "gives contributors the role the source names, anonymous ones included" do
+    pages = {1 => "[#{contributor_json("alice", 42)},#{ANON_JSON}]"}
+    with_api_server(pages) do |base, _seen|
+      options = options_from("contributors:\n  role: Code\n  include_anonymous: true")
+      users = github_api(config: options, api_base: base).contributors("o/r")
+      users.map(&.login).should eq(["alice", "Ghost Writer"])
+      users.map(&.role).should eq(["Code", "Code"])
+    end
+  end
+
+  it "leaves contributors without a role when the source names none" do
+    pages = {1 => "[#{contributor_json("alice", 42)}]"}
+    with_api_server(pages) do |base, _seen|
+      github_api(api_base: base).contributors("o/r").map(&.role).should eq([nil])
+    end
+  end
+
   it "paginates until a short page" do
     first_page = (1..100).map { |index| contributor_json("user#{index}", 100 - index + 1) }.join(",")
     pages = {1 => "[#{first_page}]", 2 => "[#{contributor_json("last", 1)}]"}
@@ -485,6 +505,40 @@ describe "ContributorMural::GitHubApi extra sources" do
       config = config_with("members:\n  org: crystal-actions\n  weight: 3")
       users = github_api(config: config, api_base: base).members("crystal-actions")
       users.map(&.weight).should eq([3])
+    end
+  end
+
+  # A wall that uses the role line to say what each person did had to name
+  # every code contributor in `users:` purely to write a role next to them.
+  it "gives every user a source's role, on all four sources" do
+    with_sources_server([SPONSOR_PAGE]) do |base, _seen|
+      config = config_with(<<-YAML)
+        contributors:
+          repo: o/r
+          role: Code
+        members:
+          org: crystal-actions
+          role: Member
+        stargazers:
+          repo: o/r
+          role: Star
+        sponsors:
+          login: hahwul
+          role: Sponsor
+        YAML
+
+      api = github_api(token: "tok", config: config, api_base: base)
+      api.members("crystal-actions").map(&.role).should eq(["Member"])
+      api.stargazers("o/r").map(&.role).should eq(["Star", "Star"])
+      api.sponsors("hahwul").map(&.role).should eq(["Sponsor", "Sponsor"])
+    end
+  end
+
+  it "leaves the role line off when a source does not name one" do
+    with_sources_server do |base, _seen|
+      config = config_with("members:\n  org: crystal-actions")
+      github_api(config: config, api_base: base).members("crystal-actions")
+        .map(&.role).should eq([nil])
     end
   end
 

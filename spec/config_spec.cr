@@ -291,6 +291,58 @@ describe ContributorMural::Config do
       config.groups.should eq(["Contributors", "Special Thanks"])
     end
 
+    it "parses a role on every source block" do
+      config = ContributorMural::Config.parse(<<-YAML)
+        contributors:
+          role: Code
+        members:
+          org: crystal-actions
+          role: Member
+        stargazers:
+          role: Star
+        sponsors:
+          role: Sponsor
+        YAML
+
+      config.validate!
+      config.contributors.try(&.role).should eq("Code")
+      config.members.try(&.role).should eq("Member")
+      config.stargazers.try(&.role).should eq("Star")
+      config.sponsors.try(&.role).should eq("Sponsor")
+    end
+
+    # Nothing is assumed: a role under every face changes the size of the
+    # picture, which is not something to do to an existing wall on an upgrade.
+    it "leaves every source role nil unless the config writes one" do
+      config = ContributorMural::Config.parse("contributors:\nstargazers:\nsponsors:\n")
+      config.validate!
+      config.contributors.try(&.role).should be_nil
+      config.stargazers.try(&.role).should be_nil
+      config.sponsors.try(&.role).should be_nil
+    end
+
+    # A blank role is not "no role": it draws an empty line under every face
+    # and grows the cell to hold it.
+    it "rejects a blank role on any source block" do
+      config = ContributorMural::Config.parse(<<-YAML)
+        contributors:
+          role: " "
+        members:
+          org: crystal-actions
+          role: ""
+        stargazers:
+          role: "\t"
+        sponsors:
+          role: " "
+        YAML
+
+      error = expect_raises(ContributorMural::ConfigError) { config.validate! }
+      message = error.message || ""
+      %w[contributors members stargazers sponsors].each do |section|
+        message.should contain("#{section} `role` must not be empty")
+      end
+    end
+
     it "rejects group values missing from an explicit groups list" do
       config = ContributorMural::Config.parse(<<-YAML)
         groups: [Contributors]

@@ -129,8 +129,15 @@ module ContributorMural
     end
 
     # Someone can be a contributor *and* a sponsor. Keep one entry per login,
-    # in first-seen order, taking the highest weight and the first group so
-    # neither source silently drops the person or their standing.
+    # in first-seen order, taking the highest weight and the first group and
+    # role so neither source silently drops the person or their standing.
+    #
+    # Field by field rather than whole-source, now that each source can assert
+    # its own `role`: `contributors: group: Contributors` next to `sponsors:
+    # role: Sponsor` files the person under Contributors and still says they
+    # sponsor, which is what writing both of those down asks for. Sources are
+    # consulted in a fixed order — contributors, members, stargazers, sponsors
+    # — so a field two of them name comes from the earlier one.
     private def self.merge_api_users(api_users : Array(ResolvedUser)) : Array(ResolvedUser)
       order = [] of String
       by_login = {} of String => ResolvedUser
@@ -167,9 +174,10 @@ module ContributorMural
     end
 
     # Config entries win over API data field by field; API fills the gaps
-    # (e.g. contribution count as weight, canonical avatar URL). `group` is
-    # deliberately not inherited: placement is the config's call, and an
-    # entry without `group` belongs to the untitled leading section.
+    # (e.g. contribution count as weight, canonical avatar URL, and the `role`
+    # the source named for everyone it yields). `group` is deliberately not
+    # inherited: placement is the config's call, and an entry without `group`
+    # belongs to the untitled leading section.
     private def self.from_entry(entry : UserEntry, base : ResolvedUser?) : ResolvedUser
       ResolvedUser.new(
         login: entry.login,

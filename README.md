@@ -597,24 +597,28 @@ contributors:               # this repository's contributors
   max: 100                  # cap; contribution counts become weights. GitHub itself
                             # returns at most 500 contributors, whatever this says
   weight: 1                 # optional: put everyone from here on one rung
+  role: Code                # optional: the role line for everyone from here
   group: Contributors
 
 members:                    # organization members (`org` is required)
   org: crystal-actions
   max: 100
   weight: 1
+  role: Member
   group: Team
 
 stargazers:                 # the repository's stargazers
   repo: owner/name
   max: 100
   weight: 1
+  role: Stargazer
   group: Stargazers
 
 sponsors:                   # GitHub Sponsors (needs a token)
   login: hahwul             # default: the repository owner
   max: 100                  # tier $/month becomes each sponsor's weight
   weight: 1                 # optional: ignore tiers, treat sponsors alike
+  role: Sponsor
   group: Sponsors
 ```
 
@@ -629,7 +633,30 @@ sponsors:                   # GitHub Sponsors (needs a token)
 **How they merge.** When someone appears in both your `users` list and an API source,
 your entry wins field by field — set a custom `name` or `weight` and let the contribution
 count fill everyone else's. Someone returned by more than one API source (a contributor
-who also sponsors) appears once, keeping the highest weight and the first source's group.
+who also sponsors) appears once, keeping the highest weight; every other field comes from
+the first source that names it, and the sources are consulted in the order `contributors`,
+`members`, `stargazers`, `sponsors`. Field by field, so `contributors: group: Contributors`
+next to `sponsors: role: Sponsor` files that person under Contributors and still says they
+sponsor.
+
+**Source `role`.** `role:` on a source block gives the role line to everyone it yields,
+the same way `group:` and `weight:` do. Without it, a wall that uses roles to say what
+each person did has to name every code contributor in `users:` purely to write a role next
+to them — and the day someone lands their first commit they appear beside those entries
+with a blank line under their name, until a human notices and adds two more:
+
+```yaml
+contributors:
+  role: Code                # everyone the API put on the wall
+
+users:
+  - login: d0kk2bi          # the exceptions, and only the exceptions
+    role: Bug reports
+```
+
+Nothing is assumed: a source that does not name a role leaves the line off. A role under
+every face makes the cells taller and the canvas wider, which is not something to turn on
+without being asked.
 
 **Source `weight`.** Setting `weight:` on a source block replaces the weight every user
 from it would otherwise carry, so the source sets the floor and `users:` carries only the
@@ -831,24 +858,30 @@ contributors:               # this repository's contributors (all fields optiona
                             # GitHub returns at most 500, whatever this says
   weight: 1                 # optional: one weight for everyone from this source,
                             # replacing the derived one; `users:` still overrides
+  role: Code                # optional role line for everyone from this source;
+                            # `users:` still overrides. No default — a source
+                            # that names none leaves the line off
   group: Contributors       # optional section for API-fetched users
 
 members:                    # organization members (`org` is required)
   org: crystal-actions
   max: 100
   weight: 1
+  role: Member
   group: Team
 
 stargazers:                 # the repository's stargazers
   repo: owner/name          # default: the current repository
   max: 100
   weight: 1
+  role: Stargazer
   group: Stargazers
 
 sponsors:                   # GitHub Sponsors (needs a token)
   login: hahwul             # default: the repository owner
   max: 100                  # tier $/month becomes each sponsor's weight
   weight: 1                 # optional: ignore tiers and treat sponsors alike
+  role: Sponsor
   group: Sponsors
 
 # --- Everything below is presentation ---

@@ -40,6 +40,7 @@ module ContributorMural
     def render(groups : Array({String?, Array(EmbeddedUser)})) : String
       reset_document
       groups = groups.reject { |(_title, users)| users.empty? }
+      @shared_faces = repeated_faces(groups)
       if groups.empty?
         @last_size = {16.0, 16.0}
         return SVG.document(16, 16) { |io| chrome(io) }
@@ -62,6 +63,7 @@ module ContributorMural
       @last_size = {width, height}
       SVG.document(width, height) do |io|
         chrome(io)
+        face_defs(io)
         defs(io)
         y = 0.0
         sized.each_with_index do |(title, users, size), index|
@@ -109,6 +111,38 @@ module ContributorMural
     def self.honors_scale?(style : Style) : Bool
       style.mosaic? || style.spiral? || style.orbit? ||
         style.constellation? || style.skyline? || style.pebble?
+    end
+
+    # Data URI => the id of the <symbol> holding it, for the faces this document
+    # draws more than once. Empty on every wall where nobody is filed under two
+    # sections, which is what keeps the markup for those byte-for-byte what it
+    # has always been.
+    @shared_faces = {} of String => String
+
+    # A person in two sections is drawn twice, and an avatar's base64 is very
+    # nearly the whole weight of an SVG — a second copy costs a face, a third
+    # another one. So a repeated face is written once and referenced after that.
+    #
+    # Only repeats: a document where everyone appears once emits no <symbol> and
+    # no <use>, so this cannot change what a single-section wall looks like.
+    private def repeated_faces(groups : Array({String?, Array(EmbeddedUser)})) : Hash(String, String)
+      drawn = Hash(String, Int32).new(0)
+      groups.each { |(_title, users)| users.each { |user| drawn[user.data_uri] += 1 } }
+      shared = {} of String => String
+      drawn.each do |uri, count|
+        shared[uri] = "mural-face-#{shared.size + 1}" if count > 1
+      end
+      shared
+    end
+
+    # `viewBox` plus `slice` is what lets one definition be drawn at whatever
+    # size each section asks for: `<use>` cannot resize a bare <image>, but it
+    # does establish the viewport a <symbol> scales itself into. The result is
+    # the same crop-to-fill the inline <image> does.
+    private def face_defs(io : String::Builder) : Nil
+      @shared_faces.each do |uri, id|
+        io << %(  <defs><symbol id="#{id}" viewBox="0 0 1 1" preserveAspectRatio="xMidYMid slice"><image href="#{uri}" width="1" height="1" preserveAspectRatio="xMidYMid slice"/></symbol></defs>\n)
+      end
     end
 
     # Style-wide <defs>, emitted once per document.
@@ -251,9 +285,21 @@ module ContributorMural
                          x : Int32 | Float64, y : Int32 | Float64,
                          width : Int32 | Float64, height : Int32 | Float64,
                          clip : String? = nil) : Nil
-      io << %(    <image href="#{user.data_uri}" x="#{SVG.num(x)}" y="#{SVG.num(y)}" width="#{SVG.num(width)}" height="#{SVG.num(height)}" preserveAspectRatio="xMidYMid slice")
-      io << %( clip-path="url(##{clip})") if clip
-      io << "/>\n"
+      geometry = %(x="#{SVG.num(x)}" y="#{SVG.num(y)}" width="#{SVG.num(width)}" height="#{SVG.num(height)}")
+      if id = @shared_faces[user.data_uri]?
+        # The clip goes on a wrapping <g> rather than on the <use> itself.
+        # librsvg — the rasterizer, and so the PNG outputs — gives a <use> of a
+        # <symbol> an empty bounding box, and a clipPath in objectBoundingBox
+        # units then resolves to nothing at all: the avatar comes out blank.
+        # A <g> has the bounding box of what it contains, and clips correctly
+        # in both unit systems.
+        reference = %(<use href="##{id}" #{geometry}/>)
+        io << (clip ? %(    <g clip-path="url(##{clip})">#{reference}</g>\n) : "    #{reference}\n")
+      else
+        io << %(    <image href="#{user.data_uri}" #{geometry} preserveAspectRatio="xMidYMid slice")
+        io << %( clip-path="url(##{clip})") if clip
+        io << "/>\n"
+      end
     end
 
     protected def label(io : String::Builder, text : String, x : Int32 | Float64, y : Int32 | Float64) : Nil

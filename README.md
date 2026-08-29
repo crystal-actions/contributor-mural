@@ -539,6 +539,34 @@ grid:
 A user with no `group` renders in the untitled leading section — even if an API source
 put that person in one. Placement is always yours.
 
+### One person, several sections
+
+`also_in` adds sections on top of `group`. Someone who filed the bug report *and* later
+fixed it belongs on both walls — the two sections answer different questions, and there
+is no reason to make them pick one:
+
+```yaml
+groups: [Contributors, Special Thanks]
+
+contributors:
+
+users:
+  - login: d0kk2bi
+    group: Contributors     # where they live
+    also_in: [Special Thanks]
+```
+
+`group` stays the primary placement, and `also_in` is additive — a user with a single
+`group` behaves exactly as before. An `also_in` section missing from `groups` is a config
+error, the same as a mistyped `group`.
+
+They are still one person everywhere it counts: one avatar fetched, one place in the
+`sort`, one slot against `limit`, and one copy of the avatar in the file however many
+sections draw them. Only the drawing repeats.
+
+`also_in` is a `users:` key, so appearing twice is always something you wrote down —
+turning on a second source (`sponsors:` next to `contributors:`) never re-files anyone.
+
 ## Emphasising a person
 
 `weight` says where someone stands in the list. `scale` says how large to draw them — a
@@ -586,6 +614,7 @@ users:                      # your curated list — always wins on conflicts
                             # constellation, skyline)
     role: Creator           # optional label under the name
     group: Contributors     # optional section
+    also_in: [Special Thanks]         # optional extra sections, on top of `group`
     link: https://hahwul.com          # optional (default: the GitHub profile)
     avatar_url: assets/logo.png       # optional; a URL or a repo-relative file
 
@@ -843,6 +872,9 @@ users:                      # your curated list
                             # skyline, and pebble
     role: Creator           # optional label under the name (grid) / in tooltips
     group: Contributors     # optional section this user renders in
+    also_in: [Team]         # optional extra sections this user renders in on
+                            # top of `group`; still one person for the avatar
+                            # fetch, the sort, and `limit`
     link: https://hahwul.com          # optional (default: the GitHub profile)
     avatar_url: https://…/custom.png  # optional override; also accepts a
                                       # repo-relative file (assets/logo.png)

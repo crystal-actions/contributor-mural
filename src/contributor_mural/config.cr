@@ -273,7 +273,22 @@ module ContributorMural
         if scale = user.scale
           errors << "user #{user.login}: `scale` must be between 1 and 2" unless (1.0..2.0).includes?(scale)
         end
+        validate_also_in(errors, user)
         validate_user_urls(errors, user)
+      end
+    end
+
+    # The two ways an additive placement goes wrong on its own — an empty
+    # entry, or the same section named twice — say nothing about `groups:`, so
+    # they are caught here rather than by the typo guard, which only runs when
+    # `groups:` is written down at all.
+    private def validate_also_in(errors : Array(String), user : UserEntry) : Nil
+      return unless extra = user.also_in
+      named = extra.reject(&.strip.empty?)
+      errors << "user #{user.login}: `also_in` entries must not be empty" if named.size != extra.size
+      errors << "user #{user.login}: duplicate `also_in` entries" if named.uniq.size != named.size
+      if (group = user.group) && named.includes?(group)
+        errors << "user #{user.login}: `also_in` repeats `group` #{group.inspect}"
       end
     end
 
@@ -336,6 +351,13 @@ module ContributorMural
         users.each do |user|
           if group = user.group
             errors << "user #{user.login}: group #{group.inspect} is not listed in `groups`" unless known.includes?(group)
+          end
+          # A section named in `also_in` is as much a placement as `group` is,
+          # and so is as easy to mistype. The key is named in the message
+          # because the two lists sit next to each other on the same entry.
+          user.also_in.try &.each do |extra|
+            next if known.includes?(extra) || extra.strip.empty?
+            errors << "user #{user.login}: `also_in` group #{extra.inspect} is not listed in `groups`"
           end
         end
         {
@@ -441,6 +463,13 @@ module ContributorMural
     property scale : Float64? = nil
     property role : String? = nil
     property group : String? = nil
+    # Extra sections this person appears in, on top of `group`. `group` stays
+    # the primary placement — where someone lives, and the one an API source
+    # can be overruled on — and this is the additive list of walls they also
+    # belong on. Written as a separate key rather than by letting `group` take
+    # a sequence: the top-level `groups:` already means section *order*, and a
+    # plural key at user level would read as that same thing one scope down.
+    property also_in : Array(String)? = nil
   end
 
   # What a source asserts about everyone it yields.

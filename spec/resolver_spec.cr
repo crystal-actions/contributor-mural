@@ -281,8 +281,10 @@ describe "ContributorMural::Resolver source roles" do
   end
 end
 
-private def embedded(login : String, group : String? = nil) : ContributorMural::EmbeddedUser
-  ContributorMural::EmbeddedUser.new(ContributorMural::ResolvedUser.new(login, group: group), "data:,")
+private def embedded(login : String, group : String? = nil,
+                     also_in : Array(String) = [] of String) : ContributorMural::EmbeddedUser
+  ContributorMural::EmbeddedUser.new(
+    ContributorMural::ResolvedUser.new(login, group: group, also_in: also_in), "data:,")
 end
 
 describe "ContributorMural::Resolver.grouped" do
@@ -326,6 +328,117 @@ describe "ContributorMural::Resolver.grouped" do
     config = ContributorMural::Config.parse("groups: [Ghost]\nusers:\n  - login: a")
     sections = ContributorMural::Resolver.grouped([embedded("a")], config)
     sections.map(&.first).should eq([nil])
+  end
+
+  # Someone whose help predates their first commit belongs on both walls: the
+  # two sections answer different questions, and picking one used to be forced.
+  it "files a user into every section also_in names" do
+    config = ContributorMural::Config.parse(<<-YAML)
+      groups: [Contributors, Special Thanks]
+      users:
+        - login: d0kk2bi
+          group: Contributors
+          also_in: [Special Thanks]
+      YAML
+
+    users = [embedded("hahwul", "Contributors"),
+             embedded("d0kk2bi", "Contributors", ["Special Thanks"]),
+             embedded("helper", "Special Thanks")]
+    sections = ContributorMural::Resolver.grouped(users, config)
+
+    sections.map(&.first).should eq(["Contributors", "Special Thanks"])
+    sections[0][1].map(&.login).should eq(["hahwul", "d0kk2bi"])
+    sections[1][1].map(&.login).should eq(["d0kk2bi", "helper"])
+  end
+
+  # `group` is the primary placement, so leaving it off puts the person in the
+  # untitled leading section and `also_in` adds the titled ones on top.
+  it "keeps the untitled section as the primary placement when group is absent" do
+    config = ContributorMural::Config.parse(<<-YAML)
+      groups: [Special Thanks]
+      users:
+        - login: d0kk2bi
+          also_in: [Special Thanks]
+      YAML
+
+    sections = ContributorMural::Resolver.grouped([embedded("d0kk2bi", nil, ["Special Thanks"])], config)
+    sections.map(&.first).should eq([nil, "Special Thanks"])
+    sections.each { |(_title, members)| members.map(&.login).should eq(["d0kk2bi"]) }
+  end
+
+  it "picks up also_in sections for the implicit order too" do
+    config = ContributorMural::Config.parse(<<-YAML)
+      users:
+        - login: d0kk2bi
+          group: Contributors
+          also_in: [Special Thanks]
+        - login: helper
+          group: Special Thanks
+      YAML
+
+    users = [embedded("d0kk2bi", "Contributors", ["Special Thanks"]), embedded("helper", "Special Thanks")]
+    ContributorMural::Resolver.grouped(users, config).map(&.first)
+      .should eq(["Contributors", "Special Thanks"])
+  end
+
+  # A section named twice is one placement, not two: the person would otherwise
+  # be drawn beside themselves.
+  it "renders a person once per section even if also_in repeats one" do
+    config = ContributorMural::Config.parse("users:\n  - login: a")
+    sections = ContributorMural::Resolver.grouped([embedded("a", "Core", ["Core", "Thanks"])], config)
+    sections.map(&.first).should eq(["Core", "Thanks"])
+    sections[0][1].map(&.login).should eq(["a"])
+  end
+end
+
+# One person is one entry until the bucketing: `also_in` is a placement, not a
+# second body on the wall, and everything that counts people has to keep saying
+# so.
+describe "ContributorMural::Resolver also_in" do
+  it "resolves a multi-section user as a single entry" do
+    config = config_from(<<-YAML)
+      groups: [Contributors, Special Thanks]
+      users:
+        - login: d0kk2bi
+          group: Contributors
+          also_in: [Special Thanks]
+      YAML
+
+    users = ContributorMural::Resolver.resolve(config)
+    users.map(&.login).should eq(["d0kk2bi"])
+    users[0].group.should eq("Contributors")
+    users[0].also_in.should eq(["Special Thanks"])
+    users[0].sections.should eq(["Contributors", "Special Thanks"])
+  end
+
+  it "counts a multi-section user once against limit" do
+    config = config_from(<<-YAML)
+      limit: 2
+      sort: none
+      groups: [Contributors, Special Thanks]
+      users:
+        - login: d0kk2bi
+          group: Contributors
+          also_in: [Special Thanks]
+        - login: helper
+          group: Special Thanks
+      contributors:
+      YAML
+
+    users = ContributorMural::Resolver.resolve(config, [api_user("carol", 500)])
+    users.map(&.login).should eq(["d0kk2bi", "helper"])
+  end
+
+  # Enabling a second source is not a way to opt in: `sponsors:` would
+  # otherwise re-file every sponsor who also has commits, everywhere at once.
+  it "leaves API sources single-section" do
+    config = config_from("contributors:\nsponsors:\n")
+    contributor = ContributorMural::ResolvedUser.new("carol", weight: 9, group: "Contributors")
+    sponsor = ContributorMural::ResolvedUser.new("carol", weight: 1, group: "Sponsors")
+
+    user = ContributorMural::Resolver.resolve(config, [contributor, sponsor]).first
+    user.group.should eq("Contributors")
+    user.sections.should eq(["Contributors"])
   end
 end
 

@@ -82,6 +82,74 @@ describe ContributorMural::AvatarSalvage do
     end
   end
 
+  # A face drawn in two sections is written once into <defs>, so both of that
+  # person's links hold a reference instead of the bytes. Nobody is missing
+  # there — and salvage is exactly the moment where reading it as "no face"
+  # would take the person off the wall.
+  it "follows a shared face back to the symbol holding it" do
+    svg = <<-SVG
+      <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8">
+        <defs><symbol id="mural-face-1" viewBox="0 0 1 1"><image href="data:image/png;base64,SHARED" width="1" height="1"/></symbol></defs>
+        <a href="https://github.com/alpha" target="_blank">
+          <title>alpha</title>
+          <g clip-path="url(#avatar-clip)"><use href="#mural-face-1" x="0" y="0" width="8" height="8"/></g>
+        </a>
+        <a href="https://github.com/bravo" target="_blank">
+          <title>bravo</title>
+          <image href="data:image/png;base64,BBBB" x="0" y="0" width="8" height="8"/>
+        </a>
+        <a href="https://github.com/alpha" target="_blank">
+          <title>alpha</title>
+          <g clip-path="url(#avatar-clip)"><use href="#mural-face-1" x="0" y="0" width="8" height="8"/></g>
+        </a>
+      </svg>
+      SVG
+
+    in_workspace({"wall.svg" => svg}) do |workspace|
+      ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"]).should eq({
+        "https://github.com/alpha" => "data:image/png;base64,SHARED",
+        "https://github.com/bravo" => "data:image/png;base64,BBBB",
+      })
+    end
+  end
+
+  # The reference is bounded by the next link the same way a data URI is: a
+  # person with no avatar in the old file must not adopt the next one's.
+  it "never lets a use reference reach past the next link" do
+    svg = <<-SVG
+      <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8">
+        <defs><symbol id="mural-face-1" viewBox="0 0 1 1"><image href="data:image/png;base64,SHARED" width="1" height="1"/></symbol></defs>
+        <a href="https://github.com/alpha" target="_blank">
+          <title>alpha</title>
+        </a>
+        <a href="https://github.com/bravo" target="_blank">
+          <title>bravo</title>
+          <use href="#mural-face-1" x="0" y="0" width="8" height="8"/>
+        </a>
+      </svg>
+      SVG
+
+    in_workspace({"wall.svg" => svg}) do |workspace|
+      ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"]).keys
+        .should eq(["https://github.com/bravo"])
+    end
+  end
+
+  it "ignores a reference to a symbol that is not in the file" do
+    svg = <<-SVG
+      <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8">
+        <defs><symbol id="mural-face-1" viewBox="0 0 1 1"><image href="data:image/png;base64,SHARED" width="1" height="1"/></symbol></defs>
+        <a href="https://github.com/alpha" target="_blank">
+          <use href="#mural-face-9" x="0" y="0" width="8" height="8"/>
+        </a>
+      </svg>
+      SVG
+
+    in_workspace({"wall.svg" => svg}) do |workspace|
+      ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"]).should be_empty
+    end
+  end
+
   it "reads links carrying the markup escaping they were written with" do
     files = {"wall.svg" => wall({"https://example.com/a?x=1&amp;y=2", "data:image/png;base64,AAAA"})}
     in_workspace(files) do |workspace|

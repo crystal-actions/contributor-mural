@@ -9,6 +9,19 @@ and the generated files.
 
 ### Added
 
+- `also_in` on a `users:` entry, naming extra sections a person renders in on
+  top of `group`. Placement used to be exclusive, so the moment someone in a
+  curated `Special Thanks` list landed their first commit you had to pick which
+  wall they belonged on — and both were true, because the two sections answer
+  different questions. `group` stays the primary placement and a single `group`
+  behaves exactly as it always has; an `also_in` section missing from `groups`
+  is a config error, the same as a mistyped `group`. They stay one person
+  everywhere it counts: one avatar fetched, one place in the `sort`, one slot
+  against `limit`, and one copy of the avatar in the file however many sections
+  draw them — a repeated face is written once into the document's `<defs>` and
+  referenced after that, so an extra section costs a line of markup rather than
+  a whole picture. Appearing twice is always something you wrote down: turning
+  on a second source never re-files anyone.
 - `role:` on a source block — `contributors:`, `members:`, `stargazers:` and
   `sponsors:` — giving the role line to everyone that source yields, the way
   `group:` and `weight:` already do. Without it, a wall that uses roles to say

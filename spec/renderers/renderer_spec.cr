@@ -20,6 +20,48 @@ private def render_grid(config : ContributorMural::Config, mode : ContributorMur
   renderer.render(embedded)
 end
 
+# `grouped` is shared by every style, so a person filed under two sections is
+# drawn twice by all eleven of them — and the base class is what has to keep
+# that from costing a second copy of their avatar in the file.
+describe "every style with a multi-section user" do
+  ContributorMural::Style.each do |style|
+    it "draws #{style} once per section from one copy of the face" do
+      config = ContributorMural::Config.parse(<<-YAML)
+        style: #{style.to_s.downcase}
+        sort: none
+        groups: [Core, Thanks]
+        users:
+          - login: alpha
+            group: Core
+            also_in: [Thanks]
+          - login: bravo
+            group: Core
+          - login: carol
+            group: Thanks
+        stencil:
+          text: HI
+        YAML
+
+      users = ContributorMural::Resolver.resolve(config)
+      renderer = ContributorMural::Renderer.for(config.style, config)
+      renderer.prepare(users)
+      embedded, _ = ContributorMural::Embedder.new(FakeAvatarSource.new)
+        .embed(users, renderer, fail_on_missing: false)
+      groups = ContributorMural::Resolver.grouped(embedded, config)
+      svg = renderer.render(groups)
+
+      # Three people, one of them drawn twice: four drawings, three faces.
+      svg.scan(%r{<a href="https://github.com/alpha"}).size.should eq(2)
+      svg.scan(/data:image\/png;base64,/).size.should eq(3)
+      svg.scan(/<symbol id="mural-face-/).size.should eq(1)
+      svg.scan(/<use href="#mural-face-1"/).size.should eq(2)
+      # And a second render of the same document comes out the same, which is
+      # what `reset_document` is for and what the shared faces must not break.
+      renderer.render(groups).should eq(svg)
+    end
+  end
+end
+
 describe ContributorMural::Renderer do
   describe ".for" do
     it "builds the renderer named after each style" do

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="152" height="268" viewBox="0 0 152 268">
+  <style>.mural-label{fill:#57606a}.mural-role{fill:#6e7781}.mural-title{fill:#24292f}.mural-bg{fill:transparent}@media (prefers-color-scheme:dark){.mural-label{fill:#8b949e}.mural-role{fill:#7d8590}.mural-title{fill:#e6edf3}.mural-bg{fill:transparent}}</style>
+  <defs><symbol id="mural-face-1" viewBox="0 0 1 1" preserveAspectRatio="xMidYMid slice"><image href="data:image/png;base64,SU1HOmQwa2syYmk6MTI4" width="1" height="1" preserveAspectRatio="xMidYMid slice"/></symbol></defs>
+  <defs><clipPath id="avatar-clip" clipPathUnits="objectBoundingBox"><circle cx="0.5" cy="0.5" r="0.5"/></clipPath></defs>
+  <text x="8" y="19" text-anchor="start" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" class="mural-title">Contributors</text>
+  <a href="https://github.com/hahwul" target="_blank">
+    <title>hahwul</title>
+    <image href="data:image/png;base64,SU1HOmhhaHd1bDoxMjg=" x="8" y="38" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#avatar-clip)"/>
+    <text x="40" y="115" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">hahwul</text>
+  </a>
+  <a href="https://github.com/d0kk2bi" target="_blank">
+    <title>d0kk2bi</title>
+    <g clip-path="url(#avatar-clip)"><use href="#mural-face-1" x="80" y="38" width="64" height="64"/></g>
+    <text x="112" y="115" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">d0kk2bi</text>
+  </a>
+  <text x="8" y="159" text-anchor="start" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" class="mural-title">Special Thanks</text>
+  <a href="https://github.com/d0kk2bi" target="_blank">
+    <title>d0kk2bi</title>
+    <g clip-path="url(#avatar-clip)"><use href="#mural-face-1" x="8" y="178" width="64" height="64"/></g>
+    <text x="40" y="255" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="11" class="mural-label">d0kk2bi</text>
+  </a>
+</svg>

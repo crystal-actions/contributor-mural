@@ -359,6 +359,56 @@ describe ContributorMural::Config do
       message.should contain(%(contributors: group "Nope" is not listed))
     end
 
+    it "parses also_in as extra placements alongside group" do
+      config = ContributorMural::Config.parse(<<-YAML)
+        groups: [Contributors, Special Thanks]
+        users:
+          - login: d0kk2bi
+            group: Contributors
+            also_in: [Special Thanks]
+          - login: octocat
+        YAML
+
+      config.validate!
+      config.users[0].also_in.should eq(["Special Thanks"])
+      config.users[1].also_in.should be_nil
+    end
+
+    # The typo guard has to reach into the list too: an unknown section name is
+    # exactly as easy to write there as it is next to `group`, and a placement
+    # that silently does nothing is the failure the guard exists to prevent.
+    it "rejects also_in values missing from an explicit groups list" do
+      config = ContributorMural::Config.parse(<<-YAML)
+        groups: [Contributors, Special Thanks]
+        users:
+          - login: d0kk2bi
+            group: Contributors
+            also_in: [Special Thnks]
+        YAML
+
+      error = expect_raises(ContributorMural::ConfigError) { config.validate! }
+      (error.message || "").should contain(%(`also_in` group "Special Thnks" is not listed))
+    end
+
+    it "rejects also_in entries that are empty, repeated, or the entry's own group" do
+      config = ContributorMural::Config.parse(<<-YAML)
+        users:
+          - login: blank
+            also_in: [" "]
+          - login: twice
+            also_in: [Thanks, Thanks]
+          - login: itself
+            group: Contributors
+            also_in: [Contributors]
+        YAML
+
+      error = expect_raises(ContributorMural::ConfigError) { config.validate! }
+      message = error.message || ""
+      message.should contain("user blank: `also_in` entries must not be empty")
+      message.should contain("user twice: duplicate `also_in` entries")
+      message.should contain(%(user itself: `also_in` repeats `group` "Contributors"))
+    end
+
     it "rejects duplicate or empty groups entries" do
       config = ContributorMural::Config.parse(<<-YAML)
         groups: [A, A, " "]

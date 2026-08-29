@@ -140,6 +140,75 @@ describe ContributorMural::Renderers::Grid do
     Golden.assert("grid_groups.svg", svg)
   end
 
+  # A person in two sections is drawn twice, and an avatar's base64 is very
+  # nearly the whole weight of the file — a second copy of the picture would
+  # cost a whole face per extra section.
+  it "writes a repeated face once and references it from each section" do
+    config = ContributorMural::Config.parse(<<-YAML)
+      sort: none
+      groups: [Contributors, Special Thanks]
+      users:
+        - login: hahwul
+          group: Contributors
+        - login: d0kk2bi
+          group: Contributors
+          also_in: [Special Thanks]
+      grid:
+        columns: 4
+        avatar_size: 64
+        margin: 8
+        shape: circle
+      YAML
+
+    svg = render(config)
+    # Three avatars are drawn (the drawn ones are the indented elements; the
+    # <image> inside the <symbol> is the definition, not a drawing).
+    svg.scan(/ {4}<image | {4}<g clip-path/).size.should eq(3)
+    # hahwul is drawn once, so their bytes stay inline; d0kk2bi's move to a
+    # <symbol> and both drawings reference it.
+    svg.scan(/data:image\/png;base64,/).size.should eq(2)
+    svg.scan(/<symbol id="mural-face-1"/).size.should eq(1)
+    svg.scan(/<use href="#mural-face-1"/).size.should eq(2)
+    # The reference is clipped exactly as the inline image would have been.
+    svg.should contain(%(<g clip-path="url(#avatar-clip)"><use href="#mural-face-1" x="80" y="38" width="64" height="64"/></g>))
+    svg.should contain(%(<g clip-path="url(#avatar-clip)"><use href="#mural-face-1" x="8" y="178" width="64" height="64"/></g>))
+    # And is inside the person's own link, in both sections.
+    svg.scan(%r{<a href="https://github.com/d0kk2bi"}).size.should eq(2)
+    Golden.assert("grid_also_in.svg", svg)
+  end
+
+  # `prepare` measures the label overhang across the whole document, and a
+  # repeated person reaches it once — they are one entry until the bucketing.
+  # Their section still has to make room for them, though, which is the block
+  # size, not the gutter.
+  it "sizes each section around the members it repeats without moving the columns" do
+    config = ContributorMural::Config.parse(<<-YAML)
+      sort: none
+      groups: [Core, Thanks]
+      grid:
+        columns: 1
+        avatar_size: 48
+        margin: 8
+        truncate: 0
+      users:
+        - login: a
+          name: AVeryLongDisplayNameIndeed
+          group: Core
+          also_in: [Thanks]
+        - login: b
+          name: xy
+          group: Thanks
+      YAML
+
+    svg = render(config)
+    # Core holds one row, Thanks two: 30 + (66 + 16) + 12 + 30 + (2*66 + 24)
+    svg.should contain(%(height="310"))
+    # Every avatar starts in the same column, in both sections.
+    columns = svg.scan(/x="([0-9.]+)" y="[0-9.]+" width="48"/).map(&.[1].to_f)
+    columns.size.should eq(3)
+    columns.uniq.size.should eq(1)
+  end
+
   # Labels are centred on their cell and can be wider than it, so a block takes
   # an inset on both sides to make room. Measured per section, the inset came
   # out different for each, and a group of short names started its avatars tens

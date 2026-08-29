@@ -138,6 +138,13 @@ module ContributorMural
     # sponsor, which is what writing both of those down asks for. Sources are
     # consulted in a fixed order — contributors, members, stargazers, sponsors
     # — so a field two of them name comes from the earlier one.
+    #
+    # The first group is still the only group, even though a person can now be
+    # filed under several: appearing on two walls is opt-in, and nobody opts in
+    # by enabling a second source. Turning `sponsors:` on would otherwise
+    # re-file every sponsor who also has commits, quietly and everywhere at
+    # once. `also_in` is unioned rather than dropped so nothing on this path can
+    # lose a placement, though no API source sets one today.
     private def self.merge_api_users(api_users : Array(ResolvedUser)) : Array(ResolvedUser)
       order = [] of String
       by_login = {} of String => ResolvedUser
@@ -153,6 +160,7 @@ module ContributorMural
             weight: Math.max(existing.weight, user.weight),
             role: existing.role || user.role,
             group: existing.group || user.group,
+            also_in: (existing.also_in + user.also_in).uniq!,
             scale: Math.max(existing.scale, user.scale),
           )
         else
@@ -175,9 +183,9 @@ module ContributorMural
 
     # Config entries win over API data field by field; API fills the gaps
     # (e.g. contribution count as weight, canonical avatar URL, and the `role`
-    # the source named for everyone it yields). `group` is deliberately not
-    # inherited: placement is the config's call, and an entry without `group`
-    # belongs to the untitled leading section.
+    # the source named for everyone it yields). `group` and `also_in` are
+    # deliberately not inherited: placement is the config's call, and an entry
+    # without `group` belongs to the untitled leading section.
     private def self.from_entry(entry : UserEntry, base : ResolvedUser?) : ResolvedUser
       ResolvedUser.new(
         login: entry.login,
@@ -187,6 +195,7 @@ module ContributorMural
         weight: entry.weight || base.try(&.weight) || 1,
         role: entry.role || base.try(&.role),
         group: entry.group,
+        also_in: entry.also_in || [] of String,
         scale: entry.scale || 1.0,
       )
     end
@@ -194,6 +203,11 @@ module ContributorMural
     # Splits embedded users into ordered (title, members) sections. Ungrouped
     # users come first without a heading; explicit `groups` fixes the order,
     # otherwise groups appear as first mentioned in the config.
+    #
+    # This is the one place a person can land in more than one bucket. Everything
+    # upstream — the fetch, the sort, the `limit` — has already treated them as
+    # the single person they are; `also_in` only decides how many times that one
+    # entry is drawn.
     def self.grouped(users : Array(EmbeddedUser), config : Config) : Array({String?, Array(EmbeddedUser)})
       # Bucketed in one pass rather than re-scanning the whole list once per
       # group. `order` decides what is emitted and in what sequence, exactly as
@@ -201,8 +215,10 @@ module ContributorMural
       members = {} of String? => Array(EmbeddedUser)
       order = group_order(config)
       users.each do |user|
-        (members[user.group] ||= [] of EmbeddedUser) << user
-        order << user.group unless order.includes?(user.group)
+        user.sections.each do |group|
+          (members[group] ||= [] of EmbeddedUser) << user
+          order << group unless order.includes?(group)
+        end
       end
       order.compact_map do |group|
         if bucket = members[group]?
@@ -219,6 +235,9 @@ module ContributorMural
         config.users.each do |user|
           if group = user.group
             order << group unless order.includes?(group)
+          end
+          user.also_in.try &.each do |extra|
+            order << extra unless order.includes?(extra)
           end
         end
         {

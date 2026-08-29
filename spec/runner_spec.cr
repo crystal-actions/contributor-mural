@@ -48,6 +48,103 @@ describe ContributorMural::Runner do
     end
   end
 
+  # A person on two walls is still one person: one avatar fetched, one entry in
+  # `user_count`, one copy of the bytes in the file. Only the drawing repeats.
+  it "draws a two-section person twice from one fetch" do
+    yaml = <<-YAML
+      sort: none
+      groups: [Contributors, Special Thanks]
+      users:
+        - login: alpha
+          group: Contributors
+          also_in: [Special Thanks]
+        - login: bravo
+          group: Special Thanks
+      YAML
+
+    source = FakeAvatarSource.new
+    run_in_tmp(yaml, source) do |exit_code, outputs, workspace|
+      exit_code.should eq(0)
+      source.fetch_count.should eq(2)
+      outputs.should contain("user_count=2")
+
+      svg = File.read(File.join(workspace, "CONTRIBUTOR_MURAL.svg"))
+      svg.scan(/data:image\/png;base64,/).size.should eq(2)
+      svg.scan(%r{<a href="https://github.com/alpha"}).size.should eq(2)
+      svg.should contain(">Contributors</text>")
+      svg.should contain(">Special Thanks</text>")
+    end
+  end
+
+  # The two things a curated entry says on the gori wall that motivated both of
+  # these: a section it also belongs to, and a role it inherits from the source
+  # rather than repeating. The source role has to reach the person through
+  # `from_entry`, and then travel with them into every section they appear in.
+  it "carries a source role into every section a person is filed under" do
+    yaml = <<-YAML
+      sort: none
+      groups: [Contributors, Special Thanks]
+      contributors:
+        repo: o/r
+        role: Code
+      users:
+        - login: d0kk2bi          # first commit landed; still a special thanks
+          group: Contributors
+          also_in: [Special Thanks]
+        - login: reporter         # never landed one
+          group: Special Thanks
+          role: Bug reports
+      grid:
+        columns: 3
+        avatar_size: 64
+        margin: 8
+      YAML
+
+    api_users = [
+      ContributorMural::ResolvedUser.new("d0kk2bi", weight: 4, role: "Code"),
+      ContributorMural::ResolvedUser.new("newcomer", weight: 1, role: "Code"),
+    ]
+
+    run_in_tmp(yaml, github_source: FakeGitHubSource.new(api_users)) do |exit_code, outputs, workspace|
+      exit_code.should eq(0)
+      # Three people on the wall, four drawings, and still three avatars.
+      outputs.should contain("user_count=3")
+      svg = File.read(File.join(workspace, "CONTRIBUTOR_MURAL.svg"))
+      svg.scan(%r{<a href="https://github.com/d0kk2bi"}).size.should eq(2)
+      svg.scan(/data:image\/png;base64,/).size.should eq(3)
+      # The role the source named reaches them in both sections.
+      svg.scan(/<title>d0kk2bi · Code<\/title>/).size.should eq(2)
+      svg.should contain("<title>reporter · Bug reports</title>")
+      svg.should contain("<title>newcomer · Code</title>")
+    end
+  end
+
+  # The face alpha is drawn with comes back from the previous wall through the
+  # reference in their link, exactly as an inline one would.
+  it "salvages a shared face from the wall it is about to replace" do
+    yaml = <<-YAML
+      sort: none
+      groups: [Contributors, Special Thanks]
+      users:
+        - login: alpha
+          group: Contributors
+          also_in: [Special Thanks]
+        - login: bravo
+      YAML
+
+    kept = ""
+    run_in_tmp(yaml) do |_exit_code, _outputs, workspace|
+      kept = File.read(File.join(workspace, "CONTRIBUTOR_MURAL.svg"))
+    end
+    kept.should contain("<symbol id=\"mural-face-1\"")
+
+    seed = ->(workspace : String) { File.write(File.join(workspace, "CONTRIBUTOR_MURAL.svg"), kept); nil }
+    run_in_tmp(yaml, FakeAvatarSource.new(missing: ["alpha"]), before: seed) do |exit_code, _outputs, workspace|
+      exit_code.should eq(0)
+      File.read(File.join(workspace, "CONTRIBUTOR_MURAL.svg")).should eq(kept)
+    end
+  end
+
   # action.yml declares `svg_path` and the README calls it the alias kept for
   # workflows written before `outputs` existed. It was never emitted, so those
   # workflows read the empty string — an alias failing at the one job it has.

@@ -7,6 +7,8 @@ and the generated files.
 
 ## Unreleased
 
+## v1.6.0
+
 ### Added
 
 - The `silhouette` style: stencil with a picture where the word was. Point

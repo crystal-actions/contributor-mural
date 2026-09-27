@@ -1135,17 +1135,17 @@ just the ref you write in a workflow. Every released ref names an immutable imag
 
 | Ref | Runs | Moves |
 | --- | ---- | ----- |
-| `@v1.5.0` | `ghcr.io/…:v1.5.0` | never |
+| `@v1.6.0` | `ghcr.io/…:v1.6.0` | never |
 | `@v1` | the newest 1.x's own image tag | on each 1.x release, by the git tag moving |
 | `@main` | `ghcr.io/…:v1`, a floating tag | on every release |
 
-So pinning `@v1.5.0` pins the code, not only the ref. Only `@main` tracks a mutable image
+So pinning `@v1.6.0` pins the code, not only the ref. Only `@main` tracks a mutable image
 tag, which is the trade-off for following development.
 
 Every run prints its version as its first line:
 
 ```
-contributor-mural v1.5.0
+contributor-mural v1.6.0
 ```
 
 That is the fastest way to tell a stale image from a bad config. If a run rejects a value

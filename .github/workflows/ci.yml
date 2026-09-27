@@ -67,6 +67,20 @@ jobs:
             contributor-mural:ci
           grep -q "data:image" /tmp/ws/wall.svg
           head -c 4 /tmp/ws/wall.png | grep -q PNG
+      # The silhouette decodes its image with the image's own librsvg, so this
+      # is the one place that proves Alpine's build reads an embedded JPEG.
+      - name: Smoke test a silhouette
+        run: |
+          mkdir -p /tmp/sil
+          cp spec/fixtures/silhouette/ell.jpg /tmp/sil/logo.jpg
+          printf 'style: silhouette\nsilhouette:\n  image: logo.jpg\n  resolution: 6\nusers:\n  - login: hahwul\n  - login: octocat\noutput: wall.svg\n' > /tmp/sil/config.yml
+          docker run --rm -w /sil -v /tmp/sil:/sil \
+            -e INPUT_CONFIG=config.yml -e INPUT_NO_COMMIT=true -e GITHUB_WORKSPACE=/sil \
+            contributor-mural:ci
+          test "$(grep -c '<image ' /tmp/sil/wall.svg)" = "2"
+          # 16 pixels in the L at this resolution: the two faces and 14 ghosts
+          # (indented inside their group, unlike the avatar clip's circle).
+          test "$(grep -c '^    <circle ' /tmp/sil/wall.svg)" = "14"
 
   # Exercises the public entry point (action.yml) the way a consumer does;
   # the docker job above bypasses it by running the image directly.

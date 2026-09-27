@@ -6,7 +6,7 @@ private def render_radial(yaml : String) : String
   config = ContributorMural::Config.parse(yaml)
   config.validate!
   users = ContributorMural::Resolver.resolve(config)
-  renderer = ContributorMural::Renderer.for(config.style, config)
+  renderer = ContributorMural::Renderer.for(config.style, config, mask: SpecHelper::MASK)
   renderer.prepare(users)
   embedded, _ = ContributorMural::Embedder.new(FakeAvatarSource.new)
     .embed(users, renderer, fail_on_missing: false)
@@ -52,18 +52,18 @@ end
 # to placing it, so `sort: login` and `sort: none` — which the reference page
 # documents as keeping list order, and recommends for keeping the API's own —
 # came out weight-ordered anyway. Every style is checked, since the promise is
-# made once and kept in seven places.
+# made once and kept in every style.
 describe "list order across styles" do
   it "places users in the order `sort` asked for" do
     # Listed against their weights, so any style that re-ranks shows it.
     users = "users:\n  - login: zoe\n    weight: 1\n  - login: yan\n    weight: 2\n  - login: xu\n    weight: 3\n"
-    %w[grid honeycomb mosaic voronoi stencil spiral orbit constellation skyline metro pebble].each do |style|
+    %w[grid honeycomb mosaic voronoi stencil silhouette spiral orbit constellation skyline metro pebble].each do |style|
       {
         "none"   => ["zoe", "yan", "xu"],
         "login"  => ["xu", "yan", "zoe"],
         "weight" => ["xu", "yan", "zoe"],
       }.each do |sort, expected|
-        svg = render_radial("style: #{style}\nsort: #{sort}\n#{users}")
+        svg = render_radial("style: #{style}\nsort: #{sort}\nsilhouette:\n  image: logo.png\n#{users}")
         drawn = svg.scan(%r{<title>([a-z]+)</title>}).map(&.[1])
         drawn.should eq(expected), "#{style} with sort: #{sort} drew #{drawn}"
       end

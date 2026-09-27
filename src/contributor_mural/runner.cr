@@ -40,6 +40,9 @@ module ContributorMural
     def run : Int32
       targets = @config.render_targets
       require_rasterizer! if targets.any? { |path, _style, _mode| png?(path) }
+      # Traced before anything is fetched: a missing or unreadable image is a
+      # config mistake, and it should cost the run nothing but the error.
+      mask = trace_silhouette if targets.any? { |_path, style, _mode| style.silhouette? }
       warn_unhonored_scale(targets)
       warn_inert_weave(targets)
 
@@ -65,7 +68,7 @@ module ContributorMural
       # with several outputs used to wait out a separate round of latency per
       # target, even where the targets wanted the same faces at the same size.
       plans = targets.map do |path, style, mode_override|
-        renderer = Renderer.for(style, @config, target_mode(path, mode_override))
+        renderer = Renderer.for(style, @config, target_mode(path, mode_override), mask)
         renderer.prepare(users)
         {path, renderer}
       end
@@ -279,6 +282,15 @@ module ContributorMural
       return if @rasterizer
       raise RasterError.new("PNG output is configured but no rasterizer is available — " \
                             "install librsvg (`rsvg-convert`) or use .svg outputs")
+    end
+
+    # librsvg is how a silhouette reads its image, so it needs the rasterizer
+    # even when every output is an SVG.
+    private def trace_silhouette : SilhouetteMask
+      rasterizer = @rasterizer ||
+                   raise RasterError.new("the silhouette style reads its `image` with librsvg — " \
+                                         "install it (`rsvg-convert`) or pick another style")
+      SilhouetteTracer.load(@workspace, @config.silhouette, rasterizer)
     end
 
     private def rasterize(svg : String) : Bytes

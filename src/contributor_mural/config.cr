@@ -21,6 +21,12 @@ module ContributorMural
     value.matches?(/\A[A-Za-z0-9._-]+\z/) && value != "." && value != ".."
   end
 
+  # Whether a path a config names reaches outside the repository it is
+  # relative to, before the filesystem is asked: absolute, or climbing out.
+  def self.outside_repository?(path : String) : Bool
+    path.starts_with?('/') || Path[path].parts.includes?("..")
+  end
+
   enum Style
     Grid
     Honeycomb
@@ -29,6 +35,7 @@ module ContributorMural
     Orbit
     Voronoi
     Stencil
+    Silhouette
     Constellation
     Skyline
     Metro
@@ -75,6 +82,7 @@ module ContributorMural
     property orbit : OrbitConfig = OrbitConfig.new
     property voronoi : VoronoiConfig = VoronoiConfig.new
     property stencil : StencilConfig = StencilConfig.new
+    property silhouette : SilhouetteConfig = SilhouetteConfig.new
     property constellation : ConstellationConfig = ConstellationConfig.new
     property skyline : SkylineConfig = SkylineConfig.new
     property metro : MetroConfig = MetroConfig.new
@@ -206,6 +214,7 @@ module ContributorMural
         when "Shape"     then Shape.names
         when "SortMode"  then SortMode.names
         when "ThemeMode" then ThemeMode.names
+        when "Ink"       then Ink.names
         else                  [] of String
         end
       return message if values.empty?
@@ -250,6 +259,7 @@ module ContributorMural
       errors.concat(orbit.validate)
       errors.concat(voronoi.validate)
       errors.concat(stencil.validate)
+      errors.concat(silhouette.validate(render_targets.any? { |_path, style, _mode| style.silhouette? }))
       errors.concat(constellation.validate)
       errors.concat(skyline.validate)
       errors.concat(metro.validate)
@@ -300,7 +310,7 @@ module ContributorMural
 
     private def validate_user_urls(errors : Array(String), user : UserEntry) : Nil
       if (avatar = user.avatar_url) && !avatar.matches?(%r{\Ahttps?://}i)
-        if avatar.starts_with?('/') || Path[avatar].parts.includes?("..")
+        if ContributorMural.outside_repository?(avatar)
           errors << "user #{user.login}: local `avatar_url` must be relative to the repository: #{avatar}"
         end
       end
@@ -404,7 +414,7 @@ module ContributorMural
       elsif !path.ends_with?(".svg") && !path.ends_with?(".png")
         errors << "output path must end with .svg or .png: #{path}"
       end
-      if path.starts_with?('/') || Path[path].parts.includes?("..")
+      if ContributorMural.outside_repository?(path)
         errors << "output path must be relative to the repository: #{path}"
       end
       if path.matches?(/[\x00-\x1f]/)
@@ -863,6 +873,60 @@ module ContributorMural
       errors << "stencil `letter_spacing` must be between 0 and 8" unless (0..8).includes?(letter_spacing)
       errors << "stencil `line_gap` must be between 0 and 8" unless (0..8).includes?(line_gap)
       errors
+    end
+  end
+
+  class SilhouetteConfig
+    include YAML::Serializable
+    include YAML::Serializable::Strict
+
+    # A PNG, JPEG, GIF, WebP, or SVG in the repository, relative to its root.
+    property image : String? = nil
+    # Cells along the image's longer side; the shorter side follows its aspect.
+    property resolution : Int32 = 24
+    property pixel_size : Int32 = 20
+    property gap : Int32 = 4
+    property shape : Shape = Shape::Circle
+    property? ghosts : Bool = true
+    property ink : Ink = Ink::Auto
+    # How much of a cell has to be ink for the cell to be part of the shape.
+    @[YAML::Field(converter: ContributorMural::NumberConverter)]
+    property threshold : Float64 = 0.5
+
+    def initialize
+    end
+
+    # `image` has no default that could mean anything, so it is only required
+    # when something is going to draw with it — the block is otherwise inert,
+    # like every other style's.
+    def validate(in_use : Bool) : Array(String)
+      errors = [] of String
+      if path = image
+        validate_image(path, errors)
+      elsif in_use
+        errors << "silhouette needs an `image` — a PNG, JPEG, GIF, WebP, or SVG in the repository, " \
+                  "e.g.\nsilhouette:\n  image: .github/logo.png"
+      end
+      errors << "silhouette `resolution` must be between 4 and 160" unless (4..160).includes?(resolution)
+      errors << "silhouette `pixel_size` must be between 8 and 512" unless (8..512).includes?(pixel_size)
+      errors << "silhouette `gap` must be between 0 and 200" unless (0..200).includes?(gap)
+      errors << "silhouette `threshold` must be between 0.05 and 0.95" unless (0.05..0.95).includes?(threshold)
+      errors
+    end
+
+    # A file, not a URL: the mural is committed on a schedule, and a picture
+    # fetched from somewhere else could change or vanish between two runs
+    # without anything in the repository having changed.
+    private def validate_image(path : String, errors : Array(String)) : Nil
+      if path.strip.empty?
+        errors << "silhouette `image` must not be empty"
+      elsif path.matches?(%r{\A([a-z][a-z0-9+.-]*://|data:)}i)
+        errors << "silhouette `image` must be a file in the repository, not a URL: #{path}"
+      elsif ContributorMural.outside_repository?(path)
+        errors << "silhouette `image` must be relative to the repository: #{path}"
+      elsif path.matches?(/[\x00-\x1f]/)
+        errors << "silhouette `image` must not contain control characters: #{path.inspect}"
+      end
     end
   end
 

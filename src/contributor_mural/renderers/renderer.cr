@@ -83,15 +83,22 @@ module ContributorMural
       render([{nil.as(String?), users}])
     end
 
-    def self.for(style : Style, config : Config, mode : ThemeMode? = nil) : Renderer
+    # `mask` is the traced image a silhouette draws; every other style ignores
+    # it. Traced once by the caller rather than here, because tracing reads a
+    # file and runs librsvg — work a run with several silhouette targets should
+    # do once, and that a renderer spec should not have to do at all.
+    def self.for(style : Style, config : Config, mode : ThemeMode? = nil,
+                 mask : SilhouetteMask? = nil) : Renderer
       case style
-      in .grid?          then Renderers::Grid.new(config, mode)
-      in .honeycomb?     then Renderers::Honeycomb.new(config, mode)
-      in .mosaic?        then Renderers::Mosaic.new(config, mode)
-      in .spiral?        then Renderers::Spiral.new(config, mode)
-      in .orbit?         then Renderers::Orbit.new(config, mode)
-      in .voronoi?       then Renderers::Voronoi.new(config, mode)
-      in .stencil?       then Renderers::Stencil.new(config, mode)
+      in .grid?      then Renderers::Grid.new(config, mode)
+      in .honeycomb? then Renderers::Honeycomb.new(config, mode)
+      in .mosaic?    then Renderers::Mosaic.new(config, mode)
+      in .spiral?    then Renderers::Spiral.new(config, mode)
+      in .orbit?     then Renderers::Orbit.new(config, mode)
+      in .voronoi?   then Renderers::Voronoi.new(config, mode)
+      in .stencil?   then Renderers::Stencil.new(config, mode)
+      in .silhouette?
+        Renderers::Silhouette.new(config, mode, mask || raise ArgumentError.new("a silhouette needs a traced mask"))
       in .constellation? then Renderers::Constellation.new(config, mode)
       in .skyline?       then Renderers::Skyline.new(config, mode)
       in .metro?         then Renderers::Metro.new(config, mode)
@@ -101,7 +108,7 @@ module ContributorMural
 
     # Styles that can honour a per-user `scale`: the ones that already derive
     # a size per user, where an override is exact. The fixed lattices (grid,
-    # honeycomb, stencil, metro) have nowhere to put an avatar larger than its
+    # honeycomb, stencil, silhouette, metro) have nowhere to put an avatar larger than its
     # cell without overlapping a neighbour or leaving a hole, and voronoi sizes
     # cells by cutting the block up rather than by placing a shape — those
     # ignore `scale` rather than approximate it. Skyline honours it in the one

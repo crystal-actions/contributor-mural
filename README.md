@@ -21,10 +21,10 @@
 A GitHub Action that renders your users, your contributors, or both into embeddable
 SVG art and commits it to your repository.
 
-- **Eleven styles** — a classic grid, honeycomb hexagons, a weight-tiered mosaic, a
+- **Twelve styles** — a classic grid, honeycomb hexagons, a weight-tiered mosaic, a
   golden-angle spiral, an orbit with your lead contributor at its centre, a
-  stained-glass voronoi, a stencil that spells a word out of faces, a night-sky
-  constellation, a city skyline, a transit-map metro, and a pebble pack where
+  stained-glass voronoi, a stencil that spells a word out of faces, a silhouette
+  that fills the outline of your own logo with them, a night-sky constellation, a city skyline, a transit-map metro, and a pebble pack where
   everyone settles into a pile of weighted discs.
 - **Many sources, one mural** — your curated `users` list, repository contributors,
   org members, stargazers, and GitHub Sponsors (tier amounts become weights). Write a
@@ -39,7 +39,7 @@ SVG art and commits it to your repository.
 ## Contents
 
 - [Quick start](#quick-start)
-- [Styles](#styles) — [grid](#grid) · [honeycomb](#honeycomb) · [mosaic](#mosaic) · [spiral](#spiral) · [orbit](#orbit) · [voronoi](#voronoi) · [stencil](#stencil) · [constellation](#constellation) · [skyline](#skyline) · [metro](#metro) · [pebble](#pebble)
+- [Styles](#styles) — [grid](#grid) · [honeycomb](#honeycomb) · [mosaic](#mosaic) · [spiral](#spiral) · [orbit](#orbit) · [voronoi](#voronoi) · [stencil](#stencil) · [silhouette](#silhouette) · [constellation](#constellation) · [skyline](#skyline) · [metro](#metro) · [pebble](#pebble)
 - [Theme](#theme)
 - [Sections and roles](#sections-and-roles)
 - [Emphasising a person](#emphasising-a-person)
@@ -341,6 +341,63 @@ only what your crowd covers.
 Size the word to your crowd: the block is the same size whether one person or six
 hundred show up, so a long word with few contributors is mostly ghosts.
 
+### Silhouette
+
+Stencil with a picture where the word was: point `image` at a logo, a mascot, or any
+shape in your repository, and its outline is traced onto a lattice of pixels for
+avatars to fill. The picture fills from its middle outward — the heaviest contributor
+sits at the heart of it, and each newcomer lands on the rim of the crowd so far — with
+the same faint dots on every pixel still waiting for someone.
+
+```yaml
+style: silhouette
+silhouette:
+  image: examples/assets/heart.svg
+  resolution: 12
+  pixel_size: 18
+  gap: 2
+```
+
+Same picture, same geometry, 12 people and then 47:
+
+![silhouette with twelve people](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/silhouette.svg)
+
+![silhouette with forty-seven people](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/silhouette-crowd.svg)
+
+| Option | Default | Accepts |
+| ------ | ------- | ------- |
+| `image` | — (required) | a PNG, JPEG, GIF, WebP, or SVG file up to 7 MB, relative to the repository root |
+| `resolution` | `24` | 4–160 — pixels along the image's longer side; the other side follows its aspect |
+| `pixel_size` | `20` | 8–512 — one pixel, and the avatar that fills it |
+| `gap` | `4` | 0–200 |
+| `shape` | `circle` | `circle`, `rounded`, `square` |
+| `ghosts` | `true` | faint dots on the pixels nobody has filled yet |
+| `ink` | `auto` | `auto`, `alpha`, `dark`, `light` — what in the image counts as the shape |
+| `threshold` | `0.5` | 0.05–0.95 — how much of a pixel has to be ink for it to be part of the shape |
+
+**`ink`** — `alpha` takes anything opaque, whatever its colour: a logo cut out of a
+transparent PNG or an SVG with no background. `dark` takes dark on light (a black logo
+on a white JPEG) and `light` the other way round. `auto` picks `alpha` when the image
+has a transparent background, and otherwise whichever of `dark` and `light` is not the
+colour of the image's own border — so it only needs saying for a picture that runs off
+its edges. Whichever it is, the strongest ink in the image counts as full ink, so an
+orange or yellow logo on white traces as well as a black one.
+
+**`resolution`** is the trade between likeness and headcount. Fine detail — thin
+strokes, lettering inside a logo — needs pixels to survive, and every pixel is a seat:
+a heart at `12` has about a hundred, at `24` closer to four hundred. A bolder image at a
+lower resolution usually reads better than an intricate one at a high one; if a thin
+part breaks up, lower `threshold` to keep it.
+
+**A PNG and square pixels** — `image: examples/assets/star.png`, `resolution: 17`,
+`shape: square`:
+
+![silhouette traced from a PNG star](https://raw.githubusercontent.com/crystal-actions/contributor-mural/main/examples/variants/silhouette-png.svg)
+
+The image is read with `rsvg-convert`, which the action image ships with; a local run
+needs librsvg installed even for `.svg` outputs. It has to be a file in the repository
+rather than a URL, so the mural only changes when something in the repository does.
+
 ### Constellation
 
 A night sky: every contributor is a star whose size and glow follow their rank, near
@@ -601,7 +658,7 @@ and a huge commit count still only means "first". `scale` names the person inste
 | `constellation` | multiplies the star size; the sky keeps everyone a full `gap` apart around it |
 | `skyline` | multiplies the building's height — the emphasised tower rises above the wall; the avatar keeps its size |
 | `pebble` | multiplies the pebble's diameter; the pack pushes its neighbours aside to make room |
-| `grid`, `honeycomb`, `stencil`, `metro` | ignored — in a fixed lattice a larger avatar either overlaps its neighbours or leaves a hole |
+| `grid`, `honeycomb`, `stencil`, `silhouette`, `metro` | ignored — in a fixed lattice a larger avatar either overlaps its neighbours or leaves a hole |
 | `voronoi` | ignored — cells are cut out of the block rather than placed, so there is no per-user size to multiply |
 
 A `scale` the chosen style cannot honour is reported as a workflow warning rather than
@@ -873,7 +930,8 @@ on a fractional one.
 
 ```yaml
 style: grid                 # grid | honeycomb | mosaic | spiral | orbit | voronoi |
-                            # stencil | constellation | skyline | metro | pebble
+                            # stencil | silhouette | constellation | skyline |
+                            # metro | pebble
 output: CONTRIBUTOR_MURAL.svg    # path relative to the repository root
 
 # --- Sources: write a block to enable it; results are merged ---
@@ -1004,6 +1062,17 @@ stencil:                    # avatars fill the pixels of a word
   shape: circle             # circle | rounded | square
   ghosts: true              # faint dots on the pixels nobody has filled yet
 
+silhouette:                 # avatars fill the outline of an image
+  image: .github/logo.png   # required for this style: PNG, JPEG, GIF, WebP, or SVG,
+                            # relative to the repository root
+  resolution: 24            # 4..160, pixels along the image's longer side
+  pixel_size: 20            # one pixel, and the avatar that fills it
+  gap: 4
+  shape: circle             # circle | rounded | square
+  ghosts: true              # faint dots on the pixels nobody has filled yet
+  ink: auto                 # auto | alpha | dark | light — what counts as the shape
+  threshold: 0.5            # 0.05..0.95, how much of a pixel must be ink
+
 constellation:              # a night sky; rank sets each star's size and glow
   width: 720
   max_size: 64              # the brightest star
@@ -1100,8 +1169,8 @@ those messages name their version too.
   push/schedule/dispatch triggers, or set `no_commit: true` and handle the file yourself.
 - SVG size grows with user count (roughly 5–15 KB per avatar). Use `limit` and moderate
   avatar sizes for large walls.
-- PNG output uses `rsvg-convert`, bundled in the action image. For local runs install
-  librsvg (`brew install librsvg` / `apt install librsvg2-bin` / `apk add rsvg-convert`).
+- PNG output and the `silhouette` style use `rsvg-convert`, bundled in the action image.
+  For local runs install librsvg (`brew install librsvg` / `apt install librsvg2-bin` / `apk add rsvg-convert`).
 - `sponsors` always needs a `token` (GraphQL API); the default `github.token` works for
   public sponsor lists.
 
@@ -1174,7 +1243,7 @@ cannot drift from what the renderer does. To regenerate them (needs network — 
 come from github.com):
 
 ```bash
-bin/contributor-mural -c examples/showcase.yml            # the eleven style heroes
+bin/contributor-mural -c examples/showcase.yml            # the twelve style heroes
 for f in examples/variants/*.yml; do bin/contributor-mural -c "$f"; done
 ```
 

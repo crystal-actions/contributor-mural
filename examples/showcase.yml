@@ -47,6 +47,8 @@ outputs:
     style: voronoi
   - path: examples/stencil.svg
     style: stencil
+  - path: examples/silhouette.svg
+    style: silhouette
   - path: examples/constellation.svg
     style: constellation
   - path: examples/skyline.svg
@@ -89,6 +91,12 @@ voronoi:
 stencil:
   text: THANKS
   pixel_size: 14
+  gap: 2
+
+silhouette:
+  image: examples/assets/heart.svg
+  resolution: 12
+  pixel_size: 18
   gap: 2
 
 constellation:

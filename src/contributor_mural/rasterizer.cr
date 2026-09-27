@@ -24,7 +24,10 @@ module ContributorMural
       end
       output.to_slice
     rescue ex : IO::Error
-      raise RasterError.new("PNG output requires `rsvg-convert` (librsvg) on PATH — #{ex.message}")
+      # This is reached by PNG outputs and by a silhouette reading its image,
+      # so the message names both rather than guessing which one got here.
+      raise RasterError.new("`rsvg-convert` (librsvg) is not on PATH — PNG outputs and the silhouette " \
+                            "style need it (#{ex.message})")
     end
   end
 end

@@ -25,16 +25,21 @@ private def render_hostile(style : String) : String
         name: plain
         group: #{quoted}
         weight: 1
+    silhouette:
+      image: logo.svg
+      resolution: 6
     YAML
 
   workspace = File.tempname("mural_svg")
   Dir.mkdir_p(workspace)
+  FileUtils.cp(SpecHelper.fixture("silhouette", "ell.svg"), File.join(workspace, "logo.svg"))
   annotations = IO::Memory.new
   ContributorMural::Annotations.io = annotations
   begin
     config = ContributorMural::Config.parse(yaml)
     config.validate!
-    code = ContributorMural::Runner.new(config, FakeAvatarSource.new, workspace).run
+    code = ContributorMural::Runner.new(config, FakeAvatarSource.new, workspace,
+      rasterizer: ContributorMural::RsvgRasterizer.new).run
     code.should eq(0), "#{style} did not render: #{annotations}"
     File.read(File.join(workspace, "out.svg"))
   ensure
@@ -117,7 +122,7 @@ describe ContributorMural::SVG do
     end
   end
 
-  {"grid", "honeycomb", "mosaic", "spiral", "orbit", "voronoi", "stencil", "constellation", "skyline", "metro", "pebble"}.each do |style|
+  {"grid", "honeycomb", "mosaic", "spiral", "orbit", "voronoi", "stencil", "silhouette", "constellation", "skyline", "metro", "pebble"}.each do |style|
     it "writes well-formed XML for #{style} however a user is named" do
       svg = render_hostile(style)
 

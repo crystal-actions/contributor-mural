@@ -470,6 +470,51 @@ describe ContributorMural::Runner do
     end
   end
 
+  describe "a silhouette" do
+    yaml = <<-YAML
+      output: wall.svg
+      style: silhouette
+      silhouette:
+        image: art/ell.svg
+        resolution: 6
+      users:
+        - login: alpha
+        - login: bravo
+        - login: charlie
+      YAML
+    seed = ->(workspace : String) do
+      Dir.mkdir_p(File.join(workspace, "art"))
+      FileUtils.cp(SpecHelper.fixture("silhouette", "ell.svg"), File.join(workspace, "art", "ell.svg"))
+      nil
+    end
+
+    it "traces its image from the repository and fills it" do
+      run_in_tmp(yaml, rasterizer: ContributorMural::RsvgRasterizer.new, before: seed) do |exit_code, _outputs, workspace|
+        exit_code.should eq(0)
+        svg = File.read(File.join(workspace, "wall.svg"))
+        svg.scan(/<image /).size.should eq(3)
+        # Sixteen lit cells and three people: the rest are ghosts.
+        svg.should contain(%(<g class="mural-ghost"))
+      end
+    end
+
+    it "needs librsvg even when every output is an SVG" do
+      run_in_tmp(yaml, before: seed) do |exit_code, _outputs, workspace|
+        exit_code.should eq(1)
+        ContributorMural::Annotations.io.to_s.should contain("reads its `image` with librsvg")
+        File.exists?(File.join(workspace, "wall.svg")).should be_false
+      end
+    end
+
+    it "fails before writing anything when the image is missing" do
+      run_in_tmp(yaml, rasterizer: ContributorMural::RsvgRasterizer.new) do |exit_code, _outputs, workspace|
+        exit_code.should eq(1)
+        ContributorMural::Annotations.io.to_s.should contain("silhouette `image` not found: art/ell.svg")
+        File.exists?(File.join(workspace, "wall.svg")).should be_false
+      end
+    end
+  end
+
   it "fails cleanly when a png is requested without a rasterizer" do
     yaml = <<-YAML
       output: wall.png

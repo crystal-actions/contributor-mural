@@ -117,35 +117,19 @@ module ContributorMural
       end
     end
 
-    # Reads a workspace-relative avatar. The config validator rejects `..` and
-    # absolute paths lexically; realpath closes the symlink escape.
+    # Reads a workspace-relative avatar.
     private def read_local(path : String) : {Bytes, String}
       content_type = CONTENT_TYPES[File.extname(path).downcase]?
       unless content_type
         raise AvatarError.new("unsupported local avatar type: #{path} (use #{CONTENT_TYPES.keys.join("/")})")
       end
-      full = File.join(@workspace, path)
-      raise AvatarError.new("local avatar not found: #{path}", 404) unless File.file?(full)
-
-      begin
-        resolved = File.realpath(full)
-        root = File.realpath(@workspace)
-      rescue ex : File::Error
-        raise AvatarError.new("local avatar could not be read: #{path} (#{ex.message})")
-      end
-      unless resolved == root || resolved.starts_with?("#{root}#{File::SEPARATOR}")
-        raise AvatarError.new("local avatar escapes the repository: #{path}")
-      end
-
-      size = File.size(resolved)
-      if size > MAX_BYTES
-        raise AvatarError.new("local avatar is too large: #{path} (#{size} bytes, limit #{MAX_BYTES})")
-      end
-
-      begin
-        {File.read(resolved).to_slice, content_type}
-      rescue ex : File::Error
-        raise AvatarError.new("local avatar could not be read: #{path} (#{ex.message})")
+      {WorkspaceFile.read(@workspace, path, MAX_BYTES), content_type}
+    rescue ex : WorkspaceFile::Error
+      case ex.failure
+      in .missing?    then raise AvatarError.new("local avatar not found: #{path}", 404)
+      in .escapes?    then raise AvatarError.new("local avatar escapes the repository: #{path}")
+      in .too_large?  then raise AvatarError.new("local avatar is too large: #{path} (#{ex.message})")
+      in .unreadable? then raise AvatarError.new("local avatar could not be read: #{path} (#{ex.message})")
       end
     end
 

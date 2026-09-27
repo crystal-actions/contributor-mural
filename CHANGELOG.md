@@ -7,6 +7,30 @@ and the generated files.
 
 ## Unreleased
 
+### Added
+
+- The `silhouette` style: stencil with a picture where the word was. Point
+  `silhouette.image` at a PNG, JPEG, GIF, WebP, or SVG in the repository and its
+  outline is traced onto a lattice of pixels, one avatar per pixel, with ghost dots on
+  the pixels still waiting. It fills from the middle outward, so the heaviest
+  contributor sits at the centre. `resolution` sets how many pixels run along the
+  image's longer side, `ink` says what counts as the shape (`auto`, `alpha`, `dark`,
+  `light`), and `threshold` how much of a pixel has to be covered. The image is read
+  with `rsvg-convert`, so a local run needs librsvg for this style even when every
+  output is an SVG, and it can be at most 7 MB.
+
+### Fixed
+
+- A person listed in a second section with `also_in` is fetched for the largest seat
+  they are drawn in on a stencil wall. They used to be sized for their primary
+  section alone, so a face that sat in a crowded `group` and a sparse `also_in`
+  section came out blurred in the sparse one.
+
+### Changed
+
+- The error for a missing `rsvg-convert` names both things that need it, PNG outputs
+  and the silhouette style, instead of PNG outputs alone.
+
 ## v1.5.0
 
 ### Added

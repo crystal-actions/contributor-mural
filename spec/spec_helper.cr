@@ -7,6 +7,11 @@ module SpecHelper
   def self.fixture(*parts : String) : String
     (FIXTURES / Path[*parts]).to_s
   end
+
+  # A picture for the specs that build every style in turn. A silhouette is
+  # the one style that needs something traced before it can exist, and tracing
+  # is librsvg's job — which is spec/silhouette_spec.cr's business, not theirs.
+  MASK = ContributorMural::SilhouetteMask.parse("####\n####\n####\n")
 end
 
 # Annotations are workflow output, not spec output: a source that narrates what

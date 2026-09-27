@@ -33,7 +33,7 @@ private def readme_configs(readme : String) : Array({Int32, String})
   end
 
   workflow = /^\s*(uses|runs-on|steps|jobs|permissions):/m
-  mural = /^(style|output|outputs|users|groups|contributors|members|stargazers|sponsors|exclude|sort|limit|fail_on_missing|grid|honeycomb|mosaic|spiral|orbit|voronoi|stencil|constellation|skyline|metro|pebble|theme|png):/m
+  mural = /^(style|output|outputs|users|groups|contributors|members|stargazers|sponsors|exclude|sort|limit|fail_on_missing|grid|honeycomb|mosaic|spiral|orbit|voronoi|stencil|silhouette|constellation|skyline|metro|pebble|theme|png):/m
   blocks.select { |(_line, text)| text.matches?(mural) && !text.matches?(workflow) }
 end
 
@@ -65,8 +65,10 @@ describe "examples" do
 
   it "shows every generated example somewhere in the README" do
     readme = File.read(repo_file("README.md"))
+    # `examples/assets` holds what the configs read, not what they write.
     svgs = Dir[repo_file("examples", "**", "*.svg")]
       .map { |path| Path[path].relative_to(REPO_ROOT).to_s }
+      .reject(&.starts_with?("examples/assets/"))
       .sort!
 
     unused = svgs.reject { |path| readme.includes?(path) }
@@ -91,7 +93,14 @@ describe "examples" do
       configs.each do |path|
         relative = Path[path].relative_to(REPO_ROOT)
         config = ContributorMural::Config.load(path)
-        runner = ContributorMural::Runner.new(config, FakeAvatarSource.new, workspace)
+        # A silhouette reads its image from the repository, which here is the
+        # throwaway workspace — so the picture goes there first.
+        if image = config.silhouette.image
+          Dir.mkdir_p(File.dirname(File.join(workspace, image)))
+          FileUtils.cp(repo_file(image), File.join(workspace, image))
+        end
+        runner = ContributorMural::Runner.new(config, FakeAvatarSource.new, workspace,
+          rasterizer: ContributorMural::RsvgRasterizer.new)
         runner.run.should eq(0), "#{relative} did not render:\n#{annotations}"
 
         runner.written_paths.each do |written|

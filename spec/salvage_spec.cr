@@ -261,7 +261,7 @@ describe "ContributorMural::AvatarSalvage against every style" do
 
     ContributorMural::Style.each do |style|
       config = ContributorMural::Config.parse("style: #{style.to_s.downcase}\ngroups: [Team]\n")
-      renderer = ContributorMural::Renderer.for(style, config)
+      renderer = ContributorMural::Renderer.for(style, config, mask: SpecHelper::MASK)
       renderer.prepare(users)
       embedded, _skipped = ContributorMural::Embedder.new(FakeAvatarSource.new)
         .embed(users, renderer, false)

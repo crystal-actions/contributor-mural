@@ -21,7 +21,7 @@ private def render_grid(config : ContributorMural::Config, mode : ContributorMur
 end
 
 # `grouped` is shared by every style, so a person filed under two sections is
-# drawn twice by all eleven of them — and the base class is what has to keep
+# drawn twice by all twelve of them — and the base class is what has to keep
 # that from costing a second copy of their avatar in the file.
 describe "every style with a multi-section user" do
   ContributorMural::Style.each do |style|
@@ -43,7 +43,7 @@ describe "every style with a multi-section user" do
         YAML
 
       users = ContributorMural::Resolver.resolve(config)
-      renderer = ContributorMural::Renderer.for(config.style, config)
+      renderer = ContributorMural::Renderer.for(config.style, config, mask: SpecHelper::MASK)
       renderer.prepare(users)
       embedded, _ = ContributorMural::Embedder.new(FakeAvatarSource.new)
         .embed(users, renderer, fail_on_missing: false)
@@ -67,7 +67,7 @@ describe ContributorMural::Renderer do
     it "builds the renderer named after each style" do
       config = config_for
       ContributorMural::Style.each do |style|
-        renderer = ContributorMural::Renderer.for(style, config)
+        renderer = ContributorMural::Renderer.for(style, config, mask: SpecHelper::MASK)
         renderer.class.name.should eq("ContributorMural::Renderers::#{style}")
       end
     end
@@ -121,7 +121,7 @@ describe ContributorMural::Renderer do
         YAML
 
       ContributorMural::Style.each do |style|
-        renderer = ContributorMural::Renderer.for(style, config)
+        renderer = ContributorMural::Renderer.for(style, config, mask: SpecHelper::MASK)
         users = ContributorMural::Resolver.resolve(config)
         renderer.prepare(users)
         embedded, _ = ContributorMural::Embedder.new(FakeAvatarSource.new)
@@ -148,7 +148,8 @@ describe ContributorMural::Renderer do
     # sizes cells by cutting the block up rather than by placing a shape.
     it "is false for the styles that cannot place an oversized avatar" do
       {ContributorMural::Style::Grid, ContributorMural::Style::Honeycomb,
-       ContributorMural::Style::Stencil, ContributorMural::Style::Metro,
+       ContributorMural::Style::Stencil, ContributorMural::Style::Silhouette,
+       ContributorMural::Style::Metro,
        ContributorMural::Style::Voronoi}.each do |style|
         ContributorMural::Renderer.honors_scale?(style).should be_false, style.to_s
       end
@@ -159,7 +160,7 @@ describe ContributorMural::Renderer do
     it "classifies every style" do
       honoring = ContributorMural::Style.values.count { |style| ContributorMural::Renderer.honors_scale?(style) }
       honoring.should eq(6)
-      ContributorMural::Style.values.size.should eq(11)
+      ContributorMural::Style.values.size.should eq(12)
     end
   end
 end

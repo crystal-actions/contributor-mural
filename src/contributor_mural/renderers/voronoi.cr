@@ -40,14 +40,16 @@ module ContributorMural::Renderers
     @ranks = {} of String => Float64
     @section = 0
     @next_cell = 0
-    @headcount = 0
+    # How many people each section holds; a fixed row count divides each one
+    # on its own.
+    @section_sizes = [] of Int32
 
     # Dense rank over the *distinct* weight values, not over users: a
     # contributor with 1000x the commits lands at the top of the scale exactly
     # like one with 2x, so an outlier can never distort the geometry. All-equal
     # weights leave the table empty, which reduces to a plain Voronoi.
     def prepare(users : Array(ResolvedUser)) : Nil
-      @headcount = users.size
+      @section_sizes = users.flat_map(&.sections).tally.values
       distinct = users.map(&.weight).uniq!.sort!
       return if distinct.size <= 1
 
@@ -131,13 +133,14 @@ module ContributorMural::Renderers
 
     # The fewest cells a row can hold, which is the widest a cell can get —
     # what the avatar has to be fetched large enough to fill. A fixed row count
-    # divides the crowd `prepare` saw; without one the pitch rules, and a row
-    # never holds fewer than the columns that pitch asks for.
+    # divides every section `prepare` saw, and the smallest one spreads thinnest;
+    # without one the pitch rules, and a row never holds fewer than the columns
+    # that pitch asks for.
     private def loosest_row : Int32
       columns = column_target
       rows = @config.voronoi.rows
-      return columns unless rows && @headcount.positive?
-      Math.min(columns, Math.max((@headcount + rows - 1) // rows, 1))
+      return columns if rows.nil? || @section_sizes.empty?
+      @section_sizes.min_of { |count| Math.min(columns, count // Math.min(rows, count)) }
     end
 
     # {width, height, rows} in closed form. The base class sizes every section

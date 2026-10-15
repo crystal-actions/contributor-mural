@@ -348,7 +348,9 @@ describe ContributorMural::HTTPAvatarSource do
   describe "where it will fetch from" do
     it "refuses an internal address given as the avatar_url itself" do
       source = avatar_source(backoff_base: 0.seconds)
-      {"127.0.0.1", "169.254.169.254", "10.0.0.1", "192.168.1.1", "[::1]", "0.0.0.0"}.each do |host|
+      {"127.0.0.1", "169.254.169.254", "10.0.0.1", "192.168.1.1", "[::1]", "0.0.0.0",
+       "[::ffff:169.254.169.254]", "[::ffff:a00:1]", "[::a9fe:a9fe]", "[64:ff9b::a9fe:a9fe]",
+       "100.100.100.200", "0.1.2.3"}.each do |host|
         error = expect_raises(ContributorMural::AvatarError, /runner's own network/) do
           source.fetch(user_with("http://#{host}/secret.png"), 64)
         end

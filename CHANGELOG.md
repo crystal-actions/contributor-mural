@@ -7,6 +7,24 @@ and the generated files.
 
 ## Unreleased
 
+### Fixed
+
+- An `avatar_url` that spells an internal IPv4 address inside IPv6 —
+  `[::ffff:169.254.169.254]`, the IPv4-compatible `[::a9fe:a9fe]`, or NAT64
+  `[64:ff9b::…]` — is refused like the plain address, and so are `0.0.0.0/8` and
+  the shared `100.64.0.0/10` range. The mapped form used to walk past the check
+  and reach the cloud metadata endpoint.
+- A `rsvg-convert` killed by a signal (an out-of-memory kill on a large wall) fails
+  the run with an error that says so, instead of a Crystal stack trace. Its exit
+  status is now named even when it also printed something to stderr.
+- `honeycomb` with `columns: 1` no longer overlaps each hexagon with the one below.
+- `skyline` raises exactly one antenna per section. Someone also drawn in a second
+  section with `also_in` used to carry their first section's antenna into it, so
+  that section got two and a section of only `also_in` people got none.
+- `voronoi` with a fixed `rows` fetches avatars large enough for its widest cells.
+  It used to size for the fullest row rather than the sparsest, and for the whole
+  wall rather than its smallest section, so those faces came out blurred.
+
 ## v1.6.0
 
 ### Added

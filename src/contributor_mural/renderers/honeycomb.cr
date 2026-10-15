@@ -24,7 +24,7 @@ module ContributorMural::Renderers
       cell_w = hc.cell_size.to_f
       cell_h = cell_w * 2 / Math.sqrt(3.0)
       gap = hc.gap.to_f
-      pitch = 0.75 * cell_h + gap
+      pitch = row_pitch(cell_h, gap)
 
       cells = positions(users.size, hc.columns)
       rows_used = cells.empty? ? 0 : cells.last[0] + 1
@@ -42,7 +42,7 @@ module ContributorMural::Renderers
       cell_w = hc.cell_size.to_f
       cell_h = cell_w * 2 / Math.sqrt(3.0)
       gap = hc.gap.to_f
-      pitch = 0.75 * cell_h + gap
+      pitch = row_pitch(cell_h, gap)
       cells = positions(users.size, hc.columns)
 
       users.each_with_index do |user, index|
@@ -53,6 +53,12 @@ module ContributorMural::Renderers
 
         linked(io, user) { avatar(io, user, x, y, cell_w, cell_h, CLIP_ID) }
       end
+    end
+
+    # Rows nest a quarter-hex into each other only when odd rows shift half a
+    # cell; a single column never shifts, so its hexes have to stack whole.
+    private def row_pitch(cell_h : Float64, gap : Float64) : Float64
+      (@config.honeycomb.columns > 1 ? 0.75 * cell_h : cell_h) + gap
     end
 
     # {row, col} for each index; odd rows hold one item less so their shifted

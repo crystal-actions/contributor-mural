@@ -19,8 +19,12 @@ module ContributorMural
       status = Process.run(@binary, ["--format", "png", "--zoom", scale.to_s],
         input: IO::Memory.new(svg), output: output, error: error)
       unless status.success?
-        detail = error.to_s.strip.presence || "exit #{status.exit_code}"
-        raise RasterError.new("rsvg-convert failed: #{detail}")
+        # Always named, even beside stderr: an OOM kill on a big wall can follow
+        # an unrelated warning. `exit_code` itself raises on a signal, which
+        # would escape as a stack trace instead of this error.
+        reason = status.exit_code? ? "exit #{status}" : "killed by #{status}"
+        detail = error.to_s.strip
+        raise RasterError.new("rsvg-convert failed (#{reason})#{": #{detail}" unless detail.empty?}")
       end
       output.to_slice
     rescue ex : IO::Error

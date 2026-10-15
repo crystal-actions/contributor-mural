@@ -14,4 +14,15 @@ describe ContributorMural::RsvgRasterizer do
       rasterizer.rasterize(TINY_SVG, 1.0)
     end
   end
+
+  it "reports a rasterizer killed by a signal as a RasterError" do
+    script = File.tempname("rsvg-killed", ".sh")
+    File.write(script, "#!/bin/sh\nkill -9 $$\n")
+    File.chmod(script, 0o755)
+    expect_raises(ContributorMural::RasterError, /killed by KILL/) do
+      ContributorMural::RsvgRasterizer.new(binary: script).rasterize(TINY_SVG, 1.0)
+    end
+  ensure
+    File.delete?(script) if script
+  end
 end

@@ -195,4 +195,29 @@ describe ContributorMural::Renderers::Skyline do
     renderer.fetch_size(users.first).should eq(96) # avatar_size 48 * 2
     renderer.fetch_size(users.last).should eq(96)
   end
+
+  it "raises exactly one mast per section, even for someone also drawn elsewhere" do
+    svg = render_skyline(<<-YAML)
+      style: skyline
+      groups: [A, B]
+      users:
+        - login: big
+          weight: 100
+          group: A
+          also_in: [B]
+        - login: a2
+          weight: 1
+          group: A
+        - login: b1
+          weight: 50
+          group: B
+        - login: b2
+          weight: 2
+          group: B
+      YAML
+    sections = svg.split(%(font-weight="600"))
+    sections.size.should eq(3)
+    # The mast is the only 2px-wide rect a building draws.
+    sections[1..].each { |section| section.scan(/<rect [^>]*width="2" /).size.should eq(1) }
+  end
 end

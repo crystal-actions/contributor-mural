@@ -238,4 +238,24 @@ describe ContributorMural::Renderers::Voronoi do
     # the pitch alone would have asked for.
     renderer.fetch_size(ContributorMural::ResolvedUser.new("x")).should eq(1080)
   end
+
+  it "sizes for the sparsest row when a fixed row count does not divide the crowd" do
+    config = ContributorMural::Config.parse("style: voronoi\nvoronoi:\n  rows: 4\n#{ranked_users(5)}")
+    renderer = ContributorMural::Renderer.for(ContributorMural::Style::Voronoi, config)
+    renderer.prepare(ContributorMural::Resolver.resolve(config))
+    # Five over four rows leaves rows of one, each a full 720px across.
+    renderer.fetch_size(ContributorMural::ResolvedUser.new("x")).should eq(2160)
+  end
+
+  it "sizes for the smallest section, which a fixed row count spreads thinnest" do
+    users = String.build do |io|
+      io << "groups: [A, B]\nusers:\n"
+      20.times { |index| io << "  - login: u#{index}\n    group: #{index < 2 ? "A" : "B"}\n" }
+    end
+    config = ContributorMural::Config.parse("style: voronoi\nvoronoi:\n  rows: 4\n#{users}")
+    renderer = ContributorMural::Renderer.for(ContributorMural::Style::Voronoi, config)
+    renderer.prepare(ContributorMural::Resolver.resolve(config))
+    # A's two people take a 720px row each, whatever B's eighteen do.
+    renderer.fetch_size(ContributorMural::ResolvedUser.new("x")).should eq(2160)
+  end
 end

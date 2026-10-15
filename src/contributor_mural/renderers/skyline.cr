@@ -46,7 +46,6 @@ module ContributorMural::Renderers
     private alias Labelled = ResolvedUser | EmbeddedUser
 
     @heights = {} of String => Float64
-    @antenna = Set(String).new
     @gutter = 0.0
     @section = 0
 
@@ -94,14 +93,6 @@ module ContributorMural::Renderers
         end
       end
 
-      # One mast per section's skyline: its tallest tower, first on ties.
-      users.group_by(&.group).each_value do |members|
-        mast = members.first
-        members.each do |member|
-          mast = member if height_for(member.login) > height_for(mast.login)
-        end
-        @antenna << mast.login
-      end
       @gutter = overhang(users)
     end
 
@@ -133,7 +124,7 @@ module ContributorMural::Renderers
 
     protected def block_size(users : Array(EmbeddedUser)) : {Float64, Float64}
       return {16.0, 16.0} if users.empty?
-      _rows, width, height = layout(users)
+      _rows, width, height, _mast = layout(users)
       {width, height}
     end
 
@@ -141,7 +132,7 @@ module ContributorMural::Renderers
       return if users.empty?
 
       skyline = @config.skyline
-      rows, width, _height = layout(users)
+      rows, width, _height, mast = layout(users)
       wall = skyline.avatar_size + 2 * PAD
       left = skyline.gap + gutter_for(users)
       clipped = !skyline.shape.square?
@@ -150,10 +141,11 @@ module ContributorMural::Renderers
       building = 0
       rows.each_with_index do |row, index|
         y += ROW_GAP if index.positive?
-        baseline = y + TOP_PAD + extent(row)
+        baseline = y + TOP_PAD + extent(row, mast)
         io << %(  <rect x="0" y="#{SVG.num(baseline)}" width="#{SVG.num(width)}" height="#{SVG.num(GROUND_H)}" #{ground_paint}/>\n)
         row.each_with_index do |user, column|
-          draw_building(io, user, building, left + column * (wall + skyline.gap), wall, baseline, clipped)
+          draw_building(io, user, building, left + column * (wall + skyline.gap), wall, baseline, clipped,
+            user.login == mast)
           building += 1
         end
         y = baseline + GROUND_H
@@ -163,21 +155,22 @@ module ContributorMural::Renderers
       @section += 1
     end
 
-    # {rows, block width, block height}; pure, so sizing and drawing agree.
-    private def layout(users : Array(EmbeddedUser)) : {Array(Array(EmbeddedUser)), Float64, Float64}
+    # {rows, block width, block height, mast}; pure, so sizing and drawing agree.
+    private def layout(users : Array(EmbeddedUser)) : {Array(Array(EmbeddedUser)), Float64, Float64, String}
       skyline = @config.skyline
       rows = users.each_slice(columns).to_a
       used = Math.min(columns, users.size)
+      mast = mast_of(users)
       inset = skyline.gap + gutter_for(users)
       width = 2 * inset + used * (skyline.avatar_size + 2 * PAD) + (used - 1) * skyline.gap
 
       height = 0.0
       rows.each_with_index do |row, index|
         height += ROW_GAP if index.positive?
-        height += TOP_PAD + extent(row) + GROUND_H
+        height += TOP_PAD + extent(row, mast) + GROUND_H
         height += LABEL_H if skyline.show_names?
       end
-      {rows, width, height}
+      {rows, width, height, mast}
     end
 
     private def columns : Int32
@@ -186,15 +179,23 @@ module ContributorMural::Renderers
       Math.max((skyline.width + skyline.gap) // pitch, 1)
     end
 
+    # One mast per section's skyline: its tallest tower, first on ties. Read
+    # off the section being drawn, not the document: someone also drawn in a
+    # second section (`also_in`) must not carry their first section's mast
+    # into it, and someone whose avatar never arrived must not take one away.
+    private def mast_of(users : Array(EmbeddedUser)) : String
+      users.max_by { |user| height_for(user.login) }.login
+    end
+
     # A row is as tall as its tallest building, mast included.
-    private def extent(row : Array(EmbeddedUser)) : Float64
+    private def extent(row : Array(EmbeddedUser), mast : String) : Float64
       row.max_of do |user|
-        height_for(user.login) + (@antenna.includes?(user.login) ? ANTENNA_H : 0.0)
+        height_for(user.login) + (user.login == mast ? ANTENNA_H : 0.0)
       end
     end
 
     private def draw_building(io : String::Builder, user : EmbeddedUser, index : Int32, x : Float64,
-                              wall : Float64, baseline : Float64, clipped : Bool) : Nil
+                              wall : Float64, baseline : Float64, clipped : Bool, antenna : Bool) : Nil
       skyline = @config.skyline
       height = height_for(user.login)
       top = baseline - height
@@ -210,7 +211,7 @@ module ContributorMural::Renderers
       linked(io, user) do
         io << %(    <g #{building_paint}>\n)
         draw_roof(io, (noise(index * 3 + 1, salt) * ROOF_TYPES).to_i, body_x, body_w, top, height)
-        if @antenna.includes?(user.login)
+        if antenna
           io << %(      <rect x="#{SVG.num(x + wall / 2 - ANTENNA_W / 2)}" y="#{SVG.num(top - ANTENNA_H)}" width="#{SVG.num(ANTENNA_W)}" height="#{SVG.num(ANTENNA_H)}"/>\n)
         end
         io << "    </g>\n"

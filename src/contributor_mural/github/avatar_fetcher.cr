@@ -286,7 +286,26 @@ module ContributorMural
     end
 
     private def internal_address?(address : Socket::IPAddress) : Bool
+      address = embedded_v4(address) || address
+      if octets = Socket::IPAddress.parse_v4_fields?(address.address)
+        # "This network" (0/8) and shared CGNAT space (100.64/10, where one
+        # cloud keeps its metadata endpoint) are not the public internet either.
+        return true if octets[0] == 0 || (octets[0] == 100 && octets[1] & 0xc0 == 64)
+      end
       address.loopback? || address.private? || address.link_local? || address.unspecified?
+    end
+
+    # IPv6 that carries an IPv4 address in its last 32 bits reaches that IPv4
+    # host — mapped (`::ffff:0:0/96`), compatible (`::/96`) and NAT64
+    # (`64:ff9b::/96`) — but the IPv6 predicates only know `::ffff:127.0.0.0/104`,
+    # so `[::ffff:169.254.169.254]` walked straight past them. Read off the
+    # parsed fields rather than the printed form, which is free to change.
+    private def embedded_v4(address : Socket::IPAddress) : Socket::IPAddress?
+      fields = Socket::IPAddress.parse_v6_fields?(address.address)
+      return unless fields
+      prefix = {fields[0], fields[1], fields[2], fields[3], fields[4], fields[5]}
+      return unless prefix.in?({0, 0, 0, 0, 0, 0xffff}, {0, 0, 0, 0, 0, 0}, {0x64, 0xff9b, 0, 0, 0, 0})
+      Socket::IPAddress.v4(fields[6] >> 8, fields[6] & 0xff, fields[7] >> 8, fields[7] & 0xff, port: 0)
     end
   end
 end

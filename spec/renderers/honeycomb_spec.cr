@@ -89,4 +89,24 @@ describe ContributorMural::Renderers::Honeycomb do
     renderer = ContributorMural::Renderer.for(ContributorMural::Style::Honeycomb, config)
     renderer.fetch_size(ContributorMural::ResolvedUser.new("x")).should eq(120)
   end
+
+  it "stacks a single column without overlapping the hexagons" do
+    config = ContributorMural::Config.parse(<<-YAML)
+      style: honeycomb
+      sort: none
+      users:
+        - login: a
+        - login: b
+      honeycomb:
+        columns: 1
+        cell_size: 60
+        gap: 4
+      YAML
+
+    svg = render_honeycomb(config)
+    # No odd-row shift to nest into, so the next hex starts a whole
+    # height (60 * 2/√3 = 69.28) plus the gap below the first.
+    svg.should contain(%(x="4" y="4"))
+    svg.should contain(%(x="4" y="77.28"))
+  end
 end

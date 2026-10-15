@@ -397,7 +397,9 @@ module ContributorMural
         raise ApiError.new("sponsors: no user or organization named #{login.inspect}")
       end
       connection = owner.dig?("sponsorshipsAsMaintainer")
-      raise ApiError.new("sponsors: #{login} does not expose sponsorships") unless connection
+      unless connection && connection["nodes"]?.try(&.as_a?)
+        raise ApiError.new("sponsors: #{login} does not expose sponsorships")
+      end
       connection
     end
 

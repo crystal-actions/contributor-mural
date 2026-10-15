@@ -281,3 +281,11 @@ private def auto_config(count : Int32) : ContributorMural::Config
       show_names: false
     YAML
 end
+
+describe "ContributorMural::Renderer label measure" do
+  it "counts emoji and symbols as a full em, so the canvas holds them" do
+    config = ContributorMural::Config.parse("style: grid\nusers:\n  - login: sparkle\n    name: #{"✨" * 12}\ngrid:\n  truncate: 0\n")
+    width = render(config).match!(/<svg[^>]* width="([0-9.]+)"/)[1].to_f
+    width.should be >= 12 * 11.0
+  end
+end

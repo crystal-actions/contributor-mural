@@ -155,16 +155,27 @@ module ContributorMural
           second.start_line)
       end
 
-      mapping = documents.first?.try(&.nodes.first?)
-      return unless mapping.is_a?(YAML::Nodes::Mapping)
-      seen = Set(String).new
-      mapping.each do |key, _value|
-        name = key.as?(YAML::Nodes::Scalar).try(&.value)
-        next if name.nil? || seen.add?(name)
-        raise ConfigError.new(
-          "`#{name}` is set twice — YAML keeps only the last one, so everything " \
-          "written under the first is ignored",
-          key.start_line)
+      documents.first?.try(&.nodes.first?).try { |root| reject_duplicate_keys(root) }
+    end
+
+    # At every depth: `columns` set twice under `grid:`, or `weight` twice in one
+    # user entry, is the same silent last-wins as a repeated top-level key.
+    private def self.reject_duplicate_keys(node : YAML::Nodes::Node) : Nil
+      case node
+      when YAML::Nodes::Mapping
+        seen = Set(String).new
+        node.each do |key, value|
+          name = key.as?(YAML::Nodes::Scalar).try(&.value)
+          unless name.nil? || seen.add?(name)
+            raise ConfigError.new(
+              "`#{name}` is set twice — YAML keeps only the last one, so everything " \
+              "written under the first is ignored",
+              key.start_line)
+          end
+          reject_duplicate_keys(value)
+        end
+      when YAML::Nodes::Sequence
+        node.each { |child| reject_duplicate_keys(child) }
       end
     end
 
@@ -441,7 +452,11 @@ module ContributorMural
       unless node.is_a?(YAML::Nodes::Scalar)
         node.raise "Expected a number"
       end
-      node.value.to_f64? || node.raise("Expected a number, not #{node.value.inspect}")
+      # `nan` and `inf` parse as floats, and NaN then slips past every `<` and
+      # `>` a validator tests it with.
+      value = node.value.to_f64?
+      return value if value && value.finite?
+      node.raise("Expected a number, not #{node.value.inspect}")
     end
 
     def self.to_yaml(value : Float64, yaml : YAML::Nodes::Builder) : Nil

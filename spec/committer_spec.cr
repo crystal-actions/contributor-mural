@@ -106,4 +106,22 @@ describe ContributorMural::Committer do
       end
     end
   end
+
+  # A first commit has no `HEAD~1` to reset to, so undoing it used to fail
+  # silently and leave it behind — and the next run then saw a clean index and
+  # reported "already up to date" for files that were never pushed.
+  it "undoes an unpushed first commit too" do
+    root = File.tempname("mural_unborn")
+    Dir.mkdir_p(root)
+    begin
+      git("init", "--initial-branch=main", root)
+      File.write(File.join(root, "wall.svg"), "<svg/>")
+      committer = ContributorMural::Committer.new(root, "msg")
+      expect_raises(ContributorMural::CommitError, /git push/) { committer.commit(["wall.svg"]) }
+      git_output("-C", root, "rev-parse", "--verify", "-q", "HEAD").strip.should be_empty
+      expect_raises(ContributorMural::CommitError, /git push/) { committer.commit(["wall.svg"]) }
+    ensure
+      FileUtils.rm_rf(root)
+    end
+  end
 end

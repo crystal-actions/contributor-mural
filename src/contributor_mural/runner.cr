@@ -126,6 +126,13 @@ module ContributorMural
     # reached the top of the program as an unhandled exception, which in a
     # workflow log means a Crystal stack trace and no annotation at all.
     private def write(path : String, content : Bytes | String) : Nil
+      # The path was checked as a string at load; a symlink in the checkout —
+      # the file itself or a directory on the way to it — is what can still
+      # carry the write somewhere else, and on a pull_request run the checkout
+      # is the contributor's.
+      unless WorkspaceFile.writable?(@workspace, path)
+        raise OutputError.new("refusing to write #{path}: it leads outside the repository through a symlink")
+      end
       full_path = File.join(@workspace, path)
       Dir.mkdir_p(File.dirname(full_path))
       case content

@@ -296,4 +296,18 @@ describe ContributorMural::Renderers::Metro do
     renderer = ContributorMural::Renderer.for(ContributorMural::Style::Metro, config)
     renderer.fetch_size(ContributorMural::ResolvedUser.new("x")).should eq(120)
   end
+
+  # Rows with nothing between them shrink the turn's height, never its width:
+  # the width is what keeps the rail midway between columns, clear of labels.
+  it "keeps a woven rail midway when the turn has to be short" do
+    people = String.build do |io|
+      io << "users:\n"
+      7.times do |index|
+        io << "  - login: u#{index}\n    name: Wolfeschlegelsteinhausen#{index}\n    role: #{index < 6 ? "a" : "b"}\n"
+      end
+    end
+    svg = render_metro("style: metro\nmetro:\n  columns: 2\n  role_lines: true\n  weave: true\n  truncate: 0\n#{people}")
+    widths = svg.scan(/A([0-9.]+) [0-9.]+ 0 0/).map(&.[1]).uniq!
+    widths.size.should eq(1)
+  end
 end

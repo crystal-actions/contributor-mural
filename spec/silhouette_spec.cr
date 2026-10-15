@@ -105,6 +105,20 @@ describe ContributorMural::SilhouetteTracer do
     end
   end
 
+  it "gives the viewBox to the root, not to a prolog that mentions <svg" do
+    in_scratch do |workspace|
+      body = %(<path d="M0 0h10v10h20v10H0z"/></svg>)
+      {
+        %(<!-- a <svg> logo -->\n<svg xmlns="http://www.w3.org/2000/svg" width="30" height="20">#{body}),
+        %(<svg xmlns="http://www.w3.org/2000/svg" data-note="a>b" width="30" height="20">#{body}),
+      }.each_with_index do |svg, index|
+        File.write(File.join(workspace, "bare#{index}.svg"), svg)
+        mask = trace_in(workspace, "bare#{index}.svg")
+        {mask.columns, mask.rows}.should eq({3, 2})
+      end
+    end
+  end
+
   it "finds an SVG behind a long prolog" do
     in_scratch do |workspace|
       svg = File.read(File.join(fixtures, "ell.svg"))

@@ -259,8 +259,9 @@ module ContributorMural
     # Rough advance width for the label fonts (no font metrics available at
     # render time); used to widen the canvas so labels are not clipped.
     protected def text_width(text : String, font_size : Float64) : Float64
-      # CJK and other wide scripts occupy roughly a full em.
-      units = text.each_char.sum { |char| char.ord > 0x2E80 ? 1.0 : 0.55 }
+      # CJK and other wide scripts occupy roughly a full em, and so do the
+      # symbols and emoji from Misc Technical (U+2300) up — ✨, ☕, ⭐.
+      units = text.each_char.sum { |char| char.ord >= 0x2300 ? 1.0 : 0.55 }
       units * font_size
     end
 

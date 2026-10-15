@@ -138,6 +138,24 @@ describe ContributorMural::Config do
       error.line.should eq(4)
     end
 
+    it "refuses a key set twice inside a block or a list entry" do
+      error = expect_raises(ContributorMural::ConfigError, /`columns` is set twice/) do
+        ContributorMural::Config.parse("grid:\n  columns: 3\n  avatar_size: 40\n  columns: 5\nusers:\n  - login: a\n")
+      end
+      error.line.should eq(4)
+      expect_raises(ContributorMural::ConfigError, /`weight` is set twice/) do
+        ContributorMural::Config.parse("users:\n  - login: a\n    weight: 5\n    weight: 1\n")
+      end
+    end
+
+    it "refuses a number that is not finite" do
+      {"nan", "NaN", ".inf", "inf"}.each do |value|
+        expect_raises(ContributorMural::ConfigError, /Expected a number/) do
+          ContributorMural::Config.parse("png:\n  scale: #{value}\nusers:\n  - login: a\n")
+        end
+      end
+    end
+
     it "asks for an org when `members` is written bare" do
       expect_raises(ContributorMural::ConfigError, /`members` needs an `org`/) do
         ContributorMural::Config.parse("members:")

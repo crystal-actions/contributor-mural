@@ -67,7 +67,10 @@ module ContributorMural
           # is settled before `fail_on_missing` is consulted: that option is
           # there to stop a person quietly leaving the picture, and here nobody
           # is leaving it.
-          if kept = previous_faces[SVG.escape(job.user.link)]?
+          # Only for a link nobody else on this wall carries: the face read back
+          # is filed under the link, and a shared one cannot say whose it was.
+          if (kept = previous_faces[SVG.escape(job.user.link)]?) &&
+             users.one? { |user| user.link == job.user.link }
             embedded << EmbeddedUser.new(job.user, kept)
             @salvaged << job.user.login
           elsif fail_on_missing

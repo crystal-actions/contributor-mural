@@ -170,12 +170,19 @@ module ContributorMural::Renderers
       xs = Array(Float64).new
       ys = Array(Float64).new
       ease = 1.0
+      settled = false
       EASE_TRIES.times do
         width, height = slab(radii, ease)
         xs, ys = seed(radii, width, height, salt)
         relax(xs, ys, radii, width, height, line)
-        break if settle(xs, ys, radii, width, height, line)
+        break if settled = settle(xs, ys, radii, width, height, line)
         ease *= EASE
+      end
+      # Every slab was too tight to come to rest in. A wall that runs past
+      # `width` is the lesser failure next to faces drawn over each other, so
+      # the walls come down and the pack separates on its own.
+      unless settled
+        SETTLE_STEPS.times { break unless separate(xs, ys, radii, line) }
       end
 
       left = (0...radii.size).min_of { |index| xs[index] - radii[index] }
@@ -303,7 +310,7 @@ module ContributorMural::Renderers
     # to separate only downward. A wall of ten emphasised avatars came out one
     # per row and eight times taller than it needed to be.
     private def hold(x : Float64, radius : Float64, width : Float64) : Float64
-      return x if width - radius <= radius
+      return x if width - radius < radius
       x.clamp(radius, width - radius)
     end
 

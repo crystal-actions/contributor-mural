@@ -307,13 +307,17 @@ module ContributorMural::Renderers
           # The side this row's travel ends on — a single-station row still
           # turns on its travelling side.
           rightward = mirror ? row.odd? : row.even?
+          # Only the height of the turn gives way to rows that sit close: its
+          # width is what puts the rail midway between columns, clear of the
+          # labels, and a circle shrunk to fit pulled the rail in over them.
           radius = Math.min(rail, (drop - row_line) / 2)
-          side = rightward ? radius : -radius
+          side = rightward ? rail : -rail
           sweep = rightward ? 1 : 0
           edge = col_x.call(stop)
-          track << "A#{SVG.num(radius)} #{SVG.num(radius)} 0 0 #{sweep} #{SVG.num(edge + side)},#{SVG.num(row_line + radius)}"
+          arc = "A#{SVG.num(rail)} #{SVG.num(radius)} 0 0 #{sweep}"
+          track << "#{arc} #{SVG.num(edge + side)},#{SVG.num(row_line + radius)}"
           track << "L#{SVG.num(edge + side)},#{SVG.num(drop - radius)}" if drop - row_line - 2 * radius > 0
-          track << "A#{SVG.num(radius)} #{SVG.num(radius)} 0 0 #{sweep} #{SVG.num(edge)},#{SVG.num(drop)}"
+          track << "#{arc} #{SVG.num(edge)},#{SVG.num(drop)}"
         end
       end
       io << %(  <path d="#{path}" fill="none" stroke="#{color}" stroke-width="#{@config.metro.line_width}" stroke-linecap="round"/>\n)

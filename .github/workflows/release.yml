@@ -25,10 +25,11 @@ jobs:
       - name: Compute tags
         id: meta
         run: |
-          case "$GITHUB_REF_NAME" in
-            v[0-9]*.[0-9]*.[0-9]*) ;;
-            *) echo "refusing malformed release tag: $GITHUB_REF_NAME" >&2; exit 1 ;;
-          esac
+          # A regex, not a `case` glob: `*` matches anything, so `v2.0.0-rc.1`
+          # passed and moved the major tag and `:latest` onto a prerelease.
+          if ! [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "refusing malformed release tag: $GITHUB_REF_NAME" >&2; exit 1
+          fi
           echo "major=${GITHUB_REF_NAME%%.*}" >> "$GITHUB_OUTPUT"
 
       # The binary prints its VERSION on every run, and consumers read that to
@@ -75,14 +76,8 @@ jobs:
           RELEASE: ${{ github.ref_name }}
           IMAGE: ghcr.io/crystal-actions/contributor-mural
         run: |
-          case "$MAJOR" in
-            v[0-9]*) ;;
-            *) echo "refusing unexpected major tag: $MAJOR" >&2; exit 1 ;;
-          esac
-          case "$RELEASE" in
-            v[0-9]*.[0-9]*.[0-9]*) ;;
-            *) echo "refusing unexpected release tag: $RELEASE" >&2; exit 1 ;;
-          esac
+          [[ "$MAJOR" =~ ^v[0-9]+$ ]] || { echo "refusing unexpected major tag: $MAJOR" >&2; exit 1; }
+          [[ "$RELEASE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "refusing unexpected release tag: $RELEASE" >&2; exit 1; }
 
           sed -i "s|image: docker://$IMAGE:.*|image: docker://$IMAGE:$RELEASE|" action.yml
           grep -q "image: docker://$IMAGE:$RELEASE\$" action.yml \

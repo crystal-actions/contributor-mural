@@ -283,4 +283,19 @@ describe ContributorMural::Renderers::Pebble do
     width.should be > height
     assert_clearance(stones(svg), 6.0)
   end
+
+  # `width: max_size + gap` with no gap is a pebble exactly as wide as the slab,
+  # which is held like any other — it used to be let loose, and the pile spread
+  # to nearly twice the width asked for.
+  it "holds a pebble exactly as wide as the slab" do
+    svg = render_pebble("style: pebble\npebble:\n  width: 88\n  max_size: 88\n  gap: 0\n#{pebble_users(10)}")
+    document_size(svg)[0].should be < 100
+  end
+
+  # A slab too tight to settle in, however far it eases, still may not draw
+  # two faces over each other.
+  it "separates a pack that never came to rest" do
+    svg = render_pebble("style: pebble\npebble:\n  width: 94\n  max_size: 88\n  min_size: 8\n  gap: 0\n  density: 0.9\n#{pebble_users(200)}")
+    assert_clearance(stones(svg), 0.0)
+  end
 end

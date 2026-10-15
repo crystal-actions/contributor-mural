@@ -32,6 +32,11 @@ module ContributorMural
     # single avatar at 8 MB before it is base64-encoded.
     MAX_URI = 12 * 1024 * 1024
 
+    # A previous wall larger than this is not read back: a few thousand faces
+    # at the largest size any style fetches stay well under it, and it is held
+    # twice while it is scanned.
+    MAX_WALL = 256 * 1024 * 1024
+
     # Exactly the shape `Embedder#fetch_missing` builds, and nothing else.
     #
     # What comes back from here is written into an `href` attribute verbatim,
@@ -52,13 +57,11 @@ module ContributorMural
         # SVG only: a PNG has been rasterized, and the avatars in it stopped
         # being addressable the moment they became pixels.
         next unless path.ends_with?(".svg")
-        full = File.join(workspace, path)
-        next unless File.file?(full)
         begin
-          scan(File.read(full), found)
-        rescue IO::Error
-          # An unreadable previous wall is a cache miss, not a failure: the run
-          # is about to write over it either way.
+          scan(String.new(WorkspaceFile.read(workspace, path, MAX_WALL)), found)
+        rescue WorkspaceFile::Error
+          # Missing, unreadable, or a symlink out of the repository: a cache
+          # miss, not a failure — the run is about to write over it either way.
           next
         end
       end
@@ -79,7 +82,13 @@ module ContributorMural
     # display name anywhere in the document turns character indexing into a
     # walk from the start of the string, once per lookup, over a file that is
     # mostly megabytes of base64.
+    #
+    # A link is not a person: two entries can share one (`link:` is free text),
+    # and the first face found under it would then be handed to the other. So
+    # a link this file shows with two different faces is not read at all.
     private def self.scan(svg : String, found : Hash(String, String)) : Nil
+      faces = {} of String => String
+      ambiguous = Set(String).new
       shared = shared_faces(svg)
       cursor = 0
       while open = svg.byte_index(LINK_OPEN, cursor)
@@ -99,11 +108,14 @@ module ContributorMural
         # entry with its own twin.
         if inline = inline_uri(svg, cursor, stop)
           uri, cursor = inline
-          found[link] ||= uri if uri.matches?(VALID_URI)
-        elsif uri = referenced_uri(svg, cursor, stop, shared)
-          found[link] ||= uri
+          next unless uri.matches?(VALID_URI)
+        else
+          next unless uri = referenced_uri(svg, cursor, stop, shared)
         end
+        ambiguous << link if faces.fetch(link, uri) != uri
+        faces[link] = uri
       end
+      faces.each { |key, face| found[key] ||= face unless ambiguous.includes?(key) }
     end
 
     # The first `href="data:image/…"` between `cursor` and `stop`, with the

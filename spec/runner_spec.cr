@@ -725,10 +725,87 @@ describe ContributorMural::Runner do
   end
 end
 
+describe "ContributorMural::Runner writing through a symlink" do
+  it "still writes through a symlink that stays inside the repository" do
+    link = ->(workspace : String) {
+      Dir.mkdir_p(File.join(workspace, "docs"))
+      File.write(File.join(workspace, "docs/wall.svg"), "old")
+      File.symlink("docs/wall.svg", File.join(workspace, "wall.svg"))
+      nil
+    }
+    run_in_tmp("output: wall.svg\nusers:\n  - login: alpha\n", before: link) do |exit_code, _outputs, workspace|
+      exit_code.should eq(0)
+      File.read(File.join(workspace, "docs/wall.svg")).should contain("<svg")
+    end
+  end
+
+  it "refuses an output, or a directory on the way to it, that leads outside" do
+    outside = File.tempname("mural_outside")
+    Dir.mkdir_p(outside)
+    File.write(File.join(outside, "victim.svg"), "untouched")
+    begin
+      {"wall.svg", "docs/wall.svg"}.each do |path|
+        link = ->(workspace : String) {
+          if path == "wall.svg"
+            File.symlink(File.join(outside, "victim.svg"), File.join(workspace, "wall.svg"))
+          else
+            File.symlink(outside, File.join(workspace, "docs"))
+          end
+          nil
+        }
+        run_in_tmp("output: #{path}\nusers:\n  - login: alpha\n", before: link) do |exit_code, _outputs, _workspace|
+          exit_code.should eq(1)
+          ContributorMural::Annotations.io.to_s.should contain("leads outside the repository")
+        end
+      end
+      File.read(File.join(outside, "victim.svg")).should eq("untouched")
+      File.exists?(File.join(outside, "wall.svg")).should be_false
+      # Refused before `mkdir_p` could build anything through the link.
+      run_in_tmp("output: docs/deep/wall.svg\nusers:\n  - login: alpha\n", before: ->(workspace : String) {
+        File.symlink(outside, File.join(workspace, "docs"))
+        nil
+      }) { |exit_code, _outputs, _workspace| exit_code.should eq(1) }
+      Dir.exists?(File.join(outside, "deep")).should be_false
+    ensure
+      FileUtils.rm_rf(outside)
+    end
+  end
+end
+
 # An avatar host that throttles for a minute used to take people off the wall
 # and commit the result, so the picture regressed over a failure that had
 # already fixed itself. The file being replaced is the cache.
 describe "ContributorMural::Runner avatar salvage" do
+  it "never hands one person's face to another who shares their link" do
+    yaml = <<-YAML
+      output: wall.svg
+      users:
+        - login: alpha
+          link: https://example.com/team
+        - login: bravo
+          link: https://example.com/team
+      YAML
+
+    good = File.tempname("mural_good")
+    Dir.mkdir_p(good)
+    begin
+      config = ContributorMural::Config.parse(yaml)
+      config.validate!
+      ContributorMural::Runner.new(config, FakeAvatarSource.new, good).run
+      previous = File.read(File.join(good, "wall.svg"))
+
+      seed = ->(workspace : String) { File.write(File.join(workspace, "wall.svg"), previous) }
+      run_in_tmp(yaml, FakeAvatarSource.new(missing: ["bravo"]), before: seed) do |exit_code, outputs, workspace|
+        exit_code.should eq(0)
+        outputs.should contain("user_count=1")
+        File.read(File.join(workspace, "wall.svg")).scan("<image ").size.should eq(1)
+        ContributorMural::Annotations.io.to_s.should contain("skipped bravo")
+      end
+    ensure
+      FileUtils.rm_rf(good)
+    end
+  end
+
   it "keeps the face the previous wall had when this run cannot fetch it" do
     yaml = <<-YAML
       output: wall.svg

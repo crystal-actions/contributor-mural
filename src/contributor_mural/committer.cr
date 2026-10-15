@@ -19,14 +19,17 @@ module ContributorMural
       run(["add", "--"] + paths)
       return false unless staged_changes?(paths)
 
+      before = head
       run(["-c", "user.name=#{BOT_NAME}", "-c", "user.email=#{BOT_EMAIL}",
            "commit", "-m", @message, "--"] + paths)
       begin
         run(["push"])
       rescue ex : CommitError
         # The commit already exists locally; on a reused workspace the next
-        # run would see a clean index and wrongly report "up to date".
-        run(["reset", "--soft", "HEAD~1"]) rescue nil
+        # run would see a clean index and wrongly report "up to date". Undone
+        # to the HEAD it was made on rather than `HEAD~1`, which a root commit
+        # does not have — that reset failed silently and kept the commit.
+        (before ? run(["reset", "--soft", before]) : run(["update-ref", "-d", "HEAD"])) rescue nil
         raise CommitError.new("#{ex.message}\n" \
                               "The generated files were not pushed. Common causes: the workflow needs " \
                               "`permissions: contents: write`; the branch moved (add a `concurrency` group); " \
@@ -48,6 +51,14 @@ module ContributorMural
       trusted = safe_directories
       return if trusted.includes?(@workspace) || trusted.includes?("*")
       run(["config", "--global", "--add", "safe.directory", @workspace], repo: false)
+    end
+
+    # The commit HEAD points at, or nil on a branch with no commits yet.
+    private def head : String?
+      output = IO::Memory.new
+      status = Process.run("git", ["-C", @workspace, "rev-parse", "--verify", "-q", "HEAD"],
+        output: output, error: IO::Memory.new)
+      output.to_s.strip if status.success?
     end
 
     private def safe_directories : Array(String)

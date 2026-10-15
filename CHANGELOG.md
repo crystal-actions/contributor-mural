@@ -24,6 +24,33 @@ and the generated files.
 - `voronoi` with a fixed `rows` fetches avatars large enough for its widest cells.
   It used to size for the fullest row rather than the sparsest, and for the whole
   wall rather than its smallest section, so those faces came out blurred.
+- An output path, or a directory on the way to it, that is a symlink leading out of
+  the repository is refused before anything is created. The previous wall is no
+  longer read back through one either. A link that stays inside still works.
+- A person whose avatar could not be fetched no longer keeps someone else's face.
+  The previous wall's faces are filed by `link`, and two entries can share one;
+  such a link is now never reused.
+- A key set twice inside a block or a list entry (`columns` twice under `grid:`,
+  `weight` twice on one user) is an error, like one repeated at the top level.
+  YAML used to keep the last one silently.
+- `nan` and `inf` are refused wherever a number is expected. `png: scale: nan`
+  used to pass validation and fail only after every avatar had been fetched.
+- When the push fails, the commit is undone even if it was the repository's
+  first. It used to stay behind, and the next run reported "already up to date".
+- A sponsors response with no sponsorships list fails with an error rather than a
+  stack trace.
+- `silhouette` gives the computed `viewBox` to the image's real root element, not
+  to a comment or DOCTYPE that mentions `<svg` ahead of it, and is not cut short
+  by a `>` inside an attribute value.
+- `pebble` holds a pebble exactly as wide as `width`, which used to spread the
+  pile to nearly twice that. A pack that cannot settle in any eased slab is
+  separated anyway rather than drawn with faces over each other.
+- `metro` with `weave` keeps a short turn's rail midway between columns instead of
+  pulling it in over the station labels.
+- Labels with emoji and symbols (✨, ☕, ⭐) are measured a full em per character,
+  so the canvas no longer clips them.
+- The release workflow accepts only a plain `vX.Y.Z` tag. Its glob let a
+  prerelease tag move the major tag and `:latest`.
 
 ## v1.6.0
 

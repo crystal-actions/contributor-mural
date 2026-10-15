@@ -30,9 +30,7 @@ module ContributorMural
       rescue ex : File::Error
         raise Error.new(Failure::Unreadable, ex.message)
       end
-      unless resolved == root || resolved.starts_with?("#{root}#{File::SEPARATOR}")
-        raise Error.new(Failure::Escapes)
-      end
+      raise Error.new(Failure::Escapes) unless inside?(root, resolved)
 
       size = File.size(resolved)
       raise Error.new(Failure::TooLarge, "#{size} bytes, limit #{limit}") if size > limit
@@ -42,6 +40,25 @@ module ContributorMural
       rescue ex : File::Error
         raise Error.new(Failure::Unreadable, ex.message)
       end
+    end
+
+    # Whether writing `path` stays inside the workspace once symlinks are
+    # followed. Judged on the deepest part of it that already exists, so it can
+    # be asked before any directory on the way is created — `mkdir_p` through a
+    # linked directory would otherwise build the rest of the path outside.
+    def self.writable?(workspace : String, path : String) : Bool
+      full = File.join(workspace, path)
+      # A dangling link leads wherever it says, and nothing exists to resolve.
+      return false if File.symlink?(full) && !File.exists?(full)
+      probe = full
+      until File.exists?(probe)
+        probe = File.dirname(probe)
+      end
+      inside?(File.realpath(workspace), File.realpath(probe))
+    end
+
+    private def self.inside?(root : String, resolved : String) : Bool
+      resolved == root || resolved.starts_with?("#{root}#{File::SEPARATOR}")
     end
   end
 end

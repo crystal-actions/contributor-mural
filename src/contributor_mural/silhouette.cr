@@ -151,10 +151,17 @@ module ContributorMural
     # `meet` to keep: librsvg stretches it over the whole canvas instead. Its
     # own width and height are what a viewBox would have said, so say it —
     # when they are plain numbers. A size in other units is left alone.
+    #
+    # The root tag is the first one past the prolog, not the first `<svg`
+    # anywhere: a comment or DOCTYPE that mentions one came first and got the
+    # viewBox instead. Quote-aware, so a `>` inside an attribute value does not
+    # end the tag early.
+    ROOT_TAG = /\A\x{FEFF}?(?:\s|<\?.*?\?>|<!--.*?-->|<!DOCTYPE[^\[>]*(?:\[.*?\])?\s*>)*\K<svg(?=[\s\/>])(?:[^>"']|"[^"]*"|'[^']*')*>/m
+
     private def self.with_view_box(bytes : Bytes) : Bytes
       svg = String.new(bytes)
       return bytes unless svg.valid_encoding?
-      tag = svg.match(/<svg\b[^>]*>/m)
+      tag = svg.match(ROOT_TAG)
       return bytes if tag.nil? || tag[0].matches?(/\sviewBox\s*=/)
       width = dimension(tag[0], "width")
       height = dimension(tag[0], "height")

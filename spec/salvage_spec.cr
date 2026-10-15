@@ -26,6 +26,31 @@ private def wall(*people : {String, String}) : String
 end
 
 describe ContributorMural::AvatarSalvage do
+  # `link:` is free text, so two people can share one. The face under it then
+  # belongs to neither of them in particular.
+  it "reads nothing for a link the wall shows with two different faces" do
+    files = {"wall.svg" => wall(
+      {"https://example.com/team", "data:image/png;base64,AAAA"},
+      {"https://example.com/team", "data:image/png;base64,BBBB"},
+      {"https://github.com/charlie", "data:image/png;base64,CCCC"},
+    )}
+    in_workspace(files) do |workspace|
+      found = ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"])
+      found.keys.should eq(["https://github.com/charlie"])
+    end
+  end
+
+  it "does not follow a previous wall that is a symlink out of the repository" do
+    outside = File.tempname("mural_outside", ".svg")
+    File.write(outside, wall({"https://github.com/alpha", "data:image/png;base64,AAAA"}))
+    in_workspace({} of String => String) do |workspace|
+      File.symlink(outside, File.join(workspace, "wall.svg"))
+      ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"]).should be_empty
+    end
+  ensure
+    File.delete?(outside) if outside
+  end
+
   it "reads every face out of a previous wall" do
     files = {"wall.svg" => wall(
       {"https://github.com/alpha", "data:image/png;base64,AAAA"},

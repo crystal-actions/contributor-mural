@@ -7,55 +7,25 @@ and the generated files.
 
 ## Unreleased
 
+## v1.6.1
+
 ### Fixed
 
-- An `avatar_url` that spells an internal IPv4 address inside IPv6 —
-  `[::ffff:169.254.169.254]`, the IPv4-compatible `[::a9fe:a9fe]`, or NAT64
-  `[64:ff9b::…]` — is refused like the plain address, and so are `0.0.0.0/8` and
-  the shared `100.64.0.0/10` range. The mapped form used to walk past the check
-  and reach the cloud metadata endpoint.
-- A `rsvg-convert` killed by a signal (an out-of-memory kill on a large wall) fails
-  the run with an error that says so, instead of a Crystal stack trace. Its exit
-  status is now named even when it also printed something to stderr.
-- `honeycomb` with `columns: 1` no longer overlaps each hexagon with the one below.
-- `skyline` raises exactly one antenna per section. Someone also drawn in a second
-  section with `also_in` used to carry their first section's antenna into it, so
-  that section got two and a section of only `also_in` people got none.
-- `voronoi` with a fixed `rows` fetches avatars large enough for its widest cells.
-  It used to size for the fullest row rather than the sparsest, and for the whole
-  wall rather than its smallest section, so those faces came out blurred.
-- An output path, or a directory on the way to it, that is a symlink leading out of
-  the repository is refused before anything is created. The previous wall is no
-  longer read back through one either. A link that stays inside still works.
-- A person whose avatar could not be fetched no longer keeps someone else's face.
-  The previous wall's faces are filed by `link`, and two entries can share one;
-  such a link is now never reused.
-- A wall is no longer recommitted when an avatar comes back as the same picture
-  in differently deflated PNG bytes. GitHub's avatar servers do this for some
-  faces, so such a wall took a new, invisible commit on nearly every push.
-- A key set twice inside a block or a list entry (`columns` twice under `grid:`,
-  `weight` twice on one user) is an error, like one repeated at the top level.
-  YAML used to keep the last one silently.
-- `nan` and `inf` are refused wherever a number is expected. `png: scale: nan`
-  used to pass validation and fail only after every avatar had been fetched.
-- When the push fails, the commit is undone even if it was the repository's
-  first. It used to stay behind, and the next run reported "already up to date".
-- A sponsors response with no sponsorships list fails with an error rather than a
-  stack trace.
-- `silhouette` gives the computed `viewBox` to the image's real root element, not
-  to a comment or DOCTYPE that mentions `<svg` ahead of it, and is not cut short
-  by a `>` inside an attribute value.
-- `pebble` holds a pebble exactly as wide as `width`, which used to spread the
-  pile to nearly twice that. A pack that cannot settle in any eased slab is
-  separated anyway rather than drawn with faces over each other.
-- `metro` with `weave` keeps a short turn's rail midway between columns instead of
-  pulling it in over the station labels.
-- Labels with emoji and symbols (✨, ☕, ⭐) are measured a full em per character,
-  so the canvas no longer clips them.
-- The release workflow accepts only a plain `vX.Y.Z` tag. Its glob let a
-  prerelease tag move the major tag and `:latest`.
-
-## v1.6.1
+- `avatar_url` refuses internal IPv4 addresses spelled as IPv6 (`::ffff:`, IPv4-compatible,
+  NAT64), plus `0.0.0.0/8` and `100.64.0.0/10`.
+- Output paths that symlink out of the repository are refused, and the previous wall
+  is not read back through one.
+- A face whose avatar failed is no longer salvaged from someone sharing its `link`.
+- A wall is not recommitted when an avatar only changes in PNG deflation.
+- Config: duplicate keys inside blocks and list entries, and `nan`/`inf` numbers, are
+  errors.
+- A failed push undoes even the repository's first commit.
+- `rsvg-convert` killed by a signal, and a sponsors response with no list, report an
+  error instead of a stack trace.
+- Layout: `honeycomb` with `columns: 1`, one antenna per `skyline` section, `voronoi`
+  avatar size with fixed `rows`, `pebble` width and overlap, `metro` `weave` rails,
+  `silhouette` `viewBox` placement, and emoji label width.
+- The release workflow accepts only plain `vX.Y.Z` tags.
 
 ## v1.6.0
 

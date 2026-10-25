@@ -30,6 +30,9 @@ and the generated files.
 - A person whose avatar could not be fetched no longer keeps someone else's face.
   The previous wall's faces are filed by `link`, and two entries can share one;
   such a link is now never reused.
+- A wall is no longer recommitted when an avatar comes back as the same picture
+  in differently deflated PNG bytes. GitHub's avatar servers do this for some
+  faces, so such a wall took a new, invisible commit on nearly every push.
 - A key set twice inside a block or a list entry (`columns` twice under `grid:`,
   `weight` twice on one user) is an error, like one repeated at the top level.
   YAML used to keep the last one silently.

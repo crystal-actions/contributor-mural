@@ -3,6 +3,7 @@ require "./spec_helper"
 require "./support/fake_avatar_source"
 require "./support/fake_github_source"
 require "./support/fake_rasterizer"
+require "./support/png"
 
 private def run_in_tmp(config_yaml : String, source = FakeAvatarSource.new,
                        github_source : ContributorMural::GitHubSource? = nil,
@@ -862,6 +863,42 @@ describe "ContributorMural::Runner avatar salvage" do
       run_in_tmp(yaml, FakeAvatarSource.new(missing: ["bravo"]), before: seed) do |exit_code, outputs, _ws|
         exit_code.should eq(0)
         outputs.should contain("user_count=2")
+      end
+    ensure
+      FileUtils.rm_rf(good)
+    end
+  end
+
+  # GitHub's avatar servers deflate one resized face two different ways, so
+  # the same picture used to come back in other bytes on alternate pushes and
+  # commit a wall nobody could tell from the last one.
+  it "keeps the previous bytes for a face that was only re-encoded" do
+    yaml = <<-YAML
+      output: wall.svg
+      users:
+        - login: alpha
+      YAML
+
+    good = File.tempname("mural_good")
+    Dir.mkdir_p(good)
+    begin
+      config = ContributorMural::Config.parse(yaml)
+      config.validate!
+      ContributorMural::Runner.new(config, PngAvatarSource.new(level: 9), good).run
+      previous = File.read(File.join(good, "wall.svg"))
+
+      seed = ->(workspace : String) { File.write(File.join(workspace, "wall.svg"), previous) }
+      run_in_tmp(yaml, PngAvatarSource.new(level: 1), before: seed) do |exit_code, _outputs, workspace|
+        exit_code.should eq(0)
+        File.read(File.join(workspace, "wall.svg")).should eq(previous)
+      end
+
+      repainted = PngAvatarSource.new(level: 1, pixels: Bytes[9, 9, 9, 9])
+      run_in_tmp(yaml, repainted, before: seed) do |exit_code, _outputs, workspace|
+        exit_code.should eq(0)
+        wall = File.read(File.join(workspace, "wall.svg"))
+        wall.should_not eq(previous)
+        wall.should contain(png_uri(tiny_png(Bytes[9, 9, 9, 9], level: 1)))
       end
     ensure
       FileUtils.rm_rf(good)

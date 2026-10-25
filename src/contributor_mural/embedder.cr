@@ -24,9 +24,9 @@ module ContributorMural
       @cache = {} of String => String | AvatarError
     end
 
-    # The previous wall's faces, read on the first failure that needs them and
-    # not before: on a run where every avatar arrives — nearly all of them —
-    # nothing opens the file.
+    # The previous wall's faces, read once on the first embed: a fetched face
+    # is checked against its old copy (`#steady`), and a failed one falls back
+    # to it.
     private def previous_faces : Hash(String, String)
       @previous_faces ||= @salvage.try(&.call) || {} of String => String
     end
@@ -61,7 +61,7 @@ module ContributorMural
       jobs.each do |job|
         case result = @cache[job.url]
         in String
-          embedded << EmbeddedUser.new(job.user, result)
+          embedded << EmbeddedUser.new(job.user, steady(job, result, users))
         in AvatarError
           # A face the last wall already carried is not a missing one, so this
           # is settled before `fail_on_missing` is consulted: that option is
@@ -81,6 +81,18 @@ module ContributorMural
         end
       end
       {embedded, skipped}
+    end
+
+    # The face the previous wall already carries, when the one just fetched
+    # draws the same picture in different bytes — see `SameImage`. Committing
+    # a re-encoding changes nothing anyone can see and everything git can.
+    # Held to the same rule as a salvaged face: only for a link nobody else on
+    # this wall carries.
+    private def steady(job : Job, fetched : String, users : Array(ResolvedUser)) : String
+      kept = previous_faces[SVG.escape(job.user.link)]?
+      return fetched unless kept && kept != fetched
+      return fetched unless users.one? { |user| user.link == job.user.link }
+      SameImage.same?(kept, fetched) ? kept : fetched
     end
 
     private def jobs_for(users : Array(ResolvedUser), renderer : Renderer) : Array(Job)

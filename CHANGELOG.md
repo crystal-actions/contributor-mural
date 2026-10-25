@@ -55,6 +55,8 @@ and the generated files.
 - The release workflow accepts only a plain `vX.Y.Z` tag. Its glob let a
   prerelease tag move the major tag and `:latest`.
 
+## v1.6.1
+
 ## v1.6.0
 
 ### Added

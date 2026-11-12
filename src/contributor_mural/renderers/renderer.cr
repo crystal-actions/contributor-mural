@@ -29,6 +29,21 @@ module ContributorMural
     def prepare(users : Array(ResolvedUser)) : Nil
     end
 
+    # Each user's place in weight order, heaviest first, with a run of equal
+    # weights sharing the middle of the places it covers. Broken by login
+    # instead, equal weights were sized by the alphabet: six stargazers, none
+    # weighted, came out at three different sizes.
+    protected def weight_places(users : Array(ResolvedUser)) : Hash(String, Float64)
+      places = {} of String => Float64
+      taken = 0
+      users.group_by(&.weight).to_a.sort_by! { |(weight, _group)| -weight }.each do |(_weight, group)|
+        middle = taken + (group.size - 1) / 2.0
+        group.each { |user| places[user.login] = middle }
+        taken += group.size
+      end
+      places
+    end
+
     # Per-document scratch a style has to clear before it draws another one:
     # section ordinals, colour cycles, generated clip-path ids, cached packs.
     # A hook rather than each style overriding `render` and remembering to call

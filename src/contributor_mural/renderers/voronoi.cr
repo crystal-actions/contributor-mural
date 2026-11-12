@@ -97,8 +97,9 @@ module ContributorMural::Renderers
       # thousands of throwaway arrays per cell, and the bulk of the render for
       # a wall of any size.
       scratch = {Array(Point).new(8), Array(Point).new(8)}
+      inset = inset_for(users.size, width, height, rows)
       cells = seeds.each_index.map do |index|
-        polygon = cell(seeds, index, width, height, scratch)
+        polygon = cell(seeds, index, width, height, inset, scratch)
         polygon.size >= 3 ? polygon : fallback(seeds[index])
       end.to_a
       first = @next_cell
@@ -212,9 +213,18 @@ module ContributorMural::Renderers
       closest == Float64::MAX ? 0.0 : closest
     end
 
+    # Half the gap, held to what the cells actually drawn can give up. The
+    # config bounds `gap` by `cell_size`, but a fixed `rows` sets the pitch
+    # instead — `rows: 1` across 64 people made cells 11px wide, and a 12px gap
+    # cut most of them to nothing.
+    private def inset_for(count : Int32, width : Float64, height : Float64, rows : Int32) : Float64
+      voronoi = @config.voronoi
+      pitch = Math.min(height / rows, width / row_counts(count, rows).max)
+      Math.min(voronoi.gap.to_f, 0.25 * (1.0 - voronoi.jitter) * pitch) / 2
+    end
+
     private def cell(seeds : Array(Seed), index : Int32, width : Float64, height : Float64,
-                     scratch : {Array(Point), Array(Point)}) : Array(Point)
-      inset = @config.voronoi.gap / 2.0
+                     inset : Float64, scratch : {Array(Point), Array(Point)}) : Array(Point)
       me = seeds[index]
       polygon, spare = scratch
       polygon.clear

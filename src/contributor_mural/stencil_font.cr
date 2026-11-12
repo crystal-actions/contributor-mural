@@ -427,10 +427,11 @@ module ContributorMural
       text.upcase.gsub('\u{2764}', '♥').delete('\u{FE0F}')
     end
 
-    # Normalized lines with trailing blank lines trimmed; interior blank lines
-    # are kept and read as a vertical gap.
+    # Normalized lines, each stripped both sides (every line is centred, so a
+    # leading space only pushed the word off-centre), with outer blank lines
+    # trimmed; interior blank lines are kept and read as a vertical gap.
     def self.lines(text : String) : Array(Array(Char))
-      rows = normalize(text).split('\n').map(&.rstrip.chars)
+      rows = normalize(text).split('\n').map(&.strip.chars)
       while !rows.empty? && rows.last.empty?
         rows.pop
       end

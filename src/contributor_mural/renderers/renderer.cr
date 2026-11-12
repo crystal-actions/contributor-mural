@@ -276,7 +276,18 @@ module ContributorMural
     protected def text_width(text : String, font_size : Float64) : Float64
       # CJK and other wide scripts occupy roughly a full em, and so do the
       # symbols and emoji from Misc Technical (U+2300) up — ✨, ☕, ⭐.
-      units = text.each_char.sum { |char| char.ord >= 0x2300 ? 1.0 : 0.55 }
+      # Capitals run wide too: at 0.55 an all-caps section title such as
+      # "SPECIAL THANKS TO OUR SPONSORS" came out a sixth short, clipped at
+      # the canvas edge.
+      units = text.each_char.sum do |char|
+        if char.ord >= 0x2300
+          1.0
+        elsif char.uppercase?
+          0.68
+        else
+          0.55
+        end
+      end
       units * font_size
     end
 

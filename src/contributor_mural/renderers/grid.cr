@@ -37,7 +37,7 @@ module ContributorMural::Renderers
       cols = grid.columns_for(users.size)
       rows = (users.size + cols - 1) // cols
       cell_h = grid.avatar_size + label_height(users)
-      width = cols * grid.avatar_size + (cols + 1) * grid.margin
+      width = cols * grid.avatar_size + (cols - 1) * spacing(users) + 2 * grid.margin
       height = rows * cell_h + (rows + 1) * grid.margin
       # Labels are centered on their cell and may be wider than the avatar, so
       # the block gets a gutter on both sides for the overhang.
@@ -54,7 +54,7 @@ module ContributorMural::Renderers
 
       users.each_with_index do |user, index|
         row, col = index.divmod(cols)
-        x = gutter + grid.margin + col * (cell_w + grid.margin)
+        x = gutter + grid.margin + col * (cell_w + spacing(users))
         y = grid.margin + row * (cell_h + grid.margin) + y_offset
 
         linked(io, user) do
@@ -97,6 +97,13 @@ module ContributorMural::Renderers
     # keeps labels inside the canvas rather than letting them run off it.
     private def gutter_for(users : Array(EmbeddedUser)) : Float64
       Math.max(@gutter, overhang(users))
+    end
+
+    # Between two columns: the margin, or as much as two neighbouring labels
+    # overhang their cells. Only the outer edges used to pay for the overhang,
+    # so with 48px avatars two twelve-character names ran into each other.
+    private def spacing(users : Array(EmbeddedUser)) : Float64
+      Math.max(@config.grid.margin.to_f, 2 * gutter_for(users))
     end
 
     private def overhang(users : Array(Labelled)) : Float64

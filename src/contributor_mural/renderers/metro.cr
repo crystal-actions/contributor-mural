@@ -36,6 +36,7 @@ module ContributorMural::Renderers
       pitch_x : Float64,
       pitch_y : Float64,
       corner : Float64,
+      swing : Float64,
       margin : Float64,
       top : Float64,
       bottom : Float64
@@ -370,19 +371,32 @@ module ContributorMural::Renderers
       pitch_x = size + 2 * TERMINUS * line + metro.gap
       # A woven rail rides midway between two columns; where the names are on,
       # the midpoint also has to clear the label text either side of it.
-      pitch_x = Math.max(pitch_x, 2 * inset + line + 4) if metro.weave?
+      #
+      # Only where there can be more than one line to weave: without
+      # `role_lines` the option is documented — and warned — as drawing
+      # exactly what it would have drawn anyway.
+      weaving = metro.weave? && metro.role_lines?
+      pitch_x = Math.max(pitch_x, 2 * inset + line + 4) if weaving
+      # Two neighbouring names, centred on their stations, must not meet.
+      pitch_x = Math.max(pitch_x, 2 * inset)
       pitch_y = 2 * outer + metro.gap + (metro.show_names? ? LABEL_BLOCK : 0.0)
       # A full half-pitch corner degenerates the turn into a clean semicircle.
       corner = Math.min(pitch_y / 2, size)
       # Woven rails swing half a station pitch wide, and the margin has to
       # hold whichever loop is wider — stroke included.
-      reach = metro.weave? ? Math.max(corner, pitch_x / 2) : corner
+      #
+      # A stacked turn swings out past the end station by `swing`: the corner,
+      # or far enough to clear that station's name, which is centred on it. A
+      # plain corner ran the rail straight through a long name.
+      swing = metro.show_names? ? Math.max(corner, inset + line / 2 + 2) : corner
+      reach = weaving ? Math.max(swing, pitch_x / 2) : swing
       margin = {reach + line / 2, outer, inset}.max + 2
       Metrics.new(
         outer: outer,
         pitch_x: pitch_x,
         pitch_y: pitch_y,
         corner: corner,
+        swing: swing,
         margin: margin,
         top: outer + 2,
         bottom: outer + 2 + (metro.show_names? ? 16.0 : 0.0),
@@ -425,11 +439,12 @@ module ContributorMural::Renderers
 
           drop = y + m.pitch_y
           edge = row.even? ? far : near
-          side = row.even? ? m.corner : -m.corner
+          side = row.even? ? m.swing : -m.swing
           sweep = row.even? ? 1 : 0
-          track << "A#{SVG.num(m.corner)} #{SVG.num(m.corner)} 0 0 #{sweep} #{SVG.num(edge + side)},#{SVG.num(y + m.corner)}"
+          radii = "#{SVG.num(m.swing)} #{SVG.num(m.corner)}"
+          track << "A#{radii} 0 0 #{sweep} #{SVG.num(edge + side)},#{SVG.num(y + m.corner)}"
           track << "L#{SVG.num(edge + side)},#{SVG.num(drop - m.corner)}" if straight > 0
-          track << "A#{SVG.num(m.corner)} #{SVG.num(m.corner)} 0 0 #{sweep} #{SVG.num(edge)},#{SVG.num(drop)}"
+          track << "A#{radii} 0 0 #{sweep} #{SVG.num(edge)},#{SVG.num(drop)}"
           current = edge
         end
       end

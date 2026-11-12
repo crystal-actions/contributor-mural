@@ -31,6 +31,17 @@ private GOLDEN_USERS = <<-YAML
   YAML
 
 describe ContributorMural::Renderers::Grid do
+  # Only the outer edges paid for a label's overhang, so with 48px avatars two
+  # twelve-character names ran into each other.
+  it "spaces columns so neighbouring labels never meet" do
+    users = (1..4).map { |i| "  - login: u#{i}\n    name: Abcdefghijklmnop" }.join("\n")
+    svg = render(ContributorMural::Config.parse("users:\n#{users}\ngrid:\n  columns: 4\n  avatar_size: 48\n"))
+    centers = svg.scan(/<text x="([0-9.]+)"[^>]*class="mural-label"/).map(&.[1].to_f)
+    centers.size.should eq(4)
+    label = 12 * 0.55 * 11 # "Abcdefghijk…" at the renderer's own estimate
+    centers.each_cons(2) { |(a, b)| (b - a).should be >= label - 0.02 }
+  end
+
   it "renders the circle grid golden file" do
     config = ContributorMural::Config.parse(<<-YAML)
       #{GOLDEN_USERS}
@@ -44,8 +55,10 @@ describe ContributorMural::Renderers::Grid do
       YAML
 
     svg = render(config)
-    # 296px of avatars + a 4.3px gutter each side so 12-char labels are not clipped
-    svg.should contain(%(width="304.6" height="188"))
+    # 256px of avatars and 16px of outer margin, a 5.73px gutter each side so
+    # 12-char labels are not clipped, and 11.46px between columns (wider than
+    # `margin`) so two of them never meet
+    svg.should contain(%(width="317.84" height="188"))
     svg.should contain("data:image/png;base64,")
     svg.should contain(%(clip-path="url(#avatar-clip)"))
     svg.should contain("R&amp;D &lt;Team&gt;")

@@ -144,7 +144,7 @@ module ContributorMural::Renderers
         baseline = y + TOP_PAD + extent(row, mast)
         io << %(  <rect x="0" y="#{SVG.num(baseline)}" width="#{SVG.num(width)}" height="#{SVG.num(GROUND_H)}" #{ground_paint}/>\n)
         row.each_with_index do |user, column|
-          draw_building(io, user, building, left + column * (wall + skyline.gap), wall, baseline, clipped,
+          draw_building(io, user, building, left + column * (wall + spacing(users)), wall, baseline, clipped,
             user.login == mast)
           building += 1
         end
@@ -162,7 +162,7 @@ module ContributorMural::Renderers
       used = Math.min(columns, users.size)
       mast = mast_of(users)
       inset = skyline.gap + gutter_for(users)
-      width = 2 * inset + used * (skyline.avatar_size + 2 * PAD) + (used - 1) * skyline.gap
+      width = 2 * inset + used * (skyline.avatar_size + 2 * PAD) + (used - 1) * spacing(users)
 
       height = 0.0
       rows.each_with_index do |row, index|
@@ -175,8 +175,9 @@ module ContributorMural::Renderers
 
     private def columns : Int32
       skyline = @config.skyline
-      pitch = skyline.avatar_size + (2 * PAD).to_i + skyline.gap
-      Math.max((skyline.width + skyline.gap) // pitch, 1)
+      spacing = Math.max(skyline.gap.to_f, 2 * @gutter)
+      pitch = skyline.avatar_size + 2 * PAD + spacing
+      Math.max(((skyline.width + spacing) / pitch).floor.to_i, 1)
     end
 
     # One mast per section's skyline: its tallest tower, first on ties. Read
@@ -334,6 +335,12 @@ module ContributorMural::Renderers
     # every row of every section starts its buildings on the same left edge.
     private def gutter_for(users : Array(EmbeddedUser)) : Float64
       Math.max(@gutter, overhang(users))
+    end
+
+    # Between two buildings: `gap`, or as much as two neighbouring names
+    # overhang their walls, so the names never run into each other.
+    private def spacing(users : Array(EmbeddedUser)) : Float64
+      Math.max(@config.skyline.gap.to_f, 2 * gutter_for(users))
     end
 
     private def overhang(users : Array(Labelled)) : Float64

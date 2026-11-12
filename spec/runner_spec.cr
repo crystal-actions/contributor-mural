@@ -776,6 +776,57 @@ end
 # An avatar host that throttles for a minute used to take people off the wall
 # and commit the result, so the picture regressed over a failure that had
 # already fixed itself. The file being replaced is the cache.
+describe ContributorMural::WorkspaceFile do
+  it "names where a write lands, so the real file is what gets committed" do
+    workspace = File.tempname("mural_ws")
+    Dir.mkdir_p(File.join(workspace, "docs"))
+    begin
+      File.write(File.join(workspace, "docs/wall.svg"), "old")
+      File.symlink("docs/wall.svg", File.join(workspace, "wall.svg"))
+      File.symlink("docs", File.join(workspace, "art"))
+      ContributorMural::WorkspaceFile.destination(workspace, "wall.svg").should eq("docs/wall.svg")
+      ContributorMural::WorkspaceFile.destination(workspace, "art/new/x.svg").should eq("docs/new/x.svg")
+      ContributorMural::WorkspaceFile.destination(workspace, "plain.svg").should eq("plain.svg")
+    ensure
+      FileUtils.rm_rf(workspace)
+    end
+  end
+
+  it "refuses a link into .git" do
+    workspace = File.tempname("mural_ws")
+    Dir.mkdir_p(File.join(workspace, ".git"))
+    begin
+      File.write(File.join(workspace, ".git/config"), "[core]")
+      File.symlink(".git/config", File.join(workspace, "wall.svg"))
+      File.symlink(".git", File.join(workspace, "docs"))
+      ContributorMural::WorkspaceFile.destination(workspace, "wall.svg").should be_nil
+      ContributorMural::WorkspaceFile.destination(workspace, "docs/hooks/x.svg").should be_nil
+    ensure
+      FileUtils.rm_rf(workspace)
+    end
+  end
+end
+
+describe "ContributorMural::Runner refusing one output" do
+  it "writes none of the others" do
+    outside = File.tempname("mural_outside")
+    Dir.mkdir_p(outside)
+    yaml = "outputs:\n  - path: a.svg\n  - path: docs/b.svg\nusers:\n  - login: alpha\n"
+    begin
+      run_in_tmp(yaml, before: ->(workspace : String) {
+        File.write(File.join(workspace, "a.svg"), "old")
+        File.symlink(outside, File.join(workspace, "docs"))
+        nil
+      }) do |exit_code, _outputs, workspace|
+        exit_code.should eq(1)
+        File.read(File.join(workspace, "a.svg")).should eq("old")
+      end
+    ensure
+      FileUtils.rm_rf(outside)
+    end
+  end
+end
+
 describe "ContributorMural::Runner avatar salvage" do
   it "never hands one person's face to another who shares their link" do
     yaml = <<-YAML

@@ -45,6 +45,10 @@ module ContributorMural
       mask = trace_silhouette if targets.any? { |_path, style, _mode| style.silhouette? }
       warn_unhonored_scale(targets)
       warn_inert_weave(targets)
+      # Every destination is settled before anything is fetched or written: a
+      # link that leads somewhere it must not would otherwise stop the run after
+      # the outputs before it were already overwritten.
+      destinations = targets.to_h { |path, _style, _mode| {path, destination(path)} }
 
       users = Resolver.resolve(@config, fetch_api_users)
       if users.empty?
@@ -88,7 +92,7 @@ module ContributorMural
 
       rendered = convert(drawn)
       rendered.each do |path, content, _dimensions|
-        write(path, content)
+        write(path, destinations[path], content)
         written_paths << path
       end
 
@@ -110,7 +114,9 @@ module ContributorMural
 
       changed = false
       if committer = @committer
-        changed = committer.commit(written_paths)
+        # The landing spots, not the configured names: staging a link to the
+        # mural stages the link, and the changed file behind it never shipped.
+        changed = committer.commit(written_paths.map { |path| destinations[path] }.uniq)
         Annotations.notice(changed ? "contributor mural updated" : "contributor mural already up to date")
       end
       Annotations.output("changed", changed.to_s)
@@ -125,15 +131,8 @@ module ContributorMural
     # file sitting where a directory goes, a read-only mount. Each of those
     # reached the top of the program as an unhandled exception, which in a
     # workflow log means a Crystal stack trace and no annotation at all.
-    private def write(path : String, content : Bytes | String) : Nil
-      # The path was checked as a string at load; a symlink in the checkout —
-      # the file itself or a directory on the way to it — is what can still
-      # carry the write somewhere else, and on a pull_request run the checkout
-      # is the contributor's.
-      unless WorkspaceFile.writable?(@workspace, path)
-        raise OutputError.new("refusing to write #{path}: it leads outside the repository through a symlink")
-      end
-      full_path = File.join(@workspace, path)
+    private def write(path : String, destination : String, content : Bytes | String) : Nil
+      full_path = File.join(@workspace, destination)
       Dir.mkdir_p(File.dirname(full_path))
       case content
       in Bytes  then File.write(full_path, content)
@@ -141,6 +140,15 @@ module ContributorMural
       end
     rescue ex : IO::Error
       raise OutputError.new("could not write #{path}: #{ex.message}")
+    end
+
+    # The path was checked as a string at load; a symlink in the checkout — the
+    # file itself or a directory on the way to it — is what can still carry the
+    # write somewhere else, and on a pull_request run the checkout is the
+    # contributor's.
+    private def destination(path : String) : String
+      WorkspaceFile.destination(@workspace, path) ||
+        raise OutputError.new("refusing to write #{path}: it leads outside the repository or into .git through a symlink")
     end
 
     private def target_mode(path : String, mode_override : ThemeMode?) : ThemeMode
@@ -231,7 +239,10 @@ module ContributorMural
           # pixel off is worse than none for anyone writing it into an <img>.
           {path, png.as(Bytes | String), png_size(png) || scaled_size(svg_size)}
         else
-          {path, svg.as(Bytes | String), {svg_size[0].ceil.to_i, svg_size[1].ceil.to_i}}
+          # Rounded up from what the document says, not from the float behind
+          # it: 362.004 is written `height="362"`, and reporting 363 breaks the
+          # README's promise that the output matches the file.
+          {path, svg.as(Bytes | String), {SVG.num(svg_size[0]).to_f.ceil.to_i, SVG.num(svg_size[1]).to_f.ceil.to_i}}
         end
       end
     end

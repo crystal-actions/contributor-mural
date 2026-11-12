@@ -431,6 +431,9 @@ module ContributorMural
       if path.matches?(/[\x00-\x1f]/)
         errors << "output path must not contain control characters: #{path.inspect}"
       end
+      # `paths` is a comma-separated output; a comma inside one entry splits it
+      # into names that do not exist.
+      errors << "output path must not contain a comma: #{path}" if path.includes?(',')
     end
   end
 

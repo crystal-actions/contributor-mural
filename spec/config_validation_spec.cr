@@ -304,6 +304,11 @@ describe "ContributorMural::Config#validate! outputs" do
       .should contain("output path must not contain control characters")
   end
 
+  it "refuses a comma in an output path, which would split the paths output" do
+    errors_for(%(users:\n  - login: alpha\noutputs:\n  - path: "a,b.svg"))
+      .should contain("output path must not contain a comma: a,b.svg")
+  end
+
   it "refuses a non-positive png scale" do
     errors_for("users:\n  - login: alpha\npng:\n  scale: 0").should contain("png `scale` must be positive")
     errors_for("users:\n  - login: alpha\npng:\n  scale: -1").should contain("png `scale` must be positive")

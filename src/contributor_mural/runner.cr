@@ -116,7 +116,7 @@ module ContributorMural
       if committer = @committer
         # The landing spots, not the configured names: staging a link to the
         # mural stages the link, and the changed file behind it never shipped.
-        changed = committer.commit(written_paths.map { |path| destinations[path] }.uniq)
+        changed = committer.commit(written_paths.map { |path| destinations[path] }.uniq!)
         Annotations.notice(changed ? "contributor mural updated" : "contributor mural already up to date")
       end
       Annotations.output("changed", changed.to_s)

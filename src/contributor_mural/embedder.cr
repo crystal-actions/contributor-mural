@@ -90,7 +90,7 @@ module ContributorMural
     # this wall carries.
     private def steady(job : Job, fetched : String, users : Array(ResolvedUser)) : String
       copies = previous_faces[SVG.escape(job.user.link)]?
-      return fetched unless copies && !copies.includes?(fetched)
+      return fetched if copies.nil? || copies.includes?(fetched)
       return fetched unless users.one? { |user| user.link == job.user.link }
       copies.find { |kept| SameImage.same?(kept, fetched) } || fetched
     end

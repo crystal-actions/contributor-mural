@@ -155,8 +155,12 @@ module ContributorMural
     # The root tag is the first one past the prolog, not the first `<svg`
     # anywhere: a comment or DOCTYPE that mentions one came first and got the
     # viewBox instead. Quote-aware, so a `>` inside an attribute value does not
-    # end the tag early.
-    ROOT_TAG = /\A\x{FEFF}?(?:\s|<\?.*?\?>|<!--.*?-->|<!DOCTYPE[^\[>]*(?:\[.*?\])?\s*>)*\K<svg(?=[\s\/>])(?:[^>"']|"[^"]*"|'[^']*')*>/m
+    # end the tag early. Possessive throughout: each backtracking repetition
+    # cost PCRE's JIT stack a frame, and a prolog of a few ten thousand
+    # comments or a root tag with that many attributes raised Regex::Error
+    # past every rescue. The alternatives never share a first character, so
+    # nothing a match needs is ever given back.
+    ROOT_TAG = /\A\x{FEFF}?(?:\s++|<\?.*?\?>|<!--.*?-->|<!DOCTYPE[^\[>]*(?:\[.*?\])?\s*>)*+\K<svg(?=[\s\/>])(?:[^>"']++|"[^"]*"|'[^']*')*+>/m
 
     private def self.with_view_box(bytes : Bytes) : Bytes
       svg = String.new(bytes)

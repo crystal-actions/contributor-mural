@@ -53,6 +53,15 @@ describe ContributorMural::SilhouetteTracer do
     end
   end
 
+  # Backtracking spent a JIT stack frame per prolog item, and a few ten
+  # thousand of them raised Regex::Error past every rescue.
+  it "finds the root tag past a prolog of any length" do
+    root = %(<svg xmlns="http://www.w3.org/2000/svg" width="30" height="20">)
+    {("<!-- c -->\n" * 50_000) + root, "<svg" + (%( a="b") * 50_000) + ">"}.each do |svg|
+      svg.match(ContributorMural::SilhouetteTracer::ROOT_TAG).should_not be_nil
+    end
+  end
+
   it "puts `resolution` cells along the longer side and follows the aspect on the other" do
     mask = trace("ell.svg", resolution: 6)
     mask.columns.should eq(6)

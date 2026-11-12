@@ -233,6 +233,14 @@ module ContributorMural
       mode.dark? ? theme.dark_palette : theme.light_palette
     end
 
+    # Whether a palette wants a style's dark inks. Decided by the palette, not
+    # by the mode, in both the auto CSS and the static fills: `midnight` is one
+    # dark palette in both modes, and the auto SVG gave it dark inks while the
+    # same config's PNG — pinned to light — drew light ones.
+    protected def dark_inks?(palette : Palette) : Bool
+      palette == theme.dark_palette
+    end
+
     protected def label_paint : String
       mode.auto? ? %(class="mural-label") : %(fill="#{SVG.escape(palette.label_color)}")
     end

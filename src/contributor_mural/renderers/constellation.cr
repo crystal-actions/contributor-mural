@@ -73,7 +73,7 @@ module ContributorMural::Renderers
 
     protected def style_rules(palette : Palette) : String
       constellation = @config.constellation
-      dark = palette == theme.dark_palette
+      dark = dark_inks?(palette)
       String.build do |rules|
         rules << ".mural-glow{stop-color:#{palette.title_color}}"
         rules << ".mural-halo{opacity:#{dark ? "0.9" : "0.4"}}"
@@ -282,7 +282,7 @@ module ContributorMural::Renderers
     # The halo carries the glow in both themes, but a dark sky takes much more
     # of it than a white page does.
     private def halo_paint : String
-      mode.auto? ? %(class="mural-halo") : %(opacity="#{mode.dark? ? "0.9" : "0.4"}")
+      mode.auto? ? %(class="mural-halo") : %(opacity="#{dark_inks?(palette) ? "0.9" : "0.4"}")
     end
 
     private def dust_paint : String

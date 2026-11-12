@@ -114,7 +114,7 @@ module ContributorMural::Renderers
     end
 
     protected def style_rules(palette : Palette) : String
-      inks = palette == theme.dark_palette ? DARK_INKS : LIGHT_INKS
+      inks = dark_inks?(palette) ? DARK_INKS : LIGHT_INKS
       rules = ".mural-building{fill:#{inks[:building]}}.mural-ground{fill:#{inks[:ground]}}"
       if @config.skyline.windows?
         rules += ".mural-window-lit{fill:#{inks[:lit]}}.mural-window-dark{fill:#{inks[:unlit]}}"
@@ -352,7 +352,7 @@ module ContributorMural::Renderers
     end
 
     private def inks
-      mode.dark? ? DARK_INKS : LIGHT_INKS
+      dark_inks?(palette) ? DARK_INKS : LIGHT_INKS
     end
 
     private def building_paint : String

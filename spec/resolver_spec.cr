@@ -10,6 +10,23 @@ private def api_user(login : String, weight : Int32 = 1, avatar_url : String? = 
 end
 
 describe ContributorMural::Resolver do
+  # An anonymous author's "login" is their git name; keyed like a login, an
+  # author called `alex` took the real `Alex`'s place, identicon and all.
+  it "never merges an anonymous author into an account" do
+    anon = ContributorMural::ResolvedUser.new(login: "alex", link: "https://github.com/o/r/commits?author=a",
+      avatar_url: "https://github.com/identicons/alex.png", weight: 40, anonymous: true)
+    users = ContributorMural::Resolver.resolve(config_from("users:\n  - login: alex\n"), [anon, api_user("Alex", 3)])
+    users.size.should eq(2)
+    curated = users.find! { |user| user.login == "alex" && !user.anonymous? }
+    curated.weight.should eq(3)
+    curated.avatar_url.should be_nil
+  end
+
+  it "does not take a login in another case for a display name" do
+    users = ContributorMural::Resolver.resolve(config_from("users:\n  - login: alice\n"), [api_user("Alice")])
+    users.first.name.should eq("alice")
+  end
+
   it "resolves list users with defaults" do
     config = config_from(<<-YAML)
       sort: none

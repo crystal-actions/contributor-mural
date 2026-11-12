@@ -504,6 +504,7 @@ module ContributorMural
           weight: weight,
           role: options.role,
           group: options.group,
+          anonymous: true,
         )
       end
     end

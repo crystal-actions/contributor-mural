@@ -4,7 +4,7 @@ module ContributorMural
   module Resolver
     def self.resolve(config : Config, api_users : Array(ResolvedUser) = [] of ResolvedUser) : Array(ResolvedUser)
       merged = merge_api_users(api_users)
-      api_by_login = merged.index_by(&.login.downcase)
+      api_by_login = merged.index_by { |user| identity(user) }
       seen = Set(String).new
       result = [] of ResolvedUser
 
@@ -21,7 +21,7 @@ module ContributorMural
       # Whatever the runner fetched (contributors, members, stargazers,
       # sponsors) merges in behind the curated list.
       merged.each do |user|
-        result << user if seen.add?(user.login.downcase)
+        result << user if seen.add?(identity(user))
       end
 
       # Lower-cased once rather than once per user tested against them.
@@ -150,7 +150,7 @@ module ContributorMural
       by_login = {} of String => ResolvedUser
 
       api_users.each do |user|
-        key = user.login.downcase
+        key = identity(user)
         if existing = by_login[key]?
           by_login[key] = ResolvedUser.new(
             login: existing.login,
@@ -162,6 +162,7 @@ module ContributorMural
             group: existing.group || user.group,
             also_in: (existing.also_in + user.also_in).uniq!,
             scale: Math.max(existing.scale, user.scale),
+            anonymous: existing.anonymous?,
           )
         else
           order << key
@@ -169,6 +170,14 @@ module ContributorMural
         end
       end
       order.map { |key| by_login[key] }
+    end
+
+    # Who a user is, for merging. A login is case-insensitive on GitHub; an
+    # anonymous author's "login" is only their git name, so it is keyed by
+    # something no login can be — an author called `alex` took over the real
+    # `Alex`'s place on the wall, face and link included.
+    private def self.identity(user : ResolvedUser) : String
+      user.anonymous? ? "\0#{user.link}" : user.login.downcase
     end
 
     # `name` has no nil to fall back through: a source that does not report one
@@ -189,7 +198,9 @@ module ContributorMural
     private def self.from_entry(entry : UserEntry, base : ResolvedUser?) : ResolvedUser
       ResolvedUser.new(
         login: entry.login,
-        name: entry.name || base.try(&.name) || entry.login,
+        # A source's name that only repeats its login is no name: in another
+        # case it made `alice` read "Alice (@alice)".
+        name: entry.name || base.try { |api| api.name unless api.name == api.login } || entry.login,
         link: entry.link || "https://github.com/#{entry.login}",
         avatar_url: entry.avatar_url || base.try(&.avatar_url),
         weight: entry.weight || base.try(&.weight) || 1,

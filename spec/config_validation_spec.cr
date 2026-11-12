@@ -304,6 +304,24 @@ describe "ContributorMural::Config#validate! outputs" do
       .should contain("output path must not contain control characters")
   end
 
+  it "refuses `output` next to `outputs`, even when it names the default" do
+    errors_for("users:\n  - login: alpha\noutput: CONTRIBUTOR_MURAL.svg\noutputs:\n  - path: b.svg")
+      .should contain("`output` is ignored when `outputs` is set — keep only one of them")
+  end
+
+  it "refuses an empty user name, role or group" do
+    errors = errors_for(%(users:\n  - login: alpha\n    name: ""\n    role: " "\n    group: ""))
+    %w[name role group].each { |key| errors.should contain("user alpha: `#{key}` must not be empty") }
+  end
+
+  it "refuses an avatar_url that is empty or another scheme" do
+    errors_for(%(users:\n  - login: alpha\n    avatar_url: "")).should contain("user alpha: `avatar_url` must not be empty")
+    {"data:image/png;base64,AA", "ftp://example.com/a.png"}.each do |url|
+      errors_for(%(users:\n  - login: alpha\n    avatar_url: "#{url}"))
+        .should contain("user alpha: `avatar_url` must be http(s) or a file in the repository: #{url}")
+    end
+  end
+
   it "refuses a comma in an output path, which would split the paths output" do
     errors_for(%(users:\n  - login: alpha\noutputs:\n  - path: "a,b.svg"))
       .should contain("output path must not contain a comma: a,b.svg")
@@ -323,9 +341,14 @@ end
 describe "ContributorMural::Config#validate! sources" do
   it "refuses a `max` that would fetch nobody" do
     {"contributors", "stargazers", "sponsors"}.each do |section|
-      errors_for("#{section}:\n  max: 0").should contain("#{section} `max` must be >= 1")
+      errors_for("#{section}:\n  max: 0").should contain("#{section} `max` must be between 1 and 100000")
     end
-    errors_for("members:\n  org: crystal-actions\n  max: 0").should contain("members `max` must be >= 1")
+    errors_for("members:\n  org: crystal-actions\n  max: 0").should contain("members `max` must be between 1 and 100000")
+    errors_for("contributors:\n  max: 2147483647").should contain("contributors `max` must be between 1 and 100000")
+  end
+
+  it "refuses an empty source group" do
+    errors_for(%(contributors:\n  group: "")).should contain("contributors `group` must not be empty")
   end
 
   it "refuses a blank members org" do

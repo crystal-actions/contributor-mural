@@ -27,6 +27,17 @@ module ContributorMural
     path.starts_with?('/') || Path[path].parts.includes?("..")
   end
 
+  # Parses a nilable field as the type it holds. Left to itself, `T?` parses
+  # as a union, and a union that fails says only "Couldn't parse (T | Nil)" —
+  # the typo inside a `contributors:` block or an `outputs` entry, which is
+  # the actual mistake, is thrown away. Null never reaches here: the
+  # serializer settles it before asking a converter.
+  module Direct(T)
+    def self.from_yaml(ctx : YAML::ParseContext, node : YAML::Nodes::Node) : T
+      T.new(ctx, node)
+    end
+  end
+
   enum Style
     Grid
     Honeycomb
@@ -61,18 +72,28 @@ module ContributorMural
     DEFAULT_OUTPUT = "CONTRIBUTOR_MURAL.svg"
 
     property style : Style = Style::Grid
-    property output : String = DEFAULT_OUTPUT
+    # Nil when left out, so writing the default next to `outputs` is caught
+    # like any other value would be — not silently ignored.
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
+    property output : String? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(Array(OutputEntry)))]
     property outputs : Array(OutputEntry)? = nil
     property users : Array(UserEntry) = [] of UserEntry
+    @[YAML::Field(converter: ContributorMural::Direct(Array(String)))]
     property groups : Array(String)? = nil
     # Every source block is enabled by being written down; nil means the key
     # was left out of the config entirely.
+    @[YAML::Field(converter: ContributorMural::Direct(ContributorsConfig))]
     property contributors : ContributorsConfig? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(MembersConfig))]
     property members : MembersConfig? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(StargazersConfig))]
     property stargazers : StargazersConfig? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(SponsorsConfig))]
     property sponsors : SponsorsConfig? = nil
     property exclude : Array(String) = [] of String
     property sort : SortMode = SortMode::Weight
+    @[YAML::Field(converter: ContributorMural::Direct(Int32))]
     property limit : Int32? = nil
     property? fail_on_missing : Bool = false
     property grid : GridConfig = GridConfig.new
@@ -148,7 +169,9 @@ module ContributorMural
           return
         end
 
-      if second = documents[1]?
+      # A closing `---` with nothing after it is an empty document, not ignored
+      # content.
+      if second = documents[1..]?.try &.find { |doc| !empty_document?(doc) }
         raise ConfigError.new(
           "`---` starts a second YAML document and everything after it is ignored — " \
           "this file must be one document",
@@ -156,6 +179,11 @@ module ContributorMural
       end
 
       documents.first?.try(&.nodes.first?).try { |root| reject_duplicate_keys(root) }
+    end
+
+    private def self.empty_document?(document : YAML::Nodes::Document) : Bool
+      root = document.nodes.first?
+      root.nil? || (root.is_a?(YAML::Nodes::Scalar) && YAML::Schema::Core.parse_null?(root))
     end
 
     # At every depth: `columns` set twice under `grid:`, or `weight` twice in one
@@ -211,7 +239,9 @@ module ContributorMural
       return "could not be parsed" unless message
 
       # `source:` was replaced by writing the source blocks themselves.
-      if message.matches?(/Unknown yaml attribute: source/i)
+      # Top-level only: `sources:`, or a `source` key inside a user entry, is an
+      # ordinary unknown key and gets the ordinary message.
+      if message.matches?(/Unknown yaml attribute: source at line \d+, column 1\b/)
         return "`source` was removed — list the sources you want instead, " \
                "e.g. a `users:` list and/or a `contributors:` block"
       end
@@ -242,7 +272,7 @@ module ContributorMural
       if entries = outputs
         entries.map { |entry| {entry.path, entry.style || style, entry.mode} }
       else
-        [{output, style, nil.as(ThemeMode?)}]
+        [{output || DEFAULT_OUTPUT, style, nil.as(ThemeMode?)}]
       end
     end
 
@@ -284,6 +314,11 @@ module ContributorMural
       seen = Set(String).new
       users.each do |user|
         errors << "user entry with empty `login`" if user.login.strip.empty?
+        # Blank is not "unset": an empty role or group draws an empty line or
+        # section title and grows the picture to hold it.
+        {"name" => user.name, "role" => user.role, "group" => user.group}.each do |key, value|
+          errors << "user #{user.login}: `#{key}` must not be empty" if value.try(&.strip.empty?)
+        end
         errors << "duplicate user login: #{user.login}" unless seen.add?(user.login.downcase)
         # 0 is the rung below everything a source can report: GitHub counts a
         # contributor from one commit up and a sponsor from one dollar up, so
@@ -321,7 +356,11 @@ module ContributorMural
 
     private def validate_user_urls(errors : Array(String), user : UserEntry) : Nil
       if (avatar = user.avatar_url) && !avatar.matches?(%r{\Ahttps?://}i)
-        if ContributorMural.outside_repository?(avatar)
+        if avatar.strip.empty?
+          errors << "user #{user.login}: `avatar_url` must not be empty"
+        elsif avatar.matches?(%r{\A([a-z][a-z0-9+.-]*://|data:)}i)
+          errors << "user #{user.login}: `avatar_url` must be http(s) or a file in the repository: #{avatar}"
+        elsif ContributorMural.outside_repository?(avatar)
           errors << "user #{user.login}: local `avatar_url` must be relative to the repository: #{avatar}"
         end
       end
@@ -334,7 +373,7 @@ module ContributorMural
 
     private def validate_api_sources(errors : Array(String)) : Nil
       if block = contributors
-        errors << "contributors `max` must be >= 1" if block.max < 1
+        validate_max(errors, "contributors", block.max)
         validate_repo(errors, "contributors", block.repo)
         block.validate_defaults(errors, "contributors")
       end
@@ -344,19 +383,27 @@ module ContributorMural
         elsif !ContributorMural.path_segment?(block.org)
           errors << "members `org` must be a plain organization name: #{block.org.inspect}"
         end
-        errors << "members `max` must be >= 1" if block.max < 1
+        validate_max(errors, "members", block.max)
         block.validate_defaults(errors, "members")
       end
       if block = stargazers
-        errors << "stargazers `max` must be >= 1" if block.max < 1
+        validate_max(errors, "stargazers", block.max)
         validate_repo(errors, "stargazers", block.repo)
         block.validate_defaults(errors, "stargazers")
       end
       if block = sponsors
-        errors << "sponsors `max` must be >= 1" if block.max < 1
+        validate_max(errors, "sponsors", block.max)
         block.validate_defaults(errors, "sponsors")
       end
     end
+
+    # Capped well below Int32: `max: 2147483647`, written to mean "no limit",
+    # overflowed the page arithmetic into a stack trace.
+    private def validate_max(errors : Array(String), section : String, max : Int32) : Nil
+      errors << "#{section} `max` must be between 1 and #{MAX_SOURCE_USERS}" unless (1..MAX_SOURCE_USERS).includes?(max)
+    end
+
+    MAX_SOURCE_USERS = 100_000
 
     # `repo` is optional — left out, it comes from GITHUB_REPOSITORY at run
     # time and the API client checks it there. Written down, it can be checked
@@ -403,7 +450,7 @@ module ContributorMural
       if (entries = outputs) && entries.empty?
         errors << "`outputs` must not be empty — remove it to use `output` instead"
       end
-      if outputs && output != DEFAULT_OUTPUT
+      if outputs && output
         errors << "`output` is ignored when `outputs` is set — keep only one of them"
       end
 
@@ -442,8 +489,10 @@ module ContributorMural
     include YAML::Serializable::Strict
 
     property path : String
+    @[YAML::Field(converter: ContributorMural::Direct(Style))]
     property style : Style? = nil
     # Per-output theme mode override, e.g. a light/dark PNG or SVG pair.
+    @[YAML::Field(converter: ContributorMural::Direct(ThemeMode))]
     property mode : ThemeMode? = nil
   end
 
@@ -483,9 +532,13 @@ module ContributorMural
     include YAML::Serializable::Strict
 
     property login : String
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property name : String? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property link : String? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property avatar_url : String? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(Int32))]
     property weight : Int32? = nil
     # Size multiplier for one person, applied after the ranking every style
     # does for itself. `weight` says where someone stands in the list, which
@@ -495,7 +548,9 @@ module ContributorMural
     # constellation, pebble, and skyline — the latter in height).
     @[YAML::Field(converter: ContributorMural::NumberConverter)]
     property scale : Float64? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property role : String? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property group : String? = nil
     # Extra sections this person appears in, on top of `group`. `group` stays
     # the primary placement — where someone lives, and the one an API source
@@ -503,6 +558,7 @@ module ContributorMural
     # belong on. Written as a separate key rather than by letting `group` take
     # a sequence: the top-level `groups:` already means section *order*, and a
     # plural key at user level would read as that same thing one scope down.
+    @[YAML::Field(converter: ContributorMural::Direct(Array(String)))]
     property also_in : Array(String)? = nil
   end
 
@@ -518,6 +574,7 @@ module ContributorMural
   # thing on all four — and because it gives the API client one thing to be
   # handed instead of a lengthening row of loose arguments.
   module SourceDefaults
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property group : String? = nil
     # The role line for everyone from this source: `Code` on contributors,
     # `Sponsor` on sponsors. Without it a wall that uses roles to say what each
@@ -529,9 +586,11 @@ module ContributorMural
     # line off, as it always has. A role appearing under every face changes the
     # size of the picture, which is not something to do to an existing wall on
     # an upgrade.
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property role : String? = nil
     # Flattens every user this source yields onto one rung, replacing whatever
     # the source itself counted — contribution counts, sponsor tier amounts.
+    @[YAML::Field(converter: ContributorMural::Direct(Int32))]
     property weight : Int32? = nil
 
     # Named by section, because the four blocks are otherwise indistinguishable
@@ -546,6 +605,9 @@ module ContributorMural
       if value = role
         errors << "#{section} `role` must not be empty" if value.strip.empty?
       end
+      if value = group
+        errors << "#{section} `group` must not be empty" if value.strip.empty?
+      end
     end
   end
 
@@ -554,6 +616,7 @@ module ContributorMural
     include YAML::Serializable::Strict
     include SourceDefaults
 
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property repo : String? = nil
     property? include_bots : Bool = false
     property? include_anonymous : Bool = false
@@ -578,6 +641,7 @@ module ContributorMural
     include YAML::Serializable::Strict
     include SourceDefaults
 
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property repo : String? = nil
     property max : Int32 = 100
 
@@ -590,6 +654,7 @@ module ContributorMural
     include YAML::Serializable::Strict
     include SourceDefaults
 
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property login : String? = nil
     property max : Int32 = 100
 
@@ -746,9 +811,13 @@ module ContributorMural
     include YAML::Serializable
     include YAML::Serializable::Strict
 
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property background : String? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property label_color : String? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property role_color : String? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property title_color : String? = nil
 
     def initialize
@@ -812,6 +881,7 @@ module ContributorMural
     # How many rows to divide the wall into. Unset lets `cell_size` decide,
     # which keeps the cells near that pitch and adds rows as people arrive;
     # setting it fixes the rows instead and lets the cells take up the slack.
+    @[YAML::Field(converter: ContributorMural::Direct(Int32))]
     property rows : Int32? = nil
     property gap : Int32 = 4
     @[YAML::Field(converter: ContributorMural::NumberConverter)]
@@ -899,6 +969,7 @@ module ContributorMural
     include YAML::Serializable::Strict
 
     # A PNG, JPEG, GIF, WebP, or SVG in the repository, relative to its root.
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property image : String? = nil
     # Cells along the image's longer side; the shorter side follows its aspect.
     property resolution : Int32 = 24
@@ -1127,9 +1198,13 @@ module ContributorMural
 
     property preset : String = "github"
     property mode : ThemeMode = ThemeMode::Auto
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property background : String? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property label_color : String? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property role_color : String? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(String))]
     property title_color : String? = nil
     property dark : PaletteOverride = PaletteOverride.new
     property font_family : String = "-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"

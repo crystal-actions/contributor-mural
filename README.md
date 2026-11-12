@@ -1001,12 +1001,12 @@ sort: weight                # weight | login | none (none keeps list order)
 limit: 60                   # cap rendered users after merge/sort; `users:` kept first
 fail_on_missing: false      # true: fail the run when an avatar can't be fetched
 
-outputs:                    # optional: render several files in one run
-  - path: docs/wall-grid.svg
-  - path: docs/wall-hex.svg
-    style: honeycomb
-  - path: docs/wall.png     # .png outputs are rasterized (see `png` below)
-    mode: dark              # optional per-output light/dark override
+# outputs:                  # instead of `output`: render several files in one run
+#   - path: docs/wall-grid.svg
+#   - path: docs/wall-hex.svg
+#     style: honeycomb
+#   - path: docs/wall.png   # .png outputs are rasterized (see `png` below)
+#     mode: dark            # optional per-output light/dark override
 
 grid:
   columns: 8                # a number, or `auto`: one row until `max_columns`,

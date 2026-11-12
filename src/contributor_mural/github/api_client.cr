@@ -449,7 +449,13 @@ module ContributorMural
         # that says what to do about it. A secondary (burst) limit names its own
         # delay and clears on its own — waiting it out is the whole fix.
         raise rate_limit_error(response) if response.headers["x-ratelimit-remaining"]? == "0"
-        if wait = ContributorMural.retry_after(response, MAX_RETRY_AFTER)
+        if wait = ContributorMural.retry_after(response, Time::Span::MAX)
+          # Clamped and retried, a long delay cost the run a minute and then
+          # reported a pause GitHub never asked for.
+          if wait > MAX_RETRY_AFTER
+            raise ApiError.new("GitHub API asked for a #{wait.total_seconds.round.to_i}s pause (#{context}) — " \
+                               "longer than a run waits; try again later")
+          end
           raise RetryableApiError.new(
             "GitHub API asked for a #{wait.total_seconds.round.to_i}s pause (#{context})", wait)
         end

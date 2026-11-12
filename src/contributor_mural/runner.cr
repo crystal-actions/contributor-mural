@@ -66,7 +66,7 @@ module ContributorMural
       # before anything is written, because it reads what is being replaced.
       target_paths = targets.map { |path, _style, _mode| path }
       embedder = Embedder.new(@avatar_source,
-        salvage: -> { AvatarSalvage.read(@workspace, target_paths) })
+        salvage: -> { AvatarSalvage.read_all(@workspace, target_paths) })
       # Every renderer is built and asked what it needs *before* anything is
       # fetched, so all the targets' avatars come down in one fan-out. A config
       # with several outputs used to wait out a separate round of latency per

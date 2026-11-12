@@ -20,18 +20,18 @@ module ContributorMural
     getter salvaged = Set(String).new
 
     def initialize(@source : AvatarSource, @concurrency : Int32 = DEFAULT_CONCURRENCY,
-                   @salvage : Proc(Hash(String, String))? = nil)
+                   @salvage : Proc(Hash(String, Array(String)))? = nil)
       @cache = {} of String => String | AvatarError
     end
 
     # The previous wall's faces, read once on the first embed: a fetched face
     # is checked against its old copy (`#steady`), and a failed one falls back
     # to it.
-    private def previous_faces : Hash(String, String)
-      @previous_faces ||= @salvage.try(&.call) || {} of String => String
+    private def previous_faces : Hash(String, Array(String))
+      @previous_faces ||= @salvage.try(&.call) || {} of String => Array(String)
     end
 
-    @previous_faces : Hash(String, String)? = nil
+    @previous_faces : Hash(String, Array(String))? = nil
 
     # Fetches everything every target will ask for in a single fan-out. A config
     # with more than one output used to fetch per target and wait out a separate
@@ -69,7 +69,7 @@ module ContributorMural
           # is leaving it.
           # Only for a link nobody else on this wall carries: the face read back
           # is filed under the link, and a shared one cannot say whose it was.
-          if (kept = previous_faces[SVG.escape(job.user.link)]?) &&
+          if (kept = previous_faces[SVG.escape(job.user.link)]?.try(&.first)) &&
              users.one? { |user| user.link == job.user.link }
             embedded << EmbeddedUser.new(job.user, kept)
             @salvaged << job.user.login
@@ -89,10 +89,10 @@ module ContributorMural
     # Held to the same rule as a salvaged face: only for a link nobody else on
     # this wall carries.
     private def steady(job : Job, fetched : String, users : Array(ResolvedUser)) : String
-      kept = previous_faces[SVG.escape(job.user.link)]?
-      return fetched unless kept && kept != fetched
+      copies = previous_faces[SVG.escape(job.user.link)]?
+      return fetched unless copies && !copies.includes?(fetched)
       return fetched unless users.one? { |user| user.link == job.user.link }
-      SameImage.same?(kept, fetched) ? kept : fetched
+      copies.find { |kept| SameImage.same?(kept, fetched) } || fetched
     end
 
     private def jobs_for(users : Array(ResolvedUser), renderer : Renderer) : Array(Job)

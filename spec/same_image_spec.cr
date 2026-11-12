@@ -26,6 +26,12 @@ describe ContributorMural::SameImage do
     ContributorMural::SameImage.same?(a, b).should be_false
   end
 
+  # Summed in Int32, a chunk claiming 2^31 bytes overflowed into a crash.
+  it "takes a PNG with an absurd chunk length for a different picture" do
+    bogus = ContributorMural::SameImage::SIGNATURE + Bytes[0xFF, 0xFF, 0xFF, 0xF0] + "IDAT".to_slice + Bytes.new(8)
+    ContributorMural::SameImage.same?(png_uri(bogus), png_uri(tiny_png)).should be_false
+  end
+
   it "takes a truncated PNG for a different picture" do
     whole = tiny_png(level: 1)
     cut = whole[0, whole.size - 12]

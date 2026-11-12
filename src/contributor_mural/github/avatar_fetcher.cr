@@ -15,6 +15,19 @@ module ContributorMural
     end
   end
 
+  # The raster type a body's magic number names, or nil.
+  def self.sniff_image(body : Bytes) : String?
+    if body.size >= 8 && body[0, 8] == Bytes[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+      "image/png"
+    elsif body.size >= 3 && body[0, 3] == Bytes[0xFF, 0xD8, 0xFF]
+      "image/jpeg"
+    elsif body.size >= 6 && body[0, 4] == "GIF8".to_slice
+      "image/gif"
+    elsif body.size >= 12 && body[0, 4] == "RIFF".to_slice && body[8, 4] == "WEBP".to_slice
+      "image/webp"
+    end
+  end
+
   # Seam for avatar retrieval so specs can inject a fake.
   abstract class AvatarSource
     # Stable identity of the request, used as the cache/dedupe key.
@@ -34,6 +47,10 @@ module ContributorMural
     # Avatars are small; anything larger is a misconfigured URL, and the bytes
     # end up base64-encoded inside a committed file.
     MAX_BYTES = 8 * 1024 * 1024
+
+    # The whole body, not each read: `read_timeout` restarts on every byte, so
+    # a host dripping one byte a second never tripped it.
+    MAX_BODY_TIME = 60.seconds
 
     # Statuses worth another attempt. 429 and 408 are the reason this is a list
     # rather than `>= 500`: a throttled or timed-out request used to count as a
@@ -159,7 +176,8 @@ module ContributorMural
 
     private def get_following_redirects(url : String) : {Bytes, String}
       refuse_internal_target(url)
-      MAX_REDIRECTS.times do
+      # Requests, so one more than the redirects allowed between them.
+      (MAX_REDIRECTS + 1).times do
         outcome = @pool.get(url, @headers) do |response|
           # Read before looking at the status. The body has to come off the
           # socket whatever it says, or the connection cannot be handed to the
@@ -167,10 +185,11 @@ module ContributorMural
           body = read_capped(response.body_io, url)
           case response.status_code
           when 200
-            {body, image_content_type(response)}
+            {body, image_content_type(response, body, url)}
           when 301, 302, 303, 307, 308
+            # Not retried: it reads the same way next time.
             response.headers["Location"]? ||
-              raise AvatarError.new("redirect without Location from #{url}")
+              raise AvatarError.new("redirect without Location from #{url}", 400)
           when 404
             raise AvatarError.new("avatar not found (404)", 404)
           else
@@ -181,7 +200,7 @@ module ContributorMural
         return outcome unless outcome.is_a?(String)
         url = safe_redirect(url, outcome)
       end
-      raise AvatarError.new("too many redirects for #{url}")
+      raise AvatarError.new("too many redirects for #{url}", 400)
     end
 
     # Takes at most `MAX_BYTES`, and stops the moment there is more.
@@ -197,19 +216,37 @@ module ContributorMural
     # returns, and why the connection is dropped instead of pooled.
     private def read_capped(body : IO, url : String) : Bytes
       buffer = IO::Memory.new
-      if IO.copy(body, buffer, MAX_BYTES + 1) > MAX_BYTES
-        raise AvatarError.new("avatar is too large: #{url} (limit #{MAX_BYTES} bytes)", 200)
+      chunk = Bytes.new(64 * 1024)
+      deadline = Time.instant + MAX_BODY_TIME
+      while (read = body.read(chunk)) > 0
+        buffer.write(chunk[0, read])
+        if buffer.size > MAX_BYTES
+          raise AvatarError.new("avatar is too large: #{url} (limit #{MAX_BYTES} bytes)", 200)
+        end
+        if Time.instant > deadline
+          raise AvatarError.new("avatar took longer than #{MAX_BODY_TIME.total_seconds.to_i}s to download: #{url}", 408)
+        end
       end
       buffer.to_slice
     end
 
-    # Reads Content-Type from the raw header: `response.content_type` parses
-    # the value and raises MIME::Error on malformed input. Unknown types fall
-    # back to PNG so a sloppy host cannot inject markup into the data URI.
-    private def image_content_type(response : HTTP::Client::Response) : String
-      raw = response.headers["Content-Type"]?.try(&.split(';').first.strip.downcase)
-      return "image/png" unless raw
-      ALLOWED_CONTENT_TYPES.includes?(raw) ? raw : "image/png"
+    # The type is read off the bytes, not the header. Any 200 used to count:
+    # an HTML throttle page, a JSON error or an empty body was embedded as the
+    # person's face — a broken image, committed, with the kept face never
+    # salvaged and `fail_on_missing` never told. Raised without a status, so a
+    # transient page like that is retried.
+    #
+    # SVG has no magic number, so it is the one type the header still decides,
+    # and only for a body that is an SVG document.
+    private def image_content_type(response : HTTP::Client::Response, body : Bytes, url : String) : String
+      if sniffed = ContributorMural.sniff_image(body)
+        return sniffed
+      end
+      # The raw header: `response.content_type` parses the value and raises
+      # MIME::Error on malformed input.
+      declared = response.headers["Content-Type"]?.try(&.split(';').first.strip.downcase)
+      return "image/svg+xml" if declared == "image/svg+xml" && String.new(body[0, Math.min(body.size, 1024)]).includes?("<svg")
+      raise AvatarError.new("not an image (#{declared || "no content type"}, #{body.size} bytes): #{url}")
     end
 
     # Redirects must stay on https and off the internal network: the response

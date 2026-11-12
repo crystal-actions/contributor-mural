@@ -2,6 +2,10 @@ require "file_utils"
 require "../spec_helper"
 require "http/server"
 
+# Avatar bodies are typed by their magic number, so every fake one carries it.
+private PNG_MAGIC  = "\x89PNG\r\n\x1A\n"
+private JPEG_MAGIC = "\xFF\xD8\xFF"
+
 # Boots a throwaway local HTTP server for redirect/error behavior. No external
 # network is touched.
 private def with_test_server(&)
@@ -12,7 +16,7 @@ private def with_test_server(&)
     case path
     when "/ok.png"
       context.response.content_type = "image/jpeg"
-      context.response.print "JPEGDATA"
+      context.response.print "#{JPEG_MAGIC}JPEGDATA"
     when "/redirect"
       context.response.status_code = 301
       context.response.headers["Location"] = "/ok.png"
@@ -24,7 +28,7 @@ private def with_test_server(&)
       context.response.headers["Location"] = "/loop"
     when "/bad-mime"
       context.response.headers["Content-Type"] = "@@@"
-      context.response.print "DATA"
+      context.response.print "#{PNG_MAGIC}DATA"
     when "/html"
       context.response.content_type = "text/html"
       context.response.print "<b>nope</b>"
@@ -43,7 +47,7 @@ private def with_test_server(&)
         context.response.status_code = 500
       else
         context.response.content_type = "image/png"
-        context.response.print "RECOVERED"
+        context.response.print "#{PNG_MAGIC}RECOVERED"
       end
     else
       context.response.status_code = 500
@@ -85,6 +89,7 @@ private def with_endless_server(chunks : Int32, &)
   server = HTTP::Server.new do |context|
     context.response.content_type = "image/png"
     chunk = Bytes.new(64 * 1024, 0_u8)
+    PNG_MAGIC.to_slice.copy_to(chunk)
     chunks.times do
       context.response.write(chunk)
       written += chunk.size
@@ -110,7 +115,7 @@ private def with_scripted_server(script : Array(Int32), retry_after : String? = 
     status = script[Math.min(attempts - 1, script.size - 1)]
     if status == 200
       context.response.content_type = "image/png"
-      context.response.print "SCRIPTED"
+      context.response.print "#{PNG_MAGIC}SCRIPTED"
     else
       context.response.status_code = status
       context.response.headers["Retry-After"] = retry_after if retry_after
@@ -211,7 +216,7 @@ describe ContributorMural::HTTPAvatarSource do
       with_test_server do |base, _requests|
         source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
         bytes, content_type = source.fetch(user_with("#{base}/ok.png"), 64)
-        String.new(bytes).should eq("JPEGDATA")
+        String.new(bytes).should eq("#{JPEG_MAGIC}JPEGDATA")
         content_type.should eq("image/jpeg")
       end
     end
@@ -220,19 +225,21 @@ describe ContributorMural::HTTPAvatarSource do
       with_test_server do |base, _requests|
         source = avatar_source(backoff_base: 0.seconds, allow_local_redirects: true)
         bytes, _ = source.fetch(user_with("#{base}/redirect"), 64)
-        String.new(bytes).should eq("JPEGDATA")
+        String.new(bytes).should eq("#{JPEG_MAGIC}JPEGDATA")
 
         bytes, _ = source.fetch(user_with("#{base}/relative-redirect"), 64)
-        String.new(bytes).should eq("JPEGDATA")
+        String.new(bytes).should eq("#{JPEG_MAGIC}JPEGDATA")
       end
     end
 
-    it "gives up on redirect loops" do
-      with_test_server do |base, _requests|
+    it "gives up on redirect loops without retrying them" do
+      with_test_server do |base, requests|
         source = avatar_source(backoff_base: 0.seconds, allow_local_redirects: true)
         expect_raises(ContributorMural::AvatarError, /too many redirects/) do
           source.fetch(user_with("#{base}/loop"), 64)
         end
+        # One request plus the five redirects allowed after it.
+        requests.count("/loop").should eq(ContributorMural::HTTPAvatarSource::MAX_REDIRECTS + 1)
       end
     end
 
@@ -247,14 +254,26 @@ describe ContributorMural::HTTPAvatarSource do
       end
     end
 
-    it "falls back to image/png for malformed or non-image content types" do
+    it "reads the type off the bytes, whatever the header says" do
       with_test_server do |base, _requests|
         source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
-        # `@@@` makes MIME parsing raise; `text/html` is simply not an image.
+        # `@@@` would make MIME parsing raise.
         _, content_type = source.fetch(user_with("#{base}/bad-mime"), 64)
         content_type.should eq("image/png")
-        _, content_type = source.fetch(user_with("#{base}/html"), 64)
-        content_type.should eq("image/png")
+        _, content_type = source.fetch(user_with("#{base}/ok.png"), 64)
+        content_type.should eq("image/jpeg")
+      end
+    end
+
+    # A throttle page answered 200 was embedded as the person's face, so their
+    # kept face was never salvaged and `fail_on_missing` never fired.
+    it "refuses a body that is no image, after retrying it" do
+      with_test_server do |base, requests|
+        source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
+        expect_raises(ContributorMural::AvatarError, /not an image \(text\/html/) do
+          source.fetch(user_with("#{base}/html"), 64)
+        end
+        requests.count("/html").should eq(ContributorMural::HTTPAvatarSource::MAX_ATTEMPTS)
       end
     end
 
@@ -274,7 +293,7 @@ describe ContributorMural::HTTPAvatarSource do
       with_test_server do |base, requests|
         source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
         bytes, _ = source.fetch(user_with("#{base}/flaky"), 64)
-        String.new(bytes).should eq("RECOVERED")
+        String.new(bytes).should eq("#{PNG_MAGIC}RECOVERED")
         requests.count("/flaky").should eq(3)
       end
     end
@@ -286,7 +305,7 @@ describe ContributorMural::HTTPAvatarSource do
       with_scripted_server([429, 429, 200], retry_after: "0") do |url, attempts|
         source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
         bytes, _ = source.fetch(user_with(url), 64)
-        String.new(bytes).should eq("SCRIPTED")
+        String.new(bytes).should eq("#{PNG_MAGIC}SCRIPTED")
         attempts.call.should eq(3)
       end
     end

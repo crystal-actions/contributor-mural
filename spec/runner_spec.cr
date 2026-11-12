@@ -956,6 +956,30 @@ describe "ContributorMural::Runner avatar salvage" do
     end
   end
 
+  # Each output fetches its own size, so each holds a different picture of
+  # the person; matched only against the first output's copy, every other
+  # output committed the re-encoding anyway.
+  it "keeps the previous bytes in every output, not just the first" do
+    yaml = "outputs:\n  - path: a.svg\n  - path: b.svg\n    style: spiral\nusers:\n  - login: alpha\n"
+    good = File.tempname("mural_good")
+    Dir.mkdir_p(good)
+    begin
+      config = ContributorMural::Config.parse(yaml)
+      config.validate!
+      ContributorMural::Runner.new(config, PngAvatarSource.new(level: 9, sized: true), good).run
+      previous = {"a.svg", "b.svg"}.to_h { |path| {path, File.read(File.join(good, path))} }
+      previous["a.svg"].should_not eq(previous["b.svg"])
+
+      seed = ->(workspace : String) { previous.each { |path, svg| File.write(File.join(workspace, path), svg) } }
+      run_in_tmp(yaml, PngAvatarSource.new(level: 1, sized: true), before: seed) do |exit_code, _outputs, workspace|
+        exit_code.should eq(0)
+        previous.each { |path, svg| File.read(File.join(workspace, path)).should eq(svg) }
+      end
+    ensure
+      FileUtils.rm_rf(good)
+    end
+  end
+
   it "still drops the person when there is no previous wall to read" do
     yaml = <<-YAML
       output: wall.svg

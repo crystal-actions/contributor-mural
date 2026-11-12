@@ -37,9 +37,10 @@ private class CountingServer
         socket.read_byte
         return
       end
-      socket << "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n"
+      # A GIF header: avatar fetches read the type off the bytes.
+      socket << "HTTP/1.1 200 OK\r\nContent-Type: image/gif\r\nContent-Length: 6\r\n"
       socket << "Connection: close\r\n" if @once
-      socket << "\r\nok"
+      socket << "\r\nGIF89a"
       socket.flush
       break if @once
     end
@@ -72,7 +73,7 @@ describe ContributorMural::HTTPPool do
   it "serves repeated requests to one origin over a single connection" do
     with_server do |server|
       pool = ContributorMural::HTTPPool.new
-      5.times { pool.get("#{server.address}/avatar.png").body.should eq("ok") }
+      5.times { pool.get("#{server.address}/avatar.png").body.should eq("GIF89a") }
       pool.close
 
       server.requests.should eq(5)
@@ -103,7 +104,7 @@ describe ContributorMural::HTTPPool do
       pool = ContributorMural::HTTPPool.new
       ContributorMural::Concurrent.map((1..12).to_a, 4) do |index|
         pool.get("#{server.address}/#{index}").body
-      end.should eq(Array.new(12, "ok"))
+      end.should eq(Array.new(12, "GIF89a"))
       pool.close
 
       server.requests.should eq(12)
@@ -116,7 +117,7 @@ describe ContributorMural::HTTPPool do
   it "recovers when the far end refuses to keep the connection alive" do
     with_server(once: true) do |server|
       pool = ContributorMural::HTTPPool.new
-      3.times { pool.get("#{server.address}/a").body.should eq("ok") }
+      3.times { pool.get("#{server.address}/a").body.should eq("GIF89a") }
       pool.close
 
       server.requests.should eq(3)

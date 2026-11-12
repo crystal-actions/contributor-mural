@@ -38,7 +38,9 @@ module ContributorMural
 
       chunks = [] of {String, Bytes}
       idat = IO::Memory.new
-      offset = SIGNATURE.size
+      # Int64: a chunk declares a 32-bit length, and `offset + 12 + length` in
+      # Int32 overflowed into a crash that took the whole run down.
+      offset = SIGNATURE.size.to_i64
       while offset + 12 <= bytes.size
         length = IO::ByteFormat::BigEndian.decode(UInt32, bytes[offset, 4]).to_i64
         return if offset + 12 + length > bytes.size

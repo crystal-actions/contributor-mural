@@ -29,9 +29,10 @@ def png_uri(png : Bytes, type : String = "image/png") : String
   "data:#{type};base64,#{Base64.strict_encode(png)}"
 end
 
-# Hands every login the same real PNG, deflated at `level`.
+# Hands every login the same real PNG, deflated at `level`. `sized` makes the
+# picture depend on the size asked for, the way a resized avatar does.
 class PngAvatarSource < ContributorMural::AvatarSource
-  def initialize(@level : Int32, @pixels : Bytes = Bytes[0, 255, 255, 0])
+  def initialize(@level : Int32, @pixels : Bytes = Bytes[0, 255, 255, 0], @sized : Bool = false)
   end
 
   def url_for(user : ContributorMural::ResolvedUser, size : Int32) : String
@@ -39,6 +40,7 @@ class PngAvatarSource < ContributorMural::AvatarSource
   end
 
   def fetch(user : ContributorMural::ResolvedUser, size : Int32) : {Bytes, String}
-    {tiny_png(@pixels, @level), "image/png"}
+    pixels = @sized ? Bytes[@pixels[0], @pixels[1], @pixels[2], (size % 256).to_u8] : @pixels
+    {tiny_png(pixels, @level), "image/png"}
   end
 end

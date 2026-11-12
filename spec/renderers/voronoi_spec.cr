@@ -64,6 +64,14 @@ private def regular_config(gap : Int32, influence : Float64) : String
 end
 
 describe ContributorMural::Renderers::Voronoi do
+  # The gap is bounded by `cell_size`, but `rows` sets the pitch: one row of
+  # 64 made 11px cells, and a 12px gap cut most of them to nothing.
+  it "keeps a gap the cells can hold when `rows` sets the pitch" do
+    svg = render_voronoi("style: voronoi\nvoronoi:\n  rows: 1\n  gap: 12\n  jitter: 0.5\n#{ranked_users(64)}")
+    cells(svg).size.should eq(64)
+    cells(svg).min_of { |cell| area(cell) }.should be > 20.0
+  end
+
   it "renders the voronoi golden file" do
     svg = render_voronoi(<<-YAML)
       style: voronoi

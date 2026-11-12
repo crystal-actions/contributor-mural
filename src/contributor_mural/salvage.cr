@@ -49,10 +49,13 @@ module ContributorMural
     # for having been ours once.
     VALID_URI = /\Adata:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+\/=]*\z/
 
-    # Link (as it appears in the markup) => data URI, for every person the
-    # given outputs already carry.
-    def self.read(workspace : String, paths : Array(String)) : Hash(String, String)
-      found = {} of String => String
+    # Link (as it appears in the markup) => every distinct copy of that face
+    # the given outputs already carry, first output first. Outputs fetch at
+    # different sizes, so a person's face is a different picture in each: a
+    # re-encoded fetch has to be matched against its own size's copy, or only
+    # the first output is ever spared the churn commit.
+    def self.read_all(workspace : String, paths : Array(String)) : Hash(String, Array(String))
+      found = {} of String => Array(String)
       paths.each do |path|
         # SVG only: a PNG has been rasterized, and the avatars in it stopped
         # being addressable the moment they became pixels.
@@ -86,7 +89,7 @@ module ContributorMural
     # A link is not a person: two entries can share one (`link:` is free text),
     # and the first face found under it would then be handed to the other. So
     # a link this file shows with two different faces is not read at all.
-    private def self.scan(svg : String, found : Hash(String, String)) : Nil
+    private def self.scan(svg : String, found : Hash(String, Array(String))) : Nil
       faces = {} of String => String
       ambiguous = Set(String).new
       shared = shared_faces(svg)
@@ -102,10 +105,6 @@ module ContributorMural
         stop = svg.byte_index(LINK_OPEN, cursor) || svg.bytesize
         link = svg.byte_slice(link_start, link_end - link_start)
 
-        # First one wins, the way the first output listed is the one whose
-        # dimensions get reported: several targets hold the same faces at
-        # different sizes, and reading them all would only overwrite each
-        # entry with its own twin.
         if inline = inline_uri(svg, cursor, stop)
           uri, cursor = inline
           next unless uri.matches?(VALID_URI)
@@ -115,7 +114,11 @@ module ContributorMural
         ambiguous << link if faces.fetch(link, uri) != uri
         faces[link] = uri
       end
-      faces.each { |key, face| found[key] ||= face unless ambiguous.includes?(key) }
+      faces.each do |key, face|
+        next if ambiguous.includes?(key)
+        copies = found[key] ||= [] of String
+        copies << face unless copies.includes?(face)
+      end
     end
 
     # The first `href="data:image/…"` between `cursor` and `stop`, with the

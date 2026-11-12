@@ -776,6 +776,70 @@ end
 # An avatar host that throttles for a minute used to take people off the wall
 # and commit the result, so the picture regressed over a failure that had
 # already fixed itself. The file being replaced is the cache.
+describe ContributorMural::WorkspaceFile do
+  it "names where a write lands, so the real file is what gets committed" do
+    workspace = File.tempname("mural_ws")
+    Dir.mkdir_p(File.join(workspace, "docs"))
+    begin
+      File.write(File.join(workspace, "docs/wall.svg"), "old")
+      File.symlink("docs/wall.svg", File.join(workspace, "wall.svg"))
+      File.symlink("docs", File.join(workspace, "art"))
+      ContributorMural::WorkspaceFile.destination(workspace, "wall.svg").should eq("docs/wall.svg")
+      ContributorMural::WorkspaceFile.destination(workspace, "art/new/x.svg").should eq("docs/new/x.svg")
+      ContributorMural::WorkspaceFile.destination(workspace, "plain.svg").should eq("plain.svg")
+    ensure
+      FileUtils.rm_rf(workspace)
+    end
+  end
+
+  it "refuses a link into .git" do
+    workspace = File.tempname("mural_ws")
+    Dir.mkdir_p(File.join(workspace, ".git"))
+    begin
+      File.write(File.join(workspace, ".git/config"), "[core]")
+      File.symlink(".git/config", File.join(workspace, "wall.svg"))
+      File.symlink(".git", File.join(workspace, "docs"))
+      ContributorMural::WorkspaceFile.destination(workspace, "wall.svg").should be_nil
+      ContributorMural::WorkspaceFile.destination(workspace, "docs/hooks/x.svg").should be_nil
+    ensure
+      FileUtils.rm_rf(workspace)
+    end
+  end
+end
+
+describe "ContributorMural::Runner refusing one output" do
+  it "refuses two outputs a symlink leads to one file" do
+    yaml = "outputs:\n  - path: a.svg\n  - path: b.svg\nusers:\n  - login: alpha\n"
+    run_in_tmp(yaml, before: ->(workspace : String) {
+      File.write(File.join(workspace, "b.svg"), "old")
+      File.symlink("b.svg", File.join(workspace, "a.svg"))
+      nil
+    }) do |exit_code, _outputs, workspace|
+      exit_code.should eq(1)
+      ContributorMural::Annotations.io.to_s.should contain("two outputs lead to the same file")
+      File.read(File.join(workspace, "b.svg")).should eq("old")
+    end
+  end
+
+  it "writes none of the others" do
+    outside = File.tempname("mural_outside")
+    Dir.mkdir_p(outside)
+    yaml = "outputs:\n  - path: a.svg\n  - path: docs/b.svg\nusers:\n  - login: alpha\n"
+    begin
+      run_in_tmp(yaml, before: ->(workspace : String) {
+        File.write(File.join(workspace, "a.svg"), "old")
+        File.symlink(outside, File.join(workspace, "docs"))
+        nil
+      }) do |exit_code, _outputs, workspace|
+        exit_code.should eq(1)
+        File.read(File.join(workspace, "a.svg")).should eq("old")
+      end
+    ensure
+      FileUtils.rm_rf(outside)
+    end
+  end
+end
+
 describe "ContributorMural::Runner avatar salvage" do
   it "never hands one person's face to another who shares their link" do
     yaml = <<-YAML
@@ -899,6 +963,30 @@ describe "ContributorMural::Runner avatar salvage" do
         wall = File.read(File.join(workspace, "wall.svg"))
         wall.should_not eq(previous)
         wall.should contain(png_uri(tiny_png(Bytes[9, 9, 9, 9], level: 1)))
+      end
+    ensure
+      FileUtils.rm_rf(good)
+    end
+  end
+
+  # Each output fetches its own size, so each holds a different picture of
+  # the person; matched only against the first output's copy, every other
+  # output committed the re-encoding anyway.
+  it "keeps the previous bytes in every output, not just the first" do
+    yaml = "outputs:\n  - path: a.svg\n  - path: b.svg\n    style: spiral\nusers:\n  - login: alpha\n"
+    good = File.tempname("mural_good")
+    Dir.mkdir_p(good)
+    begin
+      config = ContributorMural::Config.parse(yaml)
+      config.validate!
+      ContributorMural::Runner.new(config, PngAvatarSource.new(level: 9, sized: true), good).run
+      previous = {"a.svg", "b.svg"}.to_h { |path| {path, File.read(File.join(good, path))} }
+      previous["a.svg"].should_not eq(previous["b.svg"])
+
+      seed = ->(workspace : String) { previous.each { |path, svg| File.write(File.join(workspace, path), svg) } }
+      run_in_tmp(yaml, PngAvatarSource.new(level: 1, sized: true), before: seed) do |exit_code, _outputs, workspace|
+        exit_code.should eq(0)
+        previous.each { |path, svg| File.read(File.join(workspace, path)).should eq(svg) }
       end
     ensure
       FileUtils.rm_rf(good)

@@ -80,6 +80,14 @@ describe ContributorMural::Renderers::Pebble do
     end
   end
 
+  # `jitter: 0` on a slab one pebble wide lines them all up, and every push
+  # between two of them was then straight up or down: the pack never settled
+  # and the faces were drawn over each other.
+  it "separates a pack that starts in one exact column" do
+    users = "users:\n" + (0...100).map { |i| "  - login: u#{i}\n    weight: 1\n" }.join
+    assert_clearance(stones(render_pebble("style: pebble\npebble:\n  width: 120\n  gap: 2\n  density: 0.9\n  jitter: 0\n#{users}")), 2.0)
+  end
+
   # A density the crowd cannot be packed to is a request, not a promise: the pile
   # takes the room it needs rather than letting two avatars overlap.
   it "loosens the pile rather than honour a density it cannot reach" do

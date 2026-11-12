@@ -44,7 +44,7 @@ describe "examples" do
 
     configs.each do |path|
       config = ContributorMural::Config.load(path)
-      paths = config.outputs.try(&.map(&.path)) || [config.output]
+      paths = config.outputs.try(&.map(&.path)) || [config.output || ContributorMural::Config::DEFAULT_OUTPUT]
       paths.each do |output|
         relative = Path[path].relative_to(REPO_ROOT)
         File.exists?(repo_file(output)).should be_true,

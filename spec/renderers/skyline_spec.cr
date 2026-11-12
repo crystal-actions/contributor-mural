@@ -221,3 +221,20 @@ describe ContributorMural::Renderers::Skyline do
     sections[1..].each { |section| section.scan(/<rect [^>]*width="2" /).size.should eq(1) }
   end
 end
+
+# `midnight` is one dark palette in both modes. The auto SVG gave it dark
+# inks while the same config's PNG, pinned to light, drew light ones.
+describe "skyline inks" do
+  it "follows the palette, not the mode" do
+    config = ContributorMural::Config.parse("style: skyline\ntheme:\n  preset: midnight\nusers:\n  - login: alpha\n")
+    users = ContributorMural::Resolver.resolve(config)
+    svg = {ContributorMural::ThemeMode::Light, ContributorMural::ThemeMode::Auto}.map do |mode|
+      renderer = ContributorMural::Renderer.for(ContributorMural::Style::Skyline, config, mode)
+      renderer.prepare(users)
+      embedded, _ = ContributorMural::Embedder.new(FakeAvatarSource.new).embed(users, renderer, fail_on_missing: false)
+      renderer.render(embedded)
+    end
+    svg[0].should contain(%(fill="#21262d"))
+    svg[1].should contain(".mural-building{fill:#21262d}")
+  end
+end

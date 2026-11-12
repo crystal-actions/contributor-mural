@@ -13,10 +13,13 @@ module ContributorMural
     getter also_in : Array(String)
     # Per-user size multiplier; 1.0 unless the config asked for emphasis.
     getter scale : Float64
+    # A commit author with no GitHub account: `login` is their git name, which
+    # says nothing about who owns that login on GitHub.
+    getter? anonymous : Bool
 
     def initialize(@login, @name = login, @link = "https://github.com/#{login}",
                    @avatar_url = nil, @weight = 1, @role = nil, @group = nil,
-                   @scale = 1.0, @also_in = [] of String)
+                   @scale = 1.0, @also_in = [] of String, @anonymous = false)
     end
 
     # Every section this person is filed under, primary first.
@@ -38,7 +41,7 @@ module ContributorMural
     getter user : ResolvedUser
     getter data_uri : String
 
-    delegate login, name, link, weight, role, group, also_in, sections, scale, to: @user
+    delegate login, name, link, weight, role, group, also_in, sections, scale, anonymous?, to: @user
 
     def initialize(@user, @data_uri)
     end

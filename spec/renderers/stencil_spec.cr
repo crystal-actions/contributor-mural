@@ -64,6 +64,10 @@ private def occupied(svg : String) : Set({Int32, Int32})
 end
 
 describe ContributorMural::StencilFont do
+  it "ignores spaces around a line, which is centred anyway" do
+    ContributorMural::StencilFont.lines("  A  \n B").should eq([['A'], ['B']])
+  end
+
   it "holds a well-formed 5x7 cell for every character" do
     ContributorMural::StencilFont::GLYPHS.each do |char, rows|
       rows.size.should eq(ContributorMural::StencilFont::HEIGHT)

@@ -99,6 +99,26 @@ describe ContributorMural::Renderers::Spiral do
   # A flat taper, a wide one, or simply a longer list all walk out of what it
   # can account for, and each of these overlapped before the radii were checked
   # against the wall rather than trusted to the estimate.
+  it "sizes equal weights alike, in mosaic and spiral" do
+    users = "users:\n" + (1..6).map { |i| "  - login: u#{i}\n    weight: 1\n" }.join
+    {"mosaic", "spiral"}.each do |style|
+      sizes = render_radial("style: #{style}\n#{users}").scan(/<image [^>]*width="([0-9.]+)"/).map(&.[1])
+      sizes.size.should eq(6)
+      sizes.uniq.size.should eq(1)
+    end
+  end
+
+  # Spaced as discs, two squares on a diagonal met corner to corner.
+  it "keeps square and rounded avatars from overlapping" do
+    %w[square rounded].each do |shape|
+      boxes = circles(render_radial("style: spiral\nspiral:\n  shape: #{shape}\n#{ranked_users(40)}"))
+      boxes.each_combination(2, reuse: true) do |(a, b)|
+        apart = Math.max((a[0] - b[0]).abs, (a[1] - b[1]).abs)
+        apart.should be >= (a[2] + b[2]) / 2 - 0.02
+      end
+    end
+  end
+
   it "keeps avatars from overlapping whatever the sizes are" do
     {
       {"max_size: 72\n  min_size: 32", 90},   # the defaults, past where they held

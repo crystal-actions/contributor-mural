@@ -381,6 +381,14 @@ module ContributorMural::Renderers
             push = (want - distance) / distance / 2
             push_x = dx * push
             push_y = dy * push
+            # One exactly above the other — `jitter: 0` on a one-column slab
+            # lines every pebble up — and every push is vertical, so the pack
+            # can never spread sideways and never settles. Half the push goes
+            # sideways instead, the side picked by the pair so it is the same
+            # on every run.
+            if dx.abs < TOUCHING
+              push_x = (want - distance) / 4 * ((i + j).even? ? 1 : -1)
+            end
           end
           xs[i] -= push_x
           ys[i] -= push_y

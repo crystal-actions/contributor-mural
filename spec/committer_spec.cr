@@ -58,6 +58,20 @@ describe ContributorMural::Committer do
     end
   end
 
+  it "takes an output path literally, not as a pattern" do
+    with_git_repo do |clone, remote|
+      File.write(File.join(clone, "notes.svg"), "tracked")
+      git("-C", clone, "add", "notes.svg")
+      git("-C", clone, "commit", "-m", "notes")
+      git("-C", clone, "push", "origin", "main")
+      File.write(File.join(clone, "notes.svg"), "someone else's edit")
+      File.write(File.join(clone, "*.svg"), "<svg/>")
+
+      ContributorMural::Committer.new(clone, "msg").commit(["*.svg"]).should be_true
+      git_output("-C", remote, "show", "--name-only", "--format=", "main").split.should eq(["*.svg"])
+    end
+  end
+
   it "does not touch the repository's committer identity" do
     with_git_repo do |clone, _remote|
       File.write(File.join(clone, "wall.svg"), "<svg/>")

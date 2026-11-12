@@ -46,9 +46,10 @@ module ContributorMural
     # stay clear of the secondary rate limit that punishes bursts.
     PAGE_WINDOW = 4
 
-    # A secondary rate limit names its own delay; anything longer than this is
-    # better spent failing with a message someone can act on.
-    MAX_RETRY_AFTER = 30.seconds
+    # A secondary rate limit names its own delay — GitHub's guidance is at least
+    # a minute — and that is waited out; anything longer than this is better
+    # spent failing with a message someone can act on.
+    MAX_RETRY_AFTER = 60.seconds
 
     # GitHub's own ceiling on the contributors endpoint, which it applies by
     # answering with a full list rather than with an error. A repository past
@@ -449,7 +450,13 @@ module ContributorMural
         # that says what to do about it. A secondary (burst) limit names its own
         # delay and clears on its own — waiting it out is the whole fix.
         raise rate_limit_error(response) if response.headers["x-ratelimit-remaining"]? == "0"
-        if wait = ContributorMural.retry_after(response, MAX_RETRY_AFTER)
+        if wait = ContributorMural.retry_after(response, Time::Span::MAX)
+          # Clamped and retried, a long delay cost the run a minute and then
+          # reported a pause GitHub never asked for.
+          if wait > MAX_RETRY_AFTER
+            raise ApiError.new("GitHub API asked for a #{wait.total_seconds.round.to_i}s pause (#{context}) — " \
+                               "longer than a run waits; try again later")
+          end
           raise RetryableApiError.new(
             "GitHub API asked for a #{wait.total_seconds.round.to_i}s pause (#{context})", wait)
         end
@@ -498,6 +505,7 @@ module ContributorMural
           weight: weight,
           role: options.role,
           group: options.group,
+          anonymous: true,
         )
       end
     end

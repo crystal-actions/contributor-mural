@@ -25,6 +25,11 @@ private def wall(*people : {String, String}) : String
   %(<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8">\n#{body}</svg>\n)
 end
 
+# The first output's copy of each face, which is what salvage falls back to.
+private def salvaged(workspace : String, paths : Array(String)) : Hash(String, String)
+  ContributorMural::AvatarSalvage.read_all(workspace, paths).transform_values(&.first)
+end
+
 describe ContributorMural::AvatarSalvage do
   # `link:` is free text, so two people can share one. The face under it then
   # belongs to neither of them in particular.
@@ -35,7 +40,7 @@ describe ContributorMural::AvatarSalvage do
       {"https://github.com/charlie", "data:image/png;base64,CCCC"},
     )}
     in_workspace(files) do |workspace|
-      found = ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"])
+      found = salvaged(workspace, ["wall.svg"])
       found.keys.should eq(["https://github.com/charlie"])
     end
   end
@@ -45,7 +50,7 @@ describe ContributorMural::AvatarSalvage do
     File.write(outside, wall({"https://github.com/alpha", "data:image/png;base64,AAAA"}))
     in_workspace({} of String => String) do |workspace|
       File.symlink(outside, File.join(workspace, "wall.svg"))
-      ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"]).should be_empty
+      salvaged(workspace, ["wall.svg"]).should be_empty
     end
   ensure
     File.delete?(outside) if outside
@@ -57,7 +62,7 @@ describe ContributorMural::AvatarSalvage do
       {"https://github.com/bravo", "data:image/png;base64,BBBB"},
     )}
     in_workspace(files) do |workspace|
-      found = ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"])
+      found = salvaged(workspace, ["wall.svg"])
       found.size.should eq(2)
       found["https://github.com/alpha"].should eq("data:image/png;base64,AAAA")
       found["https://github.com/bravo"].should eq("data:image/png;base64,BBBB")
@@ -81,7 +86,7 @@ describe ContributorMural::AvatarSalvage do
       SVG
 
     in_workspace({"wall.svg" => svg}) do |workspace|
-      found = ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"])
+      found = salvaged(workspace, ["wall.svg"])
       found.keys.should eq(["https://github.com/bravo"])
     end
   end
@@ -102,7 +107,7 @@ describe ContributorMural::AvatarSalvage do
       SVG
 
     in_workspace({"wall.svg" => svg}) do |workspace|
-      ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"])
+      salvaged(workspace, ["wall.svg"])
         .should eq({"https://github.com/alpha" => "data:image/png;base64,AAAA"})
     end
   end
@@ -131,7 +136,7 @@ describe ContributorMural::AvatarSalvage do
       SVG
 
     in_workspace({"wall.svg" => svg}) do |workspace|
-      ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"]).should eq({
+      salvaged(workspace, ["wall.svg"]).should eq({
         "https://github.com/alpha" => "data:image/png;base64,SHARED",
         "https://github.com/bravo" => "data:image/png;base64,BBBB",
       })
@@ -155,7 +160,7 @@ describe ContributorMural::AvatarSalvage do
       SVG
 
     in_workspace({"wall.svg" => svg}) do |workspace|
-      ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"]).keys
+      salvaged(workspace, ["wall.svg"]).keys
         .should eq(["https://github.com/bravo"])
     end
   end
@@ -171,14 +176,14 @@ describe ContributorMural::AvatarSalvage do
       SVG
 
     in_workspace({"wall.svg" => svg}) do |workspace|
-      ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"]).should be_empty
+      salvaged(workspace, ["wall.svg"]).should be_empty
     end
   end
 
   it "reads links carrying the markup escaping they were written with" do
     files = {"wall.svg" => wall({"https://example.com/a?x=1&amp;y=2", "data:image/png;base64,AAAA"})}
     in_workspace(files) do |workspace|
-      found = ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"])
+      found = salvaged(workspace, ["wall.svg"])
       # Looked up by the escaped form, which is what the embedder builds.
       found[ContributorMural::SVG.escape("https://example.com/a?x=1&y=2")]?
         .should eq("data:image/png;base64,AAAA")
@@ -191,21 +196,21 @@ describe ContributorMural::AvatarSalvage do
       "two.svg" => wall({"https://github.com/alpha", "data:image/png;base64,TWO"}),
     }
     in_workspace(files) do |workspace|
-      ContributorMural::AvatarSalvage.read(workspace, ["one.svg", "two.svg"])
+      salvaged(workspace, ["one.svg", "two.svg"])
         .should eq({"https://github.com/alpha" => "data:image/png;base64,ONE"})
     end
   end
 
   it "ignores PNG targets and files that are not there yet" do
     in_workspace({"wall.svg" => wall({"https://github.com/alpha", "data:image/png;base64,AAAA"})}) do |workspace|
-      ContributorMural::AvatarSalvage.read(workspace, ["wall.png", "missing.svg"]).should be_empty
+      salvaged(workspace, ["wall.png", "missing.svg"]).should be_empty
     end
   end
 
   it "ignores a data URI that is not an image" do
     files = {"wall.svg" => wall({"https://github.com/alpha", "data:text/html;base64,AAAA"})}
     in_workspace(files) do |workspace|
-      ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"]).should be_empty
+      salvaged(workspace, ["wall.svg"]).should be_empty
     end
   end
 
@@ -224,7 +229,7 @@ describe ContributorMural::AvatarSalvage do
       "data:image/png;base64,AA\nBB",
     ].each do |uri|
       in_workspace({"wall.svg" => wall({"https://github.com/alpha", uri})}) do |workspace|
-        found = ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"])
+        found = salvaged(workspace, ["wall.svg"])
         fail "salvage accepted #{uri.inspect}" unless found.empty?
       end
     end
@@ -234,7 +239,7 @@ describe ContributorMural::AvatarSalvage do
     ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"].each do |type|
       files = {"wall.svg" => wall({"https://github.com/alpha", "data:#{type};base64,AAAA=="})}
       in_workspace(files) do |workspace|
-        found = ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"])
+        found = salvaged(workspace, ["wall.svg"])
         fail "salvage rejected #{type}" if found.empty?
       end
     end
@@ -257,7 +262,7 @@ describe ContributorMural::AvatarSalvage do
       SVG
 
     in_workspace({"wall.svg" => svg}) do |workspace|
-      ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"]).should eq({
+      salvaged(workspace, ["wall.svg"]).should eq({
         "https://github.com/alpha" => "data:image/png;base64,AAAA",
         "https://github.com/bravo" => "data:image/png;base64,BBBB",
       })
@@ -266,7 +271,7 @@ describe ContributorMural::AvatarSalvage do
 
   it "treats a truncated document as a cache miss rather than an error" do
     in_workspace({"wall.svg" => %(<svg><a href="https://github.com/alpha)}) do |workspace|
-      ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"]).should be_empty
+      salvaged(workspace, ["wall.svg"]).should be_empty
     end
   end
 end
@@ -293,7 +298,7 @@ describe "ContributorMural::AvatarSalvage against every style" do
       svg = renderer.render(ContributorMural::Resolver.grouped(embedded, config))
 
       in_workspace({"wall.svg" => svg}) do |workspace|
-        found = ContributorMural::AvatarSalvage.read(workspace, ["wall.svg"])
+        found = salvaged(workspace, ["wall.svg"])
         fail "#{style}: salvaged #{found.size} of #{users.size}" unless found.size == users.size
         users.each do |user|
           key = ContributorMural::SVG.escape(user.link)

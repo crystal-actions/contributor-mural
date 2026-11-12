@@ -164,3 +164,17 @@ describe ContributorMural::Renderer do
     end
   end
 end
+
+# Capitals at the lower-case estimate came out a sixth short, and a bold
+# all-caps section title was clipped at the right edge.
+describe "section title width" do
+  it "funds an all-caps title at the capitals' own width" do
+    config = config_for("users:\n  - login: alpha\n    group: SPECIAL THANKS TO OUR SPONSORS")
+    users = ContributorMural::Resolver.resolve(config)
+    renderer = ContributorMural::Renderer.for(ContributorMural::Style::Orbit, config)
+    renderer.prepare(users)
+    embedded, _ = ContributorMural::Embedder.new(FakeAvatarSource.new).embed(users, renderer, fail_on_missing: false)
+    renderer.render(ContributorMural::Resolver.grouped(embedded, config))
+    renderer.last_size[0].should be > 270
+  end
+end

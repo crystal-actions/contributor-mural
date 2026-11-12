@@ -11,9 +11,9 @@ module ContributorMural::Renderers
 
     def prepare(users : Array(ResolvedUser)) : Nil
       tiers = @config.mosaic.tiers
-      ranked = users.sort_by { |user| {-user.weight, user.login.downcase} }
-      ranked.each_with_index do |user, index|
-        tier_index = index * tiers.size // ranked.size
+      places = weight_places(users)
+      users.each do |user|
+        tier_index = (places[user.login] * tiers.size / users.size).to_i
         # Tiers are cut by list fraction, so they cannot single anyone out:
         # `scale` multiplies the span this user landed on and rounds (ties
         # up), which targets exactly the person asking for it and does not

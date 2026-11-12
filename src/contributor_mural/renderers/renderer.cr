@@ -29,6 +29,21 @@ module ContributorMural
     def prepare(users : Array(ResolvedUser)) : Nil
     end
 
+    # Each user's place in weight order, heaviest first, with a run of equal
+    # weights sharing the middle of the places it covers. Broken by login
+    # instead, equal weights were sized by the alphabet: six stargazers, none
+    # weighted, came out at three different sizes.
+    protected def weight_places(users : Array(ResolvedUser)) : Hash(String, Float64)
+      places = {} of String => Float64
+      taken = 0
+      users.group_by(&.weight).to_a.sort_by! { |(weight, _group)| -weight }.each do |(_weight, group)|
+        middle = taken + (group.size - 1) / 2.0
+        group.each { |user| places[user.login] = middle }
+        taken += group.size
+      end
+      places
+    end
+
     # Per-document scratch a style has to clear before it draws another one:
     # section ordinals, colour cycles, generated clip-path ids, cached packs.
     # A hook rather than each style overriding `render` and remembering to call
@@ -218,6 +233,14 @@ module ContributorMural
       mode.dark? ? theme.dark_palette : theme.light_palette
     end
 
+    # Whether a palette wants a style's dark inks. Decided by the palette, not
+    # by the mode, in both the auto CSS and the static fills: `midnight` is one
+    # dark palette in both modes, and the auto SVG gave it dark inks while the
+    # same config's PNG — pinned to light — drew light ones.
+    protected def dark_inks?(palette : Palette) : Bool
+      palette == theme.dark_palette
+    end
+
     protected def label_paint : String
       mode.auto? ? %(class="mural-label") : %(fill="#{SVG.escape(palette.label_color)}")
     end
@@ -261,12 +284,24 @@ module ContributorMural
     protected def text_width(text : String, font_size : Float64) : Float64
       # CJK and other wide scripts occupy roughly a full em, and so do the
       # symbols and emoji from Misc Technical (U+2300) up — ✨, ☕, ⭐.
-      units = text.each_char.sum { |char| char.ord >= 0x2300 ? 1.0 : 0.55 }
+      # Capitals run wide too: at 0.55 an all-caps section title such as
+      # "SPECIAL THANKS TO OUR SPONSORS" came out a sixth short, clipped at
+      # the canvas edge.
+      units = text.each_char.sum do |char|
+        if char.ord >= 0x2300
+          1.0
+        elsif char.uppercase?
+          0.68
+        else
+          0.55
+        end
+      end
       units * font_size
     end
 
     protected def title_for(user : EmbeddedUser) : String
-      base = user.name == user.login ? user.login : "#{user.name} (@#{user.login})"
+      # An anonymous author has no @handle to show, only their git name.
+      base = user.name == user.login || user.anonymous? ? user.name : "#{user.name} (@#{user.login})"
       if role = user.role
         "#{base} · #{role}"
       else

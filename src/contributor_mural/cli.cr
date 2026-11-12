@@ -20,6 +20,18 @@ module ContributorMural
           puts opts
           exit 0
         end
+        opts.missing_option do |flag|
+          STDERR.puts "#{flag} needs a value"
+          STDERR.puts opts
+          exit 2
+        end
+        opts.unknown_args do |args|
+          unless args.empty?
+            STDERR.puts "unexpected argument: #{args.first} (pass a config file with --config)"
+            STDERR.puts opts
+            exit 2
+          end
+        end
         opts.invalid_option do |flag|
           STDERR.puts "unknown option: #{flag}"
           STDERR.puts opts

@@ -42,19 +42,33 @@ module ContributorMural
       end
     end
 
-    # Whether writing `path` stays inside the workspace once symlinks are
-    # followed. Judged on the deepest part of it that already exists, so it can
-    # be asked before any directory on the way is created — `mkdir_p` through a
-    # linked directory would otherwise build the rest of the path outside.
-    def self.writable?(workspace : String, path : String) : Bool
+    # Where writing `path` actually lands once symlinks are followed, relative
+    # to the workspace — or nil when that is outside it, or inside `.git`. Judged
+    # on the deepest part of it that already exists, so it can be asked before
+    # any directory on the way is created — `mkdir_p` through a linked directory
+    # would otherwise build the rest of the path outside.
+    #
+    # The landing spot is what has to be written *and* committed: staging the
+    # link itself stages nothing, and the run reported "up to date" over a real
+    # file it had just changed.
+    def self.destination(workspace : String, path : String) : String?
       full = File.join(workspace, path)
       # A dangling link leads wherever it says, and nothing exists to resolve.
-      return false if File.symlink?(full) && !File.exists?(full)
+      return if File.symlink?(full) && !File.exists?(full)
       probe = full
+      rest = [] of String
       until File.exists?(probe)
+        rest.unshift(File.basename(probe))
         probe = File.dirname(probe)
       end
-      inside?(File.realpath(workspace), File.realpath(probe))
+      root = File.realpath(workspace)
+      target = File.join([File.realpath(probe)] + rest)
+      return unless inside?(root, target) && target != root
+      relative = target[root.size + 1..]
+      # A link into git's own directory is inside the checkout and still the
+      # one place a generated file must never go: it overwrote `.git/config`.
+      return if relative.split(File::SEPARATOR).any? { |part| part.downcase == ".git" }
+      relative
     end
 
     private def self.inside?(root : String, resolved : String) : Bool

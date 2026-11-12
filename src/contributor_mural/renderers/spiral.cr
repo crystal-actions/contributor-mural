@@ -13,12 +13,12 @@ module ContributorMural::Renderers
 
     def prepare(users : Array(ResolvedUser)) : Nil
       spiral = @config.spiral
-      ranked = users.sort_by { |user| {-user.weight, user.login.downcase} }
-      last = Math.max(ranked.size - 1, 1)
-      ranked.each_with_index do |user, index|
+      places = weight_places(users)
+      last = Math.max(users.size - 1, 1)
+      users.each do |user|
         # A power curve below 1 drops quickly among the leaders and then runs
         # nearly flat, so the long tail stays a uniform field of avatars.
-        t = (index / last.to_f) ** 0.45
+        t = (places[user.login] / last.to_f) ** 0.45
         size = spiral.max_size - (spiral.max_size - spiral.min_size) * t
         # `scale` multiplies the size the taper arrived at, and `place` grows
         # each radius from the area already covered, so an emphasised avatar
@@ -129,21 +129,51 @@ module ContributorMural::Renderers
         moved = false
         spots.each do |spot|
           wanted = (size + spot[:size]) / 2 + @config.spiral.gap
-          # How far the neighbour sits off this ray: further than `wanted` and
-          # it cannot be reached at any radius.
-          offset = spot[:radius] * Math.sin(angle - spot[:angle])
-          reach_squared = wanted * wanted - offset * offset
-          next if reach_squared <= 0
+          blocked = @config.spiral.shape.circle? ? disc_blocked(spot, angle, wanted) : box_blocked(spot, angle, wanted)
+          next unless blocked
+          next unless radius > blocked[0] && radius < blocked[1]
 
-          along = spot[:radius] * Math.cos(angle - spot[:angle])
-          reach = Math.sqrt(reach_squared)
-          next unless radius > along - reach && radius < along + reach
-
-          radius = along + reach
+          radius = blocked[1]
           moved = true
         end
         break radius unless moved
       end
+    end
+
+    # The radii on this ray at which a disc comes within `wanted` of the
+    # neighbour's centre: the roots of a quadratic.
+    private def disc_blocked(spot : Spot, angle : Float64, wanted : Float64) : {Float64, Float64}?
+      # How far the neighbour sits off this ray: further than `wanted` and
+      # it cannot be reached at any radius.
+      offset = spot[:radius] * Math.sin(angle - spot[:angle])
+      reach_squared = wanted * wanted - offset * offset
+      return if reach_squared <= 0
+
+      along = spot[:radius] * Math.cos(angle - spot[:angle])
+      reach = Math.sqrt(reach_squared)
+      {along - reach, along + reach}
+    end
+
+    # The same for square and rounded avatars, which are axis-aligned boxes:
+    # spacing them as discs let two meet corner to corner on a diagonal. Two
+    # boxes clear when they are `wanted` apart on either axis, so the radii
+    # that collide are where both axes are too close — one interval per axis,
+    # intersected.
+    private def box_blocked(spot : Spot, angle : Float64, wanted : Float64) : {Float64, Float64}?
+      x = axis_blocked(Math.cos(angle), spot[:radius] * Math.cos(spot[:angle]), wanted)
+      y = axis_blocked(Math.sin(angle), spot[:radius] * Math.sin(spot[:angle]), wanted)
+      return unless x && y
+      low, high = Math.max(x[0], y[0]), Math.min(x[1], y[1])
+      {low, high} if low < high
+    end
+
+    # Radii `r` at which `|r * direction - center| < wanted`.
+    private def axis_blocked(direction : Float64, center : Float64, wanted : Float64) : {Float64, Float64}?
+      if direction.abs < 1e-12
+        return center.abs < wanted ? {-Float64::INFINITY, Float64::INFINITY} : nil
+      end
+      a, b = (center - wanted) / direction, (center + wanted) / direction
+      {Math.min(a, b), Math.max(a, b)}
     end
 
     private def size_for(login : String) : Float64

@@ -114,7 +114,7 @@ module ContributorMural::Renderers
     end
 
     protected def style_rules(palette : Palette) : String
-      inks = palette == theme.dark_palette ? DARK_INKS : LIGHT_INKS
+      inks = dark_inks?(palette) ? DARK_INKS : LIGHT_INKS
       rules = ".mural-building{fill:#{inks[:building]}}.mural-ground{fill:#{inks[:ground]}}"
       if @config.skyline.windows?
         rules += ".mural-window-lit{fill:#{inks[:lit]}}.mural-window-dark{fill:#{inks[:unlit]}}"
@@ -135,6 +135,7 @@ module ContributorMural::Renderers
       rows, width, _height, mast = layout(users)
       wall = skyline.avatar_size + 2 * PAD
       left = skyline.gap + gutter_for(users)
+      spacing = spacing(users)
       clipped = !skyline.shape.square?
 
       y = y_offset
@@ -144,7 +145,7 @@ module ContributorMural::Renderers
         baseline = y + TOP_PAD + extent(row, mast)
         io << %(  <rect x="0" y="#{SVG.num(baseline)}" width="#{SVG.num(width)}" height="#{SVG.num(GROUND_H)}" #{ground_paint}/>\n)
         row.each_with_index do |user, column|
-          draw_building(io, user, building, left + column * (wall + skyline.gap), wall, baseline, clipped,
+          draw_building(io, user, building, left + column * (wall + spacing), wall, baseline, clipped,
             user.login == mast)
           building += 1
         end
@@ -158,11 +159,13 @@ module ContributorMural::Renderers
     # {rows, block width, block height, mast}; pure, so sizing and drawing agree.
     private def layout(users : Array(EmbeddedUser)) : {Array(Array(EmbeddedUser)), Float64, Float64, String}
       skyline = @config.skyline
+      spacing = spacing(users)
+      columns = columns(spacing)
       rows = users.each_slice(columns).to_a
       used = Math.min(columns, users.size)
       mast = mast_of(users)
       inset = skyline.gap + gutter_for(users)
-      width = 2 * inset + used * (skyline.avatar_size + 2 * PAD) + (used - 1) * skyline.gap
+      width = 2 * inset + used * (skyline.avatar_size + 2 * PAD) + (used - 1) * spacing
 
       height = 0.0
       rows.each_with_index do |row, index|
@@ -173,10 +176,10 @@ module ContributorMural::Renderers
       {rows, width, height, mast}
     end
 
-    private def columns : Int32
+    private def columns(spacing : Float64) : Int32
       skyline = @config.skyline
-      pitch = skyline.avatar_size + (2 * PAD).to_i + skyline.gap
-      Math.max((skyline.width + skyline.gap) // pitch, 1)
+      pitch = skyline.avatar_size + 2 * PAD + spacing
+      Math.max(((skyline.width + spacing) / pitch).floor.to_i, 1)
     end
 
     # One mast per section's skyline: its tallest tower, first on ties. Read
@@ -336,6 +339,12 @@ module ContributorMural::Renderers
       Math.max(@gutter, overhang(users))
     end
 
+    # Between two buildings: `gap`, or as much as two neighbouring names
+    # overhang their walls, so the names never run into each other.
+    private def spacing(users : Array(EmbeddedUser)) : Float64
+      Math.max(@config.skyline.gap.to_f, 2 * gutter_for(users))
+    end
+
     private def overhang(users : Array(Labelled)) : Float64
       skyline = @config.skyline
       return 0.0 unless skyline.show_names?
@@ -345,7 +354,7 @@ module ContributorMural::Renderers
     end
 
     private def inks
-      mode.dark? ? DARK_INKS : LIGHT_INKS
+      dark_inks?(palette) ? DARK_INKS : LIGHT_INKS
     end
 
     private def building_paint : String

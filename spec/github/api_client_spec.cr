@@ -313,6 +313,20 @@ describe "ContributorMural::GitHubApi throttling" do
   end
 end
 
+describe "ContributorMural::GitHubApi a long pause" do
+  # Clamped to 30s and retried twice, it spent a minute and then reported a
+  # pause GitHub never asked for.
+  it "fails at once, naming the delay GitHub asked for" do
+    headers = HTTP::Headers{"Retry-After" => "3600"}
+    with_api_server({} of Int32 => String, status: 403, headers: headers) do |base, seen|
+      expect_raises(ContributorMural::ApiError, /3600s pause/) do
+        github_api(api_base: base, backoff_base: 0.seconds).contributors("o/r")
+      end
+      seen.size.should eq(1)
+    end
+  end
+end
+
 describe "ContributorMural::GitHubApi pagination" do
   it "fetches the pages after the first together, in order" do
     with_paginated_server(4) do |server|

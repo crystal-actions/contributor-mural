@@ -6,7 +6,7 @@ describe ContributorMural::Config do
       config = ContributorMural::Config.load(SpecHelper.fixture("configs", "minimal.yml"))
 
       config.style.should eq(ContributorMural::Style::Grid)
-      config.output.should eq("CONTRIBUTOR_MURAL.svg")
+      config.render_targets.first[0].should eq("CONTRIBUTOR_MURAL.svg")
       config.sort.should eq(ContributorMural::SortMode::Weight)
       config.limit.should be_nil
       config.fail_on_missing?.should be_false
@@ -123,6 +123,26 @@ describe ContributorMural::Config do
         ContributorMural::Config.parse("style: honeycomb\nusers:\n  - login: a\n---\nusers:\n  - login: b\n")
       end
       error.line.should eq(4)
+    end
+
+    it "accepts a closing marker with nothing after it" do
+      ContributorMural::Config.parse("users:\n  - login: a\n---\n# end\n").users.size.should eq(1)
+    end
+
+    it "names the mistake inside a nested block, not just the block" do
+      expect_raises(ContributorMural::ConfigError, /Unknown yaml attribute: repoo at line 2/) do
+        ContributorMural::Config.parse("contributors:\n  repoo: a/b\n")
+      end
+      expect_raises(ContributorMural::ConfigError, /unknown value "hexagon"/) do
+        ContributorMural::Config.parse("outputs:\n  - path: a.svg\n    style: hexagon\n")
+      end
+    end
+
+    it "keeps the `source` hint to the old top-level key" do
+      error = expect_raises(ContributorMural::ConfigError) do
+        ContributorMural::Config.parse("users:\n  - login: a\n    source: manual\n")
+      end
+      error.message.to_s.should_not contain("was removed")
     end
 
     it "still accepts a single document that opens with the marker" do

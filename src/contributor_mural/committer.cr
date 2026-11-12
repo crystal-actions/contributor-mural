@@ -76,12 +76,15 @@ module ContributorMural
     # Scoped to our own paths so unrelated staged work from an earlier step
     # is neither counted as our change nor swept into our commit.
     private def staged_changes?(paths : Array(String)) : Bool
-      status = Process.run("git", ["-C", @workspace, "diff", "--cached", "--quiet", "--"] + paths)
+      status = Process.run("git", ["--literal-pathspecs", "-C", @workspace, "diff", "--cached", "--quiet", "--"] + paths)
       !status.success?
     end
 
     private def run(command : Array(String), repo : Bool = true) : Nil
-      argv = repo ? ["-C", @workspace] : [] of String
+      # Literal: an output named `*.svg` is a file, not a pattern that sweeps
+      # every other changed SVG in the checkout into our commit.
+      argv = ["--literal-pathspecs"]
+      argv += ["-C", @workspace] if repo
       argv += command
       output = IO::Memory.new
       status = Process.run("git", argv, output: output, error: output)

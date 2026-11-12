@@ -53,6 +53,27 @@ private def stations(svg : String) : Array({Float64, Float64})
 end
 
 describe ContributorMural::Renderers::Metro do
+  # The turn swung out by its corner alone, and ran the rail through the name
+  # of the station at the end of the row.
+  it "turns wide enough to clear the end station's name" do
+    users = metro_users(6).gsub(/(login: (\w+)\n)/) { "#{$1}    name: Maximilian #{$2}\n" }
+    svg = render_metro("style: metro\nmetro:\n  columns: 3\n  station_size: 24\n  line_width: 4\n#{users}")
+    xs = stations(svg).map(&.[0])
+    half_label = (0.68 + 9 * 0.55) * 11 / 2 # "Maximilia…"
+    rails(svg).each do |(_colour, x, _top, _bottom)|
+      Math.min((x - xs.max).abs, (x - xs.min).abs).should be >= half_label
+    end
+  end
+
+  # Documented, and warned about, as drawing exactly what it would have drawn
+  # anyway; it widened the pitch regardless.
+  it "draws the same wall with `weave` when there is nothing to weave" do
+    users = metro_users(8).gsub(/(login: (\w+)\n)/) { "#{$1}    name: Maximilian #{$2}\n" }
+    metro = "style: metro\nmetro:\n  columns: 4\n  station_size: 32\n  line_width: 4\n  gap: 10\n"
+    plain = render_metro("#{metro}#{users}")
+    render_metro("#{metro}  weave: true\n#{users}").should eq(plain)
+  end
+
   it "renders the metro golden file" do
     svg = render_metro("style: metro\nmetro:\n  columns: 3\n#{metro_users(8)}")
     svg.should contain(%(clip-path="url(#metro-clip)"))

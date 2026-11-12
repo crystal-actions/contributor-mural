@@ -30,6 +30,17 @@ module ContributorMural
       png_a == png_b
     end
 
+    # The pixel width a PNG data URI declares in its IHDR, read off the first
+    # 24 bytes alone; nil for anything else.
+    def self.png_width(uri : String) : Int32?
+      _, _, body = uri.partition(',')
+      head = Base64.decode(body[0, Math.min(body.size, 32)])
+      return unless head.size >= 24 && head[0, SIGNATURE.size] == SIGNATURE && head[12, 4] == "IHDR".to_slice
+      IO::ByteFormat::BigEndian.decode(UInt32, head[16, 4]).to_i
+    rescue Base64::Error
+      nil
+    end
+
     # The chunks that are not IDAT, then the inflated image data, or nil for
     # anything that is not a well-formed PNG.
     private def self.canonical_png(base64 : String) : {Array({String, Bytes}), Bytes}?

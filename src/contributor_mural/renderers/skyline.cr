@@ -135,6 +135,7 @@ module ContributorMural::Renderers
       rows, width, _height, mast = layout(users)
       wall = skyline.avatar_size + 2 * PAD
       left = skyline.gap + gutter_for(users)
+      spacing = spacing(users)
       clipped = !skyline.shape.square?
 
       y = y_offset
@@ -144,7 +145,7 @@ module ContributorMural::Renderers
         baseline = y + TOP_PAD + extent(row, mast)
         io << %(  <rect x="0" y="#{SVG.num(baseline)}" width="#{SVG.num(width)}" height="#{SVG.num(GROUND_H)}" #{ground_paint}/>\n)
         row.each_with_index do |user, column|
-          draw_building(io, user, building, left + column * (wall + spacing(users)), wall, baseline, clipped,
+          draw_building(io, user, building, left + column * (wall + spacing), wall, baseline, clipped,
             user.login == mast)
           building += 1
         end
@@ -158,11 +159,13 @@ module ContributorMural::Renderers
     # {rows, block width, block height, mast}; pure, so sizing and drawing agree.
     private def layout(users : Array(EmbeddedUser)) : {Array(Array(EmbeddedUser)), Float64, Float64, String}
       skyline = @config.skyline
+      spacing = spacing(users)
+      columns = columns(spacing)
       rows = users.each_slice(columns).to_a
       used = Math.min(columns, users.size)
       mast = mast_of(users)
       inset = skyline.gap + gutter_for(users)
-      width = 2 * inset + used * (skyline.avatar_size + 2 * PAD) + (used - 1) * spacing(users)
+      width = 2 * inset + used * (skyline.avatar_size + 2 * PAD) + (used - 1) * spacing
 
       height = 0.0
       rows.each_with_index do |row, index|
@@ -173,9 +176,8 @@ module ContributorMural::Renderers
       {rows, width, height, mast}
     end
 
-    private def columns : Int32
+    private def columns(spacing : Float64) : Int32
       skyline = @config.skyline
-      spacing = Math.max(skyline.gap.to_f, 2 * @gutter)
       pitch = skyline.avatar_size + 2 * PAD + spacing
       Math.max(((skyline.width + spacing) / pitch).floor.to_i, 1)
     end

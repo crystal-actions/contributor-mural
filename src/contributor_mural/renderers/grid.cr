@@ -51,10 +51,11 @@ module ContributorMural::Renderers
       cell_h = grid.avatar_size + label_height(users)
       clipped = !grid.shape.square?
       gutter = gutter_for(users)
+      spacing = spacing(users)
 
       users.each_with_index do |user, index|
         row, col = index.divmod(cols)
-        x = gutter + grid.margin + col * (cell_w + spacing(users))
+        x = gutter + grid.margin + col * (cell_w + spacing)
         y = grid.margin + row * (cell_h + grid.margin) + y_offset
 
         linked(io, user) do

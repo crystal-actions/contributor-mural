@@ -49,6 +49,11 @@ module ContributorMural
       # link that leads somewhere it must not would otherwise stop the run after
       # the outputs before it were already overwritten.
       destinations = targets.to_h { |path, _style, _mode| {path, destination(path)} }
+      # Two outputs a symlink leads to one file: the second would overwrite
+      # the first and both would still be reported as written.
+      if destinations.values.uniq!.size != destinations.size
+        raise OutputError.new("two outputs lead to the same file through a symlink: #{destinations.keys.join(", ")}")
+      end
 
       users = Resolver.resolve(@config, fetch_api_users)
       if users.empty?
@@ -149,6 +154,8 @@ module ContributorMural
     private def destination(path : String) : String
       WorkspaceFile.destination(@workspace, path) ||
         raise OutputError.new("refusing to write #{path}: it leads outside the repository or into .git through a symlink")
+    rescue ex : File::Error
+      raise OutputError.new("could not write #{path}: #{ex.message}")
     end
 
     private def target_mode(path : String, mode_override : ThemeMode?) : ThemeMode

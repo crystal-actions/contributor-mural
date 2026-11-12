@@ -20,6 +20,9 @@ describe ContributorMural::Resolver do
     curated = users.find! { |user| user.login == "alex" && !user.anonymous? }
     curated.weight.should eq(3)
     curated.avatar_url.should be_nil
+    # Kept apart all the way through: every renderer keys a person by login.
+    users.map(&.login).uniq!.size.should eq(2)
+    users.find!(&.anonymous?).name.should eq("alex")
   end
 
   it "does not take a login in another case for a display name" do

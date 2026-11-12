@@ -46,9 +46,10 @@ module ContributorMural
     # stay clear of the secondary rate limit that punishes bursts.
     PAGE_WINDOW = 4
 
-    # A secondary rate limit names its own delay; anything longer than this is
-    # better spent failing with a message someone can act on.
-    MAX_RETRY_AFTER = 30.seconds
+    # A secondary rate limit names its own delay — GitHub's guidance is at least
+    # a minute — and that is waited out; anything longer than this is better
+    # spent failing with a message someone can act on.
+    MAX_RETRY_AFTER = 60.seconds
 
     # GitHub's own ceiling on the contributors endpoint, which it applies by
     # answering with a full list rather than with an error. A repository past

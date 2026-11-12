@@ -300,7 +300,8 @@ module ContributorMural
     end
 
     protected def title_for(user : EmbeddedUser) : String
-      base = user.name == user.login ? user.login : "#{user.name} (@#{user.login})"
+      # An anonymous author has no @handle to show, only their git name.
+      base = user.name == user.login || user.anonymous? ? user.name : "#{user.name} (@#{user.login})"
       if role = user.role
         "#{base} · #{role}"
       else

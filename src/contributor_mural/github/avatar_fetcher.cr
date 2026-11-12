@@ -74,8 +74,6 @@ module ContributorMural
       ".svg"  => "image/svg+xml",
     }
 
-    ALLOWED_CONTENT_TYPES = CONTENT_TYPES.values.to_set
-
     # Both flags exist for specs, which fetch from and redirect between
     # 127.0.0.1 ports; production keeps redirects on public https only and
     # refuses to fetch from the runner's own network at all.
@@ -245,7 +243,7 @@ module ContributorMural
       # The raw header: `response.content_type` parses the value and raises
       # MIME::Error on malformed input.
       declared = response.headers["Content-Type"]?.try(&.split(';').first.strip.downcase)
-      return "image/svg+xml" if declared == "image/svg+xml" && String.new(body[0, Math.min(body.size, 1024)]).includes?("<svg")
+      return "image/svg+xml" if declared == "image/svg+xml" && String.new(body).includes?("<svg")
       raise AvatarError.new("not an image (#{declared || "no content type"}, #{body.size} bytes): #{url}")
     end
 

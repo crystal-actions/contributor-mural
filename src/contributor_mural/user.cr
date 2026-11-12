@@ -41,7 +41,7 @@ module ContributorMural
     getter user : ResolvedUser
     getter data_uri : String
 
-    delegate login, name, link, weight, role, group, also_in, sections, scale, to: @user
+    delegate login, name, link, weight, role, group, also_in, sections, scale, anonymous?, to: @user
 
     def initialize(@user, @data_uri)
     end

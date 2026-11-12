@@ -265,6 +265,22 @@ describe ContributorMural::HTTPAvatarSource do
       end
     end
 
+    it "takes an SVG whose root tag sits past a long prolog" do
+      server = HTTP::Server.new do |context|
+        context.response.content_type = "image/svg+xml"
+        context.response.print %(<?xml version="1.0"?>\n<!-- #{"licence " * 300} -->\n<svg xmlns="http://www.w3.org/2000/svg"/>)
+      end
+      address = server.bind_unused_port "127.0.0.1"
+      spawn { server.listen }
+      begin
+        source = avatar_source(backoff_base: 0.seconds, allow_local_targets: true)
+        _, content_type = source.fetch(user_with("http://#{address}/logo.svg"), 64)
+        content_type.should eq("image/svg+xml")
+      ensure
+        server.close
+      end
+    end
+
     # A throttle page answered 200 was embedded as the person's face, so their
     # kept face was never salvaged and `fail_on_missing` never fired.
     it "refuses a body that is no image, after retrying it" do

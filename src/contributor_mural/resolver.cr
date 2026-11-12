@@ -27,9 +27,33 @@ module ContributorMural
       # Lower-cased once rather than once per user tested against them.
       patterns = config.exclude.map(&.downcase)
       result.reject! { |user| excluded?(user.login, patterns) }
+      result = distinct_logins(result)
       result = sort(result, config.sort)
       config.limit.try { |lim| result = apply_limit(result, lim, curated) }
       result
+    end
+
+    # Kept apart in the merge, an anonymous author can still share a login with
+    # an account or with another author of the same git name — and the login is
+    # what every renderer, `limit` and the run's reports key a person by. So an
+    # author whose login is taken gets one that is not; the label still reads
+    # their name.
+    private def self.distinct_logins(users : Array(ResolvedUser)) : Array(ResolvedUser)
+      taken = users.reject(&.anonymous?).map(&.login.downcase).to_set
+      users.map do |user|
+        next user unless user.anonymous?
+        login = user.login
+        suffix = 1
+        while taken.includes?(login.downcase)
+          suffix += 1
+          login = "#{user.login}·#{suffix}"
+        end
+        taken << login.downcase
+        next user if login == user.login
+        ResolvedUser.new(login: login, name: user.name, link: user.link, avatar_url: user.avatar_url,
+          weight: user.weight, role: user.role, group: user.group, also_in: user.also_in,
+          scale: user.scale, anonymous: true)
+      end
     end
 
     # `limit` caps the wall, and used to cap it by rank alone — so a

@@ -49,13 +49,8 @@ module ContributorMural
     # for having been ours once.
     VALID_URI = /\Adata:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+\/=]*\z/
 
-    # Link (as it appears in the markup) => data URI, for every person the
-    # given outputs already carry. The first output's copy wins.
-    def self.read(workspace : String, paths : Array(String)) : Hash(String, String)
-      read_all(workspace, paths).transform_values(&.first)
-    end
-
-    # Every distinct copy of each face, first output first. Outputs fetch at
+    # Link (as it appears in the markup) => every distinct copy of that face
+    # the given outputs already carry, first output first. Outputs fetch at
     # different sizes, so a person's face is a different picture in each: a
     # re-encoded fetch has to be matched against its own size's copy, or only
     # the first output is ever spared the churn commit.

@@ -69,7 +69,7 @@ module ContributorMural
           # is leaving it.
           # Only for a link nobody else on this wall carries: the face read back
           # is filed under the link, and a shared one cannot say whose it was.
-          if (kept = previous_faces[SVG.escape(job.user.link)]?.try(&.first)) &&
+          if (kept = kept_face(job)) &&
              users.one? { |user| user.link == job.user.link }
             embedded << EmbeddedUser.new(job.user, kept)
             @salvaged << job.user.login
@@ -93,6 +93,15 @@ module ContributorMural
       return fetched if copies.nil? || copies.includes?(fetched)
       return fetched unless users.one? { |user| user.link == job.user.link }
       copies.find { |kept| SameImage.same?(kept, fetched) } || fetched
+    end
+
+    # The previous wall's copy of this face, preferring the one drawn at the
+    # size this target fetches: each output holds its own, and handing every
+    # output the first one's rewrote the others over a face that never changed.
+    private def kept_face(job : Job) : String?
+      copies = previous_faces[SVG.escape(job.user.link)]?
+      return unless copies
+      copies.find { |copy| SameImage.png_width(copy) == job.size } || copies.first
     end
 
     private def jobs_for(users : Array(ResolvedUser), renderer : Renderer) : Array(Job)

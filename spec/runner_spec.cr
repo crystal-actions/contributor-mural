@@ -808,6 +808,19 @@ describe ContributorMural::WorkspaceFile do
 end
 
 describe "ContributorMural::Runner refusing one output" do
+  it "refuses two outputs a symlink leads to one file" do
+    yaml = "outputs:\n  - path: a.svg\n  - path: b.svg\nusers:\n  - login: alpha\n"
+    run_in_tmp(yaml, before: ->(workspace : String) {
+      File.write(File.join(workspace, "b.svg"), "old")
+      File.symlink("b.svg", File.join(workspace, "a.svg"))
+      nil
+    }) do |exit_code, _outputs, workspace|
+      exit_code.should eq(1)
+      ContributorMural::Annotations.io.to_s.should contain("two outputs lead to the same file")
+      File.read(File.join(workspace, "b.svg")).should eq("old")
+    end
+  end
+
   it "writes none of the others" do
     outside = File.tempname("mural_outside")
     Dir.mkdir_p(outside)

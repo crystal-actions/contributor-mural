@@ -337,8 +337,12 @@ module ContributorMural
       # sharing one `repo` variable would both end up fetching the second one.)
       fetches = [] of Proc(Array(ResolvedUser))
       if block = @config.contributors
-        contributors_repo = default_repo("contributors", block.repo)
-        fetches << -> { source.contributors(contributors_repo) }
+        contributors_repos = block.repos || [default_repo("contributors", block.repo)]
+        sum_contributions = block.weight.nil?
+        fetches << -> {
+          users = contributors_repos.flat_map { |repo| source.contributors(repo) }
+          Resolver.merge_api_users(users, sum_weights: sum_contributions)
+        }
       end
       if block = @config.members
         org = block.org

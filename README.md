@@ -688,8 +688,8 @@ contributors:               # this repository's contributors
   include_bots: false       # keep accounts GitHub types as bots; legacy
                             # service accounts need an `exclude` entry
   include_anonymous: false  # include anonymous (email-only) contributors
-  max: 100                  # cap; contribution counts become weights. GitHub itself
-                            # returns at most 500 contributors, whatever this says
+  max: 100                  # per-repository cap; contribution counts become weights.
+                            # GitHub returns at most 500 per repository
   weight: 1                 # optional: put everyone from here on one rung
   role: Code                # optional: the role line for everyone from here
   group: Contributors
@@ -715,6 +715,30 @@ sponsors:                   # GitHub Sponsors (needs a token)
   role: Sponsor
   group: Sponsors
 ```
+
+To combine contributors from several repositories, use `repos` instead of `repo`:
+
+```yaml
+contributors:
+  repos:
+    - owasp-noir/noir
+    - owasp-noir/noir-passive-rules
+```
+
+A GitHub account appears once, with its contribution counts added across the listed
+repositories (logins are matched case-insensitively). `max` applies to each repository
+before merging, as does GitHub's own 500-contributor ceiling. `include_bots`,
+`include_anonymous`, `role`, `group`, and `weight` apply to the whole source; an explicit
+`weight` is kept as one fixed value per person, rather than added. `users` overrides
+still win, and merging with other sources still keeps the highest weight.
+With `sort: none`, repositories are read in list order and each person keeps their
+first position. Anonymous authors keep their repository-specific identity and commit
+link; they are not merged across repositories or with GitHub accounts.
+
+The list must be nonempty, contain valid `owner/name` entries, and have no duplicates
+(case-insensitive). Setting both `repo` and `repos` is an error. Leaving both out still
+uses the current repository. If any repository cannot be fetched, the run fails and
+names it before writing any outputs.
 
 | Source | Requires | Weight comes from |
 | ------ | -------- | ----------------- |
@@ -960,8 +984,9 @@ contributors:               # this repository's contributors (all fields optiona
   repo: owner/name          # default: the current repository
   include_bots: false       # keep type=Bot / *[bot] accounts
   include_anonymous: false  # include anonymous (email-only) contributors
-  max: 100                  # cap fetched contributors; contributions become weight.
-                            # GitHub returns at most 500, whatever this says
+  # repos: [owner/name, owner/other]  # instead of `repo`, combine repositories
+  max: 100                  # per-repository cap; contributions become weight.
+                            # GitHub returns at most 500 per repository
   weight: 1                 # optional: one weight for everyone from this source,
                             # replacing the derived one; `users:` still overrides
   role: Code                # optional role line for everyone from this source;

@@ -169,7 +169,9 @@ module ContributorMural
     # re-file every sponsor who also has commits, quietly and everywhere at
     # once. `also_in` is unioned rather than dropped so nothing on this path can
     # lose a placement, though no API source sets one today.
-    private def self.merge_api_users(api_users : Array(ResolvedUser)) : Array(ResolvedUser)
+    # Within the contributors source, repositories measure the same thing:
+    # add their counts before the cross-source merge, unless `weight` is fixed.
+    def self.merge_api_users(api_users : Array(ResolvedUser), *, sum_weights : Bool = false) : Array(ResolvedUser)
       order = [] of String
       by_login = {} of String => ResolvedUser
 
@@ -181,7 +183,7 @@ module ContributorMural
             name: display_name(existing, user),
             link: existing.link,
             avatar_url: existing.avatar_url || user.avatar_url,
-            weight: Math.max(existing.weight, user.weight),
+            weight: sum_weights ? existing.weight + user.weight : Math.max(existing.weight, user.weight),
             role: existing.role || user.role,
             group: existing.group || user.group,
             also_in: (existing.also_in + user.also_in).uniq!,

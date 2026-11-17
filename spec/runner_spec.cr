@@ -1,4 +1,5 @@
 require "file_utils"
+require "http/server"
 require "./spec_helper"
 require "./support/fake_avatar_source"
 require "./support/fake_github_source"
@@ -1167,6 +1168,157 @@ describe "ContributorMural::Runner missing-avatar reporting" do
     run_in_tmp(yaml) do |exit_code, _outputs, _workspace|
       exit_code.should eq(0)
       ContributorMural::Annotations.io.to_s.should_not contain("not in the mural")
+    end
+  end
+end
+
+private def with_repos_api(yaml : String, responses : Hash(String, String), &)
+  seen = [] of String
+  server = HTTP::Server.new do |context|
+    seen << context.request.path
+    context.response.content_type = "application/json"
+    if body = responses[context.request.path]?
+      page = context.request.query_params["page"]? || "1"
+      context.response.print(page == "1" ? body : "[]")
+    else
+      context.response.status_code = 404
+    end
+  end
+  address = server.bind_unused_port("127.0.0.1")
+  spawn { server.listen }
+  api = ContributorMural::GitHubApi.new(config: ContributorMural::Config.parse(yaml), api_base: "http://#{address}")
+  begin
+    yield api, seen
+  ensure
+    api.close
+    server.close
+  end
+end
+
+describe "rendering contributors from several repositories" do
+  it "preserves the default repository and lets explicit repo and repos bypass it" do
+    previous = ENV["GITHUB_REPOSITORY"]?
+    ENV["GITHUB_REPOSITORY"] = "o/current"
+    begin
+      {
+        {"contributors:", ["o/current"]},
+        {"contributors:\n  repo: o/one", ["o/one"]},
+        {"contributors:\n  repos: [o/one, o/two]", ["o/one", "o/two"]},
+      }.each do |yaml, expected|
+        source = FakeGitHubSource.new(contributors: [ContributorMural::ResolvedUser.new("alice")])
+        run_in_tmp(yaml, github_source: source) do |exit_code, outputs, _workspace|
+          exit_code.should eq(0)
+          outputs.should contain("user_count=1")
+          source.requested_repos.should eq(expected)
+        end
+      end
+    ensure
+      if previous
+        ENV["GITHUB_REPOSITORY"] = previous
+      else
+        ENV.delete("GITHUB_REPOSITORY")
+      end
+    end
+  end
+
+  it "applies max per repository, sums before sorting and merges other sources by maximum" do
+    yaml = <<-YAML
+      contributors:
+        repos: [o/one, o/two]
+        max: 2
+        role: Code
+        group: Team
+      stargazers:
+        repo: o/stars
+      YAML
+    responses = {
+      "/repos/o/one/contributors" => %([{"login":"alice","contributions":3},{"login":"dependabot[bot]","contributions":99,"type":"Bot"},{"login":"bob","contributions":7},{"login":"dropped","contributions":1}]),
+      "/repos/o/two/contributors" => %([{"login":"ALICE","contributions":5},{"login":"carol","contributions":2},{"login":"dropped","contributions":1}]),
+      "/repos/o/stars/stargazers" => %([{"login":"alice"}]),
+    }
+    with_repos_api(yaml, responses) do |api, seen|
+      run_in_tmp(yaml, github_source: api) do |exit_code, outputs, workspace|
+        exit_code.should eq(0)
+        seen.should contain("/repos/o/one/contributors")
+        seen.should contain("/repos/o/two/contributors")
+        outputs.should contain("user_count=3")
+        svg = File.read(File.join(workspace, "CONTRIBUTOR_MURAL.svg"))
+        logins = svg.scan(%r{href="https://github.com/([^"/]+)"}).map(&.[1])
+        logins.should eq(["alice", "bob", "carol"])
+        svg.should contain("<title>alice · Code</title>")
+        svg.should contain(">Team</text>")
+        svg.should_not contain("dropped")
+        svg.should_not contain("dependabot")
+      end
+    end
+  end
+
+  it "keeps a fixed source weight after combining repositories, including zero" do
+    {0, 2}.each do |weight|
+      yaml = <<-YAML
+        contributors:
+          repos: [o/one, o/two]
+          weight: #{weight}
+        users:
+          - login: benchmark
+            weight: #{weight + 1}
+        YAML
+      responses = {
+        "/repos/o/one/contributors" => %([{"login":"alice","contributions":20}]),
+        "/repos/o/two/contributors" => %([{"login":"alice","contributions":30}]),
+      }
+      with_repos_api(yaml, responses) do |api, _seen|
+        run_in_tmp(yaml, github_source: api) do |exit_code, outputs, workspace|
+          exit_code.should eq(0)
+          outputs.should contain("user_count=2")
+          svg = File.read(File.join(workspace, "CONTRIBUTOR_MURAL.svg"))
+          logins = svg.scan(%r{href="https://github.com/([^"/]+)"}).map(&.[1])
+          logins.should eq(["benchmark", "alice"])
+        end
+      end
+    end
+  end
+
+  it "keeps repository order with sort none and enables bots and anonymous authors across the source" do
+    yaml = <<-YAML
+      sort: none
+      contributors:
+        repos: [o/one, o/two]
+        include_bots: true
+        include_anonymous: true
+        role: Code
+      YAML
+    responses = {
+      "/repos/o/one/contributors" => %([{"login":"zoe","contributions":1},{"name":"Ghost","email":"ghost@example.com","contributions":2}]),
+      "/repos/o/two/contributors" => %([{"login":"bot[bot]","type":"Bot","contributions":3},{"login":"alice","contributions":9}]),
+    }
+    with_repos_api(yaml, responses) do |api, _seen|
+      run_in_tmp(yaml, github_source: api) do |exit_code, outputs, workspace|
+        exit_code.should eq(0)
+        outputs.should contain("user_count=4")
+        svg = File.read(File.join(workspace, "CONTRIBUTOR_MURAL.svg"))
+        svg.index!("<title>zoe · Code</title>").should be < svg.index!("<title>Ghost · Code</title>")
+        svg.index!("<title>Ghost · Code</title>").should be < svg.index!("<title>bot[bot] · Code</title>")
+        svg.index!("<title>bot[bot] · Code</title>").should be < svg.index!("<title>alice · Code</title>")
+      end
+    end
+  end
+
+  it "names a failing repository and leaves existing outputs untouched" do
+    yaml = <<-YAML
+      output: wall.svg
+      contributors:
+        repos: [o/one, o/missing]
+      YAML
+    responses = {"/repos/o/one/contributors" => %([{"login":"alice","contributions":3}])}
+    seed = ->(workspace : String) { File.write(File.join(workspace, "wall.svg"), "PRECIOUS"); nil }
+    with_repos_api(yaml, responses) do |api, _seen|
+      run_in_tmp(yaml, github_source: api, before: seed) do |exit_code, outputs, workspace|
+        exit_code.should eq(1)
+        outputs.should be_empty
+        File.read(File.join(workspace, "wall.svg")).should eq("PRECIOUS")
+        ContributorMural::Annotations.io.to_s.should contain("o/missing")
+      end
     end
   end
 end

@@ -611,3 +611,38 @@ describe "grid columns" do
     (error.message || "").should contain("grid `columns` must be between 1 and 100, or `auto`")
   end
 end
+
+describe "contributors repos" do
+  it "parses a repository list without changing single-repo defaults" do
+    config = ContributorMural::Config.parse("contributors:\n  repos: [owasp-noir/noir, owasp-noir/noir-passive-rules]")
+    config.validate!
+    config.contributors.as(ContributorMural::ContributorsConfig).repos.should eq(["owasp-noir/noir", "owasp-noir/noir-passive-rules"])
+    config.contributors.as(ContributorMural::ContributorsConfig).repo.should be_nil
+    ContributorMural::Config.parse("contributors:").contributors.as(ContributorMural::ContributorsConfig).repos.should be_nil
+    ContributorMural::Config.parse("contributors:\n  repo: o/r").contributors.as(ContributorMural::ContributorsConfig).repo.should eq("o/r")
+  end
+
+  {
+    {"repo: o/r\n  repos: [o/s]", "use either `repo` or `repos`, not both"},
+    {"repos: []", "`repos` must not be empty"},
+    {"repos: [o/r, O/R]", "`repos` must not contain duplicates"},
+    {"repos: [o/r, invalid]", "`repos[1]` must look like owner/name"},
+    {"repos: [o/r, 'o/r?anon=1']", "`repos[1]` must look like owner/name"},
+    {"repos: [o/r, 'o/..']", "`repos[1]` must look like owner/name"},
+    {"repos: [o/r, '']", "`repos[1]` must look like owner/name"},
+  }.each do |fields, message|
+    it "rejects #{fields.inspect}" do
+      config = ContributorMural::Config.parse("contributors:\n  #{fields}")
+      error = expect_raises(ContributorMural::ConfigError) { config.validate! }
+      (error.message || "").should contain(message)
+    end
+  end
+
+  {"o/r", "{}", "[o/r, {}]"}.each do |value|
+    it "rejects a repos value with the wrong type: #{value}" do
+      expect_raises(ContributorMural::ConfigError) do
+        ContributorMural::Config.parse("contributors:\n  repos: #{value}")
+      end
+    end
+  end
+end

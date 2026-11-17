@@ -597,3 +597,37 @@ describe "ContributorMural::Resolver limit warning" do
     io.to_s.should contain("1 of them is not in the mural")
   end
 end
+
+describe "merging contributors across repositories" do
+  it "sums case-insensitive accounts in first-seen order and fills missing fields" do
+    users = ContributorMural::Resolver.merge_api_users([
+      ContributorMural::ResolvedUser.new("alice", weight: 3, role: "Code", group: "Team"),
+      ContributorMural::ResolvedUser.new("bob", weight: 7),
+      ContributorMural::ResolvedUser.new("Alice", weight: 5, avatar_url: "https://a/alice"),
+      ContributorMural::ResolvedUser.new("carol", weight: 2),
+    ], sum_weights: true)
+    users.map(&.login).should eq(["alice", "bob", "carol"])
+    users.map(&.weight).should eq([8, 7, 2])
+    users.first.avatar_url.should eq("https://a/alice")
+    users.first.role.should eq("Code")
+    users.first.group.should eq("Team")
+
+    config = config_from("contributors:\nsponsors:\nsort: none\nusers:\n  - login: carol\n    weight: 1")
+    users << ContributorMural::ResolvedUser.new("ALICE", weight: 6, role: "Sponsor")
+    resolved = ContributorMural::Resolver.resolve(config, users)
+    resolved.map(&.login).should eq(["carol", "alice", "bob"])
+    resolved.map(&.weight).should eq([1, 8, 7])
+  end
+
+  it "keeps anonymous identities separate from accounts and other repositories" do
+    users = ContributorMural::Resolver.merge_api_users([
+      ContributorMural::ResolvedUser.new("alex", weight: 2),
+      ContributorMural::ResolvedUser.new("alex", weight: 3, anonymous: true,
+        link: "https://github.com/o/one/commits?author=a%40example.com"),
+      ContributorMural::ResolvedUser.new("alex", weight: 4, anonymous: true,
+        link: "https://github.com/o/two/commits?author=a%40example.com"),
+    ], sum_weights: true)
+    users.map(&.weight).should eq([2, 3, 4])
+    users.map(&.anonymous?).should eq([false, true, true])
+  end
+end

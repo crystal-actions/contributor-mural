@@ -203,6 +203,18 @@ describe ContributorMural::GitHubApi do
     end
   end
 
+  {401, 403, 429}.each do |status|
+    it "names the repository on an HTTP #{status} failure" do
+      headers = status == 403 ? HTTP::Headers{"x-ratelimit-remaining" => "0"} : HTTP::Headers.new
+      with_api_server({} of Int32 => String, status: status, headers: headers) do |base, _seen|
+        error = expect_raises(ContributorMural::ApiError) do
+          github_api(api_base: base).contributors("o/second")
+        end
+        (error.message || "").should contain("repository o/second")
+      end
+    end
+  end
+
   it "rejects malformed repo values" do
     expect_raises(ContributorMural::ApiError, /owner\/name/) do
       github_api.contributors("not-a-repo")

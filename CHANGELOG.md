@@ -7,6 +7,11 @@ and the generated files.
 
 ## Unreleased
 
+### Added
+
+- `contributors.repos` combines several repositories, sums each account's contribution
+  counts, and applies `max` per repository while preserving an explicit source `weight`.
+
 ### Changed
 
 - Config errors that used to pass and break later: `output:` next to `outputs:` (even

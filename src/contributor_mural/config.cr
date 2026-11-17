@@ -375,6 +375,12 @@ module ContributorMural
       if block = contributors
         validate_max(errors, "contributors", block.max)
         validate_repo(errors, "contributors", block.repo)
+        if repos = block.repos
+          errors << "contributors: use either `repo` or `repos`, not both" if block.repo
+          errors << "contributors `repos` must not be empty" if repos.empty?
+          errors << "contributors `repos` must not contain duplicates (case-insensitive)" if repos.map(&.downcase).uniq!.size != repos.size
+          repos.each_with_index { |repo, index| validate_repo(errors, "contributors", repo, "repos[#{index}]") }
+        end
         block.validate_defaults(errors, "contributors")
       end
       if block = members
@@ -408,12 +414,12 @@ module ContributorMural
     # `repo` is optional — left out, it comes from GITHUB_REPOSITORY at run
     # time and the API client checks it there. Written down, it can be checked
     # here, where the error names the file and the line.
-    private def validate_repo(errors : Array(String), section : String, repo : String?) : Nil
+    private def validate_repo(errors : Array(String), section : String, repo : String?, key : String = "repo") : Nil
       return unless repo
       owner, slash, name = repo.partition('/')
       return if !slash.empty? && ContributorMural.path_segment?(owner) &&
                 ContributorMural.path_segment?(name)
-      errors << "#{section} `repo` must look like owner/name: #{repo.inspect}"
+      errors << "#{section} `#{key}` must look like owner/name: #{repo.inspect}"
     end
 
     private def validate_groups(errors : Array(String)) : Nil
@@ -618,6 +624,8 @@ module ContributorMural
 
     @[YAML::Field(converter: ContributorMural::Direct(String))]
     property repo : String? = nil
+    @[YAML::Field(converter: ContributorMural::Direct(Array(String)))]
+    property repos : Array(String)? = nil
     property? include_bots : Bool = false
     property? include_anonymous : Bool = false
     property max : Int32 = 100

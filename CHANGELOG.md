@@ -7,44 +7,35 @@ and the generated files.
 
 ## Unreleased
 
+## v1.7.0
+
 ### Added
 
-- `contributors.repos` combines several repositories, sums each account's contribution
-  counts, and applies `max` per repository while preserving an explicit source `weight`.
+- `contributors.repos` combines repositories and sums contribution counts, with
+  `max` applied per repository and an explicit source `weight` preserved.
 
 ### Changed
 
-- Config errors that used to pass and break later: `output:` next to `outputs:` (even
-  the default), an empty user `name`/`role`/`group` or source `group`, an `avatar_url`
-  that is empty or a non-http scheme, a source `max` above 100000, and a comma in an
-  output path.
-- An avatar response that is not an image (an HTML throttle page, an empty body) is a
-  failed fetch: the previous face is kept or the person is skipped, instead of a broken
-  image being committed.
-- `grid`, `skyline` and `metro` widen the space between columns when the names would
-  otherwise run into each other.
+- Reject conflicting output settings, empty user/source fields, invalid avatar URLs,
+  source limits above 100000, and commas in output paths.
+- Space `grid`, `skyline`, and `metro` columns to prevent overlapping names.
 
 ### Fixed
 
-- An output that is an in-repo symlink commits the file it points at, instead of
-  reporting "up to date"; a symlink into `.git` is refused; outputs are passed to git
-  literally (`*.svg` no longer sweeps in other files); one refused output leaves the
-  others untouched.
-- Errors inside a source block or an `outputs` entry name the bad key or value.
-- A flag without its value, or a stray argument, prints usage instead of a stack trace.
-- Avatars: a 60s limit on a slowly dripped body, the full five redirects, no retries of
-  a redirect loop, a malformed PNG no longer crashes the run, and every output (not
-  just the first) keeps its face when only the PNG encoding changed.
-- A long GitHub `Retry-After` fails with the real delay instead of a clamped retry.
-- Anonymous contributors no longer merge into the GitHub account with the same login,
-  and an API login in another case is not shown as a display name.
-- Layout: square and rounded `spiral` avatars overlapping, equal weights sized by
-  login in `mosaic`/`spiral`, `voronoi` gaps with a fixed `rows`, leading spaces in
-  `stencil` text, `pebble` with `jitter: 0` on a narrow slab, `metro` turns through a
-  station name and `weave` changing an unwoven wall, all-caps section titles clipped,
-  and `midnight` skyline/constellation PNGs drawn in light inks.
-- `width`/`height` outputs match the size written in the SVG.
-- A silhouette SVG with a very long prolog no longer crashes the tracer.
+- Commit symlinked outputs at their actual destinations, reject links into `.git`
+  and duplicate destinations, and pass paths to git literally.
+- Validate all output destinations before writing, so a refused symlink leaves
+  existing outputs untouched.
+- Reject non-image avatar responses, limit slow downloads to 60 seconds, allow all
+  five redirects, and avoid retrying redirect loops.
+- Preserve each output's avatar bytes when only PNG compression changes, and prevent
+  malformed PNG chunk lengths or dimensions from crashing the run.
+- Report excessive GitHub `Retry-After` delays without shortening them.
+- Keep anonymous contributors separate from accounts and suppress redundant display names.
+- Correct spiral overlaps, equal-weight sizing, voronoi gaps, stencil centering,
+  pebble packing, metro turns and weaving, clipped titles, and dark-theme PNG colors.
+- Improve config, CLI, and output-path errors; match `width`/`height` to the SVG;
+  handle silhouette SVGs with long prologs without crashing.
 
 ## v1.6.1
 

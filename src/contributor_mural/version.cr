@@ -3,5 +3,5 @@ module ContributorMural
   # workflow, which refuses to publish a tag that disagrees with it. Both
   # guards exist because this string is what a run reports about itself — a
   # version that lies is worse than no version at all.
-  VERSION = "1.6.1"
+  VERSION = "1.7.0"
 end

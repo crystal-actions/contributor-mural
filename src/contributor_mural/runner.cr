@@ -259,10 +259,11 @@ module ContributorMural
     # as big-endian 32-bit integers.
     private def png_size(png : Bytes) : {Int32, Int32}?
       return if png.size < 24
+      return unless png[0, 8] == SameImage::SIGNATURE
       return unless png[12, 4] == "IHDR".to_slice
       width = IO::ByteFormat::BigEndian.decode(UInt32, png[16, 4])
       height = IO::ByteFormat::BigEndian.decode(UInt32, png[20, 4])
-      return if width.zero? || height.zero?
+      return unless (1..Int32::MAX).includes?(width) && (1..Int32::MAX).includes?(height)
       {width.to_i, height.to_i}
     end
 

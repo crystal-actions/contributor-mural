@@ -31,6 +31,14 @@ describe ContributorMural::SameImage do
     ContributorMural::SameImage.png_width("data:image/jpeg;base64,#{Base64.strict_encode("\xFF\xD8\xFF")}").should be_nil
   end
 
+  {0_u32, 0x80000000_u32, UInt32::MAX}.each do |width|
+    it "ignores an invalid PNG width of #{width}" do
+      png = tiny_png
+      IO::ByteFormat::BigEndian.encode(width, png[16, 4])
+      ContributorMural::SameImage.png_width(png_uri(png)).should be_nil
+    end
+  end
+
   # Summed in Int32, a chunk claiming 2^31 bytes overflowed into a crash.
   it "takes a PNG with an absurd chunk length for a different picture" do
     bogus = ContributorMural::SameImage::SIGNATURE + Bytes[0xFF, 0xFF, 0xFF, 0xF0] + "IDAT".to_slice + Bytes.new(8)

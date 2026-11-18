@@ -36,7 +36,9 @@ module ContributorMural
       _, _, body = uri.partition(',')
       head = Base64.decode(body[0, Math.min(body.size, 32)])
       return unless head.size >= 24 && head[0, SIGNATURE.size] == SIGNATURE && head[12, 4] == "IHDR".to_slice
-      IO::ByteFormat::BigEndian.decode(UInt32, head[16, 4]).to_i
+      width = IO::ByteFormat::BigEndian.decode(UInt32, head[16, 4])
+      return unless (1..Int32::MAX).includes?(width)
+      width.to_i
     rescue Base64::Error
       nil
     end

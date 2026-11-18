@@ -6,6 +6,15 @@ require "./support/fake_github_source"
 require "./support/fake_rasterizer"
 require "./support/png"
 
+private class HeaderRasterizer < ContributorMural::Rasterizer
+  def initialize(@header : Bytes)
+  end
+
+  def rasterize(svg : String, scale : Float64) : Bytes
+    @header
+  end
+end
+
 private def run_in_tmp(config_yaml : String, source = FakeAvatarSource.new,
                        github_source : ContributorMural::GitHubSource? = nil,
                        rasterizer : ContributorMural::Rasterizer? = nil,
@@ -247,6 +256,30 @@ describe ContributorMural::Runner do
       exit_code.should eq(0)
       width = outputs.lines.find!(&.starts_with?("width=")).split('=', 2).last.to_i
       width.should be > 0
+    end
+  end
+
+  it "falls back to the scaled SVG size for invalid PNG headers" do
+    yaml = "output: wall.png\nusers:\n  - login: alpha\n"
+    run_in_tmp(yaml, rasterizer: FakeRasterizer.new) do |exit_code, expected, _workspace|
+      exit_code.should eq(0)
+      headers = [] of Bytes
+      {16, 20}.each do |offset|
+        {0_u32, 0x80000000_u32, UInt32::MAX}.each do |dimension|
+          header = tiny_png
+          IO::ByteFormat::BigEndian.encode(dimension, header[offset, 4])
+          headers << header
+        end
+      end
+      invalid_signature = tiny_png
+      invalid_signature[0] = 0_u8
+      headers << invalid_signature
+      headers.each do |header|
+        run_in_tmp(yaml, rasterizer: HeaderRasterizer.new(header)) do |code, outputs, _dir|
+          code.should eq(0)
+          outputs.should eq(expected)
+        end
+      end
     end
   end
 
